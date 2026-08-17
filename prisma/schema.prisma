@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -12,21 +7,80 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
 
-model User{
-  id       String  @id @default(cuid())
-  email    String  @unique
-  password String
-  videos   Video[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  videos    Video[]
 }
 
-model Video{
-  id        String   @id @default(cuid())
+model Video {
+  id        String      @id @default(cuid())
   filename  String
   path      String
   mimetype  String
   size      Int
-  createdAt DateTime @default(now())
+  duration  Float?
+
+  status    VideoStatus @default(UPLOADED)
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  audio Audio[]
+
   userId    String
-  user      User     @relation(fields: [userId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+}
+
+model Subtitle{
+  id String @id @unique(cuid())
+  filename String
+  mimeType String
+  path String
+  size Int
+  duration Float? 
+
+  subtitleFormat SubtitleFormat @default(SRT) 
+
+  videoId String
+  video Video @relation(fields:[videoId],references:[id])
+  
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+}
+
+enum SubtitleFormat {
+  SRT
+  VTT
+}
+
+enum VideoStatus {
+  UPLOADED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+
+model Audio{
+  id String @id @default(cuid())
+  filename String
+  path String
+  mimetype String
+  size Int
+  duration Float?
+
+  videoId String
+  video Video @relation(fields:[videoId],references:[id])
+
+
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
 }
