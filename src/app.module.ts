@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -11,6 +11,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { FfmpegModule } from './ffmpeg/ffmpeg.module.js';
 import { TranscriptionModule } from './transcription/transcription.module.js';
 import { CaptionsModule } from './captions/captions.module.js';
+import { AuthMiddleware } from './auth/auth/auth.middleware.js';
 
 @Module({
     imports: [JwtModule.register({
@@ -22,4 +23,12 @@ import { CaptionsModule } from './captions/captions.module.js';
     controllers: [AppController],
     providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule{
+    configure(consumer:MiddlewareConsumer){
+        consumer
+        .apply(AuthMiddleware)
+        .forRoutes(
+            'users'
+        );
+    }
+}

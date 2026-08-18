@@ -6,76 +6,142 @@ import * as fs from 'fs/promises';
 
 @Injectable()
 export class TranscriptionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
-  transcribeAudio(audioPath: string, outputDir: string, format: 'vtt' | 'srt' = 'vtt'): Promise<string> {
-    return new Promise((resolve, reject) => {
-      // Running the standard whisper CLI command
-      // Example: whisper audio.wav --model base --output_dir ./uploads/subtitles --output_format vtt
-      const whisper = spawn('whisper', [
-        audioPath,
-        '--model', 'base',
-        '--output_dir', outputDir,
-        '--output_format', format
-      ]);
 
-      whisper.stderr.on('data', (data) => {
-        console.log(`Whisper (stderr): ${data}`);
-      });
+  // here i am going to create the audio transction service
+  //but how arw we going to do that???? 
+  //we have wisper , we have audio file 
+  // my goal is to genrate transcription from audio
 
-      whisper.stdout.on('data', (data) => {
-        console.log(`Whisper (stdout): ${data}`);
-      });
 
-      whisper.on('error', (error) => {
-        reject(error);
-      });
+  //i am going to get audio file path   
+  // so first i am going to get wisper flow spawn servie
+  // create the teanscription file then
+  // create the db entry  
+  // return  the transcription file
 
-      whisper.on('close', (code) => {
+
+  // TODO:- add output file path to creation of srt file ,
+  //      - and also add the file info and  db entry 
+
+  // adding the output path for genrated audio 
+  async transcriptAudio(audioPath: string, videoId: string) {
+
+    // using process.cwd() to always resolve from project root (works in CommonJS)
+    const root = process.cwd();
+
+    // creating output path for file 
+    const absoultePath = path.join(root, 'uploads', 'subtitle', `${videoId}`);
+    const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli.exe');
+    const absoluteModelPath = path.join(root, 'Release', 'models', 'ggml-base.bin');
+ 
+    // ensure subtitle output directory exists
+    await fs.mkdir(path.join(root, 'uploads', 'subtitle'), { recursive: true });
+
+    // create spawn process and create the wisper.cpp process
+    const wisper = spawn(absoluteWisperPath, [
+      "-m",
+      absoluteModelPath,
+      "-f",
+      audioPath,
+      "-osrt",
+      "-of",
+      absoultePath,
+      "-l",
+      "en"
+    ])
+
+
+
+    wisper.stdout?.on("data", (data) => {
+      console.log(`Whisper stdout: ${data.toString()}`);
+    });
+
+    wisper.stderr?.on("data", (data) => {
+      console.error(`Whisper stderr: ${data.toString()}`);
+    });
+
+
+
+
+    await new Promise((resolve, reject) => {
+
+
+      wisper.on("error", (err) => {
+        reject(new Error(`failed to run wisper : ${err.message}`))
+      })
+
+      wisper.on('close', (code) => {
         if (code === 0) {
-          // Whisper generates the output file using the original filename but with the format extension.
-          const parsedPath = path.parse(audioPath);
-          const outputPath = path.join(outputDir, `${parsedPath.name}.${format}`);
-          resolve(outputPath);
-        } else {
-          reject(new Error(`Whisper process exited with code ${code}`));
+          resolve("transcription genrated successfully ")
         }
-      });
-    });
+        else {
+          reject(new Error(`"failed to genrate transcription : ${code}`))
+        }
+      })
+
+    })
+
+    // now spawn process is exist now check its data 
+    // and get data?? no we got wisper perocees  wait until data is genrated
+
+    //now useing ffmpeg prob to get file informatiion
+    // i have to get file information
+
+    //there is no tool provide by wisper to check the genrated file mete data 
+    // and i cant use ffmpeg probe here
+    // so i am sticking with fs module
+
+    const filename = path.basename(absoultePath)
+    const filesize = await fs.stat(`${absoultePath}.srt`)
+    const subtitleObject = {
+
+      filename: filename,
+      mimeType: "text/srt",
+      path: absoultePath,
+      size: filesize.size,
+      duration: 0.0,
+      subtitleFormat: "SRT",
+      videoId: videoId
+    }
+
+    const result = await this.transcriptionAudioDbEntry(subtitleObject)
+
+
+    return result
+
+
   }
 
-  async generateTextFromAudio(videoId: string) {
-    // 1. Fetch the audio record associated with this video
-    const audio = await this.prisma.audio.findUnique({
-      where: { videoId },
-    });
 
-    if (!audio) {
-      throw new NotFoundException(`Audio not found for video ID ${videoId}`);
-    }
-
-    // 2. Prepare output directory
-    const outputDir = path.join(process.cwd(), 'uploads', 'subtitles');
-    await fs.mkdir(outputDir, { recursive: true });
-
-    // 3. Transcribe audio to VTT format (STT)
-    let subtitlePath: string;
-    try {
-      subtitlePath = await this.transcribeAudio(audio.path, outputDir, 'vtt');
-    } catch (error) {
-      throw new InternalServerErrorException(`Failed to transcribe audio: ${error.message}`);
-    }
-
-    // 4. Save Subtitle record in DB
-    const subtitleRecord = await this.prisma.subtitle.create({
+  async transcriptionAudioDbEntry(file: {
+    filename: string;
+    mimeType: string;
+    path: string;
+    size: number;
+    duration: number;
+    subtitleFormat: string;
+    videoId: string;
+  }) {
+    const transcriptionAudio = await this.prisma.subtitle.create({
       data: {
-        language: 'auto', // Whisper usually auto-detects language
-        format: 'VTT',
-        path: subtitlePath,
-        videoId: videoId,
-      },
-    });
+        path: file.path,
+        filename: file.filename,
+        mimeType: file.mimeType,
+        size: file.size,
+        duration: file.duration,
+        videoId: file.videoId
+      }
+    })
 
-    return subtitleRecord;
+
+    if (transcriptionAudio === undefined || transcriptionAudio === null) {
+      throw new InternalServerErrorException("transcription is not genrated")
+    }
+
+    return transcriptionAudio
+
   }
+
 }

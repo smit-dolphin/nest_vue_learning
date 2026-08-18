@@ -18,7 +18,7 @@ export class AuthMiddleware implements NestMiddleware {
 
     const authHeader=req.headers.authorization
     if (!authHeader){
-      return res.status(403).json({msg:"failed to authentication"})
+      return res.status(401).json({msg:"failed to authentication"})
     }
     
     //now check formate 
