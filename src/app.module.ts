@@ -23,12 +23,15 @@ import { AuthMiddleware } from './auth/auth/auth.middleware.js';
     controllers: [AppController],
     providers: [AppService],
 })
-export class AppModule implements NestModule{
-    configure(consumer:MiddlewareConsumer){
-        consumer
-        .apply(AuthMiddleware)
-        .forRoutes(
-            'users'
-        );
-    }
-}
+
+export class AppModule{}
+// export class AppModule implements NestModule{
+//     configure(consumer:MiddlewareConsumer){
+//         consumer
+//         .apply(AuthMiddleware)
+//         .forRoutes(
+//             'users'
+//             ,'auth/me'
+//         );
+//     }
+// }

@@ -34,8 +34,10 @@ export class AuthMiddleware implements NestMiddleware {
   
       //now rehash the jwt token
       const decodedToken = this.JwtService.verify(bearerToken)
+
+      
   
-      req.user={user:"here is user"}
+      req.user={id:decodedToken.userId}
       next();
     } catch (error) {
       return res.status(403).json({msg:"failed to authentication"})
