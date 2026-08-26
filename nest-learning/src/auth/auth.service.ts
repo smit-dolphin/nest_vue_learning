@@ -139,6 +139,7 @@ export class AuthService {
           email: dto.email,
           username: dto.username,
           password: hashedPassword,
+          role:"USER"
         },
       });
 
@@ -269,6 +270,13 @@ export class AuthService {
       where: {
         id: userId,
       },
+      select:{
+        id:true,
+        username:true,
+        email:true,
+        role:true,
+        createdAt:true
+      }
     });
   }
 }

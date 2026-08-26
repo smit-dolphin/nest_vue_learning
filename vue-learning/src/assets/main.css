@@ -1,0 +1,46 @@
+@import 'tailwindcss';
+@import './base.css';
+
+:root {
+  /* Core Background */
+  --primary-color:    #8b5cf6;
+  --secondary-color:  #181924;
+  --secondery-color:  #181924;
+  --tertiary-color:   #0f1017;
+  --ternery-color:    #0f1017;
+  --card-color:       #1e202e;
+  --surface-color:    #161722;
+
+  /* Text */
+  --text-white:       #ffffff;
+  --text-primary:     #f3f4f6;
+  --text-secondary:   #9ca3af;
+  --text-muted:       #6b7280;
+
+  /* Borders */
+  --border-color:     rgba(255, 255, 255, 0.08);
+  --border-light:     rgba(255, 255, 255, 0.12);
+  --border-focus:     #8b5cf6;
+
+  /* Brand / Accent */
+  --team-color:           #8b5cf6;
+  --team-color-hover:     #7c3aed;
+  --team-color-light:     rgba(139, 92, 246, 0.15);
+  --team-color-glow:      rgba(139, 92, 246, 0.35);
+  --team-gradient:        linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+  --team-gradient-subtle: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(217, 70, 239, 0.1));
+
+  /* UI states */
+  --hover-color:      rgba(255, 255, 255, 0.05);
+  --active-color:     rgba(139, 92, 246, 0.16);
+
+  /* Status */
+  --success-color:    #10b981;
+  --warning-color:    #f59e0b;
+  --danger-color:     #ef4444;
+
+  /* Shadows */
+  --shadow-sm:        0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md:        0 4px 20px rgba(0, 0, 0, 0.6);
+  --shadow-glow:      0 0 25px rgba(139, 92, 246, 0.3);
+}

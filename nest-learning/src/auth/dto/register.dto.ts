@@ -18,4 +18,6 @@ export class RegisterDto {
   @MinLength(2)
   @MaxLength(50)
   username: string;
+
+  
 }

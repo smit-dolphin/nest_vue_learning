@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String?
+  email     String   @unique
+  password  String
+
+  role      UserRole @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  videos Video[]
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model Video {
+  id       String @id @default(cuid())
+  filename String
+  path     String
+  mimetype String
+  size     Int
+  duration Float?
+
+  status       VideoStatus @default(UPLOADED)
+  errorMessage String?
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  audio     Audio[]
+  subtitles Subtitle[]
+  jobs      SubtitleJob[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Subtitle {
+  id       String  @id @default(cuid())
+  filename String
+  mimeType String
+  path     String
+  size     Int
+  duration Float?
+
+  languageCode   String
+  subtitleFormat SubtitleFormat @default(SRT)
+
+  videoId String
+  video   Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([videoId])
+}
+
+model Audio {
+  id       String  @id @default(cuid())
+  filename String
+  path     String
+  mimetype String
+  size     Int
+  duration Float?
+
+  videoId String
+  video   Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([videoId])
+}
+
+model SubtitleJob {
+  id String @id @default(cuid())
+
+  videoId String
+  video   Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  status       JobStatus @default(PENDING)
+  languageCode String?
+  errorMessage String?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([videoId])
+}
+
+enum SubtitleFormat {
+  SRT
+  VTT
+}
+
+enum VideoStatus {
+  UPLOADED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}

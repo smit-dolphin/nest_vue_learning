@@ -8,23 +8,6 @@ import * as fs from 'fs/promises';
 export class TranscriptionService {
   constructor(private readonly prisma: PrismaService) { }
 
-
-  // here i am going to create the audio transction service
-  //but how arw we going to do that???? 
-  //we have wisper , we have audio file 
-  // my goal is to genrate transcription from audio
-
-
-  //i am going to get audio file path   
-  // so first i am going to get wisper flow spawn servie
-  // create the teanscription file then
-  // create the db entry  
-  // return  the transcription file
-
-
-  // TODO:- add output file path to creation of srt file ,
-  //      - and also add the file info and  db entry 
-
   // adding the output path for genrated audio 
   async transcriptAudio(audioPath: string, videoId: string) {
 
@@ -35,7 +18,7 @@ export class TranscriptionService {
     const absoultePath = path.join(root, 'uploads', 'subtitle', `${videoId}`);
     const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli.exe');
     const absoluteModelPath = path.join(root, 'Release', 'models', 'ggml-base.bin');
- 
+
     // ensure subtitle output directory exists
     await fs.mkdir(path.join(root, 'uploads', 'subtitle'), { recursive: true });
 
@@ -131,7 +114,8 @@ export class TranscriptionService {
         mimeType: file.mimeType,
         size: file.size,
         duration: file.duration,
-        videoId: file.videoId
+        videoId: file.videoId,
+        languageCode: "en"
       }
     })
 
