@@ -8,6 +8,7 @@ import { TranscriptionModule } from '../transcription/transcription.module.js';
 @Module({
   imports:[FfmpegModule,TranscriptionModule],
   providers: [SubtitleService],
-  controllers: [SubtitleController]
+  controllers: [SubtitleController],
+  exports:[SubtitleService]
 })
 export class SubtitleModule {}

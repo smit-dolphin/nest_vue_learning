@@ -44,3 +44,46 @@
   --shadow-md:        0 4px 20px rgba(0, 0, 0, 0.6);
   --shadow-glow:      0 0 25px rgba(139, 92, 246, 0.3);
 }
+
+
+@theme {
+  /* Core Background */
+  --color-primary: #8b5cf6;
+  --color-secondary: #181924;
+  --color-secondery: #181924;
+  --color-tertiary: #0f1017;
+  --color-ternery: #0f1017;
+  --color-card: #1e202e;
+  --color-surface: #161722;
+
+  /* Text */
+  --color-text-white: #ffffff;
+  --color-text-primary: #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-text-muted: #6b7280;
+
+  /* Borders */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-light: rgba(255, 255, 255, 0.12);
+  --color-border-focus: #8b5cf6;
+
+  /* Brand */
+  --color-team: #8b5cf6;
+  --color-team-hover: #7c3aed;
+  --color-team-light: rgba(139, 92, 246, 0.15);
+  --color-team-glow: rgba(139, 92, 246, 0.35);
+
+  /* UI */
+  --color-hover: rgba(255, 255, 255, 0.05);
+  --color-active: rgba(139, 92, 246, 0.16);
+
+  /* Status */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 25px rgba(139, 92, 246, 0.3);
+}

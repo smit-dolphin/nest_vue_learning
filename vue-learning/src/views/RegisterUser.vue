@@ -10,6 +10,7 @@ import {
 } from 'lucide-vue-next'
 import axios from 'axios'
 import { useAuthStore } from '../stores/authStore.ts'
+import { getMyProfile } from '../services/authService.ts'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -40,16 +41,9 @@ const handleRegister = async () => {
       }
     )
 
-    authStore.setUserAuth(
-      result.data.user.username,
-      result.data.user.email,
-      result.data.accessToken
-    )
-
-    localStorage.setItem(
-      'accessToken',
-      result.data.accessToken
-    )
+    authStore.setAccessToken(result.data.accessToken)
+    const userdata = await getMyProfile()
+    authStore.setUser(userdata)
 
     router.push('/')
   } catch (error: any) {

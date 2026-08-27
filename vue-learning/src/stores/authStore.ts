@@ -4,7 +4,7 @@ interface User {
   id: string
   username: string | null
   email: string
-  role: string
+  role: string |null
   createdAt: string
 }
 
@@ -59,6 +59,6 @@ export const useAuthStore = defineStore('auth', {
   persist: {
     storage: localStorage,
 
-    pick: ['user'],
+    pick: ['user', 'isAuthenticated', 'accessToken'],
   },
 })

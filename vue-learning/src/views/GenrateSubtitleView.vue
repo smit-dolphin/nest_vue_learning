@@ -19,6 +19,10 @@ import {
   Trash2,
   X,
 } from 'lucide-vue-next'
+import {
+uploadVideo,
+genrateSubtitle
+} from "../services/videoService.ts"
 
 /* ─── State ─── */
 const isDragging = ref(false)
@@ -105,6 +109,12 @@ const startProcessing = async () => {
     await new Promise(r => setTimeout(r, 350))
     progress.value = step
   }
+  
+  console.log(selectedFile)
+  const uplodadresult=await uploadVideo(selectedFile.value!)
+  const genrateresult=await genrateSubtitle(uplodadresult.id)
+
+
 
   isProcessing.value = false
   isDone.value = true

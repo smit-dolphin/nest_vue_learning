@@ -173,4 +173,14 @@ export class AuthController {
             accessToken: result.accessToken,
         };
     }
+
+@Post('logout')
+@UseGuards(JwtAuthGuard)
+logout(@Res({ passthrough: true }) res: Response) {
+    res.clearCookie('refreshToken');
+
+    return {
+        msg: 'user logged out successfully'
+    };
+}
 }

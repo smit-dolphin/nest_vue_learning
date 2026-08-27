@@ -1,13 +1,10 @@
 import { useAuthStore } from '@/stores/authStore'
 import axios from 'axios'
+import router from '@/router'
 
 export const baseApi = axios.create({
   baseURL: 'http://localhost:3000',
   withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  },
 })
 
 
@@ -17,53 +14,40 @@ baseApi.interceptors.response.use(
     return response.data;
   },
   async (error) => {
-
     const originalRequest = error.config
 
+    // If it's a 401, not already retried, AND the url is NOT /auth/refresh
     if (
-      error.response.status === 401 &&
-      !originalRequest._retry
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      originalRequest.url !== '/auth/refresh'
     ) {
-
       originalRequest._retry = true
 
-
       try {
-        const authstore = useAuthStore()
+        const authStore = useAuthStore()
+        const response = await axios.get('http://localhost:3000/auth/refresh')
+        const newAccessToken = response.data?.accessToken
 
-        const response = await baseApi.post('/auth/refresh')
+        authStore.setAccessToken(newAccessToken)
 
-        const newAccessToken =
-          response.data.accessToken
-
-        authstore.setAccessToken(
-          newAccessToken,
-        )
-
-        originalRequest.headers.Authorization =
-          `Bearer ${newAccessToken}`
-
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
         return baseApi(originalRequest)
-
       } catch (refreshError) {
-        const authstore = useAuthStore()
-        authstore.clearAuth()
-
+        const authStore = useAuthStore()
+        authStore.clearAuth()
+        router.replace('/login')
         return Promise.reject(refreshError)
       }
-
-
     }
     return Promise.reject(error);
-
-
-
   }
 )
 
 baseApi.interceptors.request.use(
   (config) => {
-    const accessToken = localStorage.getItem("accessToken")
+    const authStore = useAuthStore()
+    const accessToken = authStore.accessToken
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`
     }

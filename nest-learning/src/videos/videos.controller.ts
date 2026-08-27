@@ -1,15 +1,20 @@
-import { Controller, Post, Get, Param, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { Controller, Post, Req,Get, Param,UseGuards, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { VideosService } from './videos.service.js';
-
+import {SubtitleService} from '../subtitle/subtitle.service.js'
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 @Controller('videos')
 export class VideosController {
 
-    constructor(private readonly videosService: VideosService) {}
+    constructor(
+        private readonly videosService: VideosService,
+        private readonly subtitleService: SubtitleService
+        ) {}
 
-    @Post('upload/:userId')
+    @Post('/')
+    @UseGuards(JwtAuthGuard)
     @UseInterceptors(FileInterceptor('video', {
         storage: diskStorage({
             destination: './uploads',
@@ -27,9 +32,9 @@ export class VideosController {
             cb(null, true);
         },
     }))
-    uploadVideo(@UploadedFile() file: Express.Multer.File, @Param('userId') userId: string) {
+    uploadVideo(@UploadedFile() file: Express.Multer.File, @Req() req:any) {
         if (!file) throw new BadRequestException('No file uploaded');
-        return this.videosService.saveVideo(file, userId);
+        return this.videosService.saveVideo(file, req.user.sub);
     }
 
     @Get()

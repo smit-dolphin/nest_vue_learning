@@ -5,6 +5,7 @@ import { Sparkles, Mail, Lock, LogIn, ArrowRight } from 'lucide-vue-next'
 import baseApi from '@/api/baseApi' // Assuming you have baseApi configured
 import axios from 'axios'
 import {useAuthStore} from "../stores/authStore.ts"
+import {getMyProfile} from "../services/authService.ts"
 
 const router = useRouter()
 const email = ref('')
@@ -15,6 +16,11 @@ const errorMessage = ref('')
 
 const authStore=useAuthStore()
 
+const fetchMyProfile=async()=>{
+
+  const response =await getMyProfile()
+  return response
+}
 
 //handle login method
 const handleLogin = async () => {
@@ -27,15 +33,20 @@ const handleLogin = async () => {
   errorMessage.value = ''
 
   try {
-    const result = await axios.post("http://localhost:3000/auth/login", {email: email.value, password: password.value})
+    const result = await axios.post("http://localhost:3000/auth/login", {email: email.value, password: password.value}, { withCredentials: true })
+
+    // after i get data i have to store it in store 
+
+    authStore.setAccessToken(result.data.accessToken)
+    const userdata=await fetchMyProfile()
+    console.log(userdata)
+    authStore.setUser(userdata)
 
 
-console.log(result)
-    //authStore.setUser(result.data.accessToke)
-    localStorage.setItem('accessToken', result.data.accessToken) 
-    
-     router.push('/')
+
+    router.push('/')
   } catch (error: any) {
+    console.log(error)
     errorMessage.value = error?.response?.data?.message || 'Login failed. Please check your credentials.'
   } finally {
     isLoading.value = false
