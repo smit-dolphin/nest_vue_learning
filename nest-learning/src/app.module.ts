@@ -12,14 +12,28 @@ import { FfmpegModule } from './ffmpeg/ffmpeg.module.js';
 import { TranscriptionModule } from './transcription/transcription.module.js';
 import { CaptionsModule } from './captions/captions.module.js';
 import { AuthMiddleware } from './auth/auth/auth.middleware.js';
+import { BullModule } from '@nestjs/bullmq';
+import { JobModule } from './job/job.module.js';
 
 @Module({
-    imports: [JwtModule.register({
+    imports: [
+        BullModule.forRoot(
+            {
+
+              connection: {
+                    host: process.env.REDIS_HOST,
+                    port: process.env.REDIS_PORT,
+                    password: process.env.REDIS_PASSWORD,
+                }
+            }
+        ),
+        
+        JwtModule.register({
         global:true,
         secret:process.env.JWT_SECRET,
         signOptions: { expiresIn: '5h' },
 
-    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, GuardsModule, AuthModule, FfmpegModule, TranscriptionModule, CaptionsModule],
+    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, GuardsModule, AuthModule, FfmpegModule, TranscriptionModule, CaptionsModule, JobModule],
     controllers: [AppController],
     providers: [AppService],
 })

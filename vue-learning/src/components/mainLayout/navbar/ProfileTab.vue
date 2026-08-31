@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/authStore'
 import { ChevronDown, ChevronUp, User, LogOut } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 // import { useRoute } from 'vue-router'
 import router from '@/router'
 const authstore = useAuthStore()
@@ -12,6 +12,27 @@ const toggleMenu = () => {
   isOpen.value = !isOpen.value
 }
 
+const currentProfileDiv=ref(null)
+
+const onClickHandle = (event: MouseEvent)=> {
+      if(currentProfileDiv.value && !currentProfileDiv.value.contains(event.target)){
+        isOpen.value=false
+      }
+}
+
+const onClickOutside = () => {
+  document.addEventListener('click', onClickHandle)
+}
+const onClickInside = () => {
+  document.removeEventListener('click', onClickHandle)
+}
+onMounted(() => {
+  onClickOutside()
+})
+onUnmounted(() => {
+  onClickInside()
+})
+
 const logout = async  () => {
   // authstore.logout()
   await logoutMe()
@@ -21,7 +42,7 @@ const logout = async  () => {
 </script>
 
 <template>
-  <div class="navbar__profile">
+  <div ref="currentProfileDiv" class="navbar__profile">
     <!-- Avatar Button -->
     <button
       class="navbar__avatar-btn"

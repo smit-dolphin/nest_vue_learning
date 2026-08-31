@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   Upload,
   Captions,
@@ -23,6 +23,7 @@ import {
 uploadVideo,
 genrateSubtitle
 } from "../services/videoService.ts"
+import baseApi from '@/api/baseApi.ts'
 
 /* ─── State ─── */
 const isDragging = ref(false)
@@ -35,6 +36,7 @@ const selectedLang = ref('English')
 const selectedFormat = ref('SRT')
 const langOpen = ref(false)
 const formatOpen = ref(false)
+const jobid =ref(null)
 
 /* ─── Options ─── */
 const languages = [
@@ -101,24 +103,40 @@ const fileSizeMB = computed(() =>
 
 const startProcessing = async () => {
   if (!selectedFile.value || isProcessing.value) return
-  isProcessing.value = true
-  progress.value = 0
-
-  const steps = [10, 25, 40, 58, 72, 85, 93, 100]
-  for (const step of steps) {
-    await new Promise(r => setTimeout(r, 350))
-    progress.value = step
-  }
   
-  console.log(selectedFile)
-  const uplodadresult=await uploadVideo(selectedFile.value!)
-  const genrateresult=await genrateSubtitle(uplodadresult.id)
+  // const steps = [10, 25, 40, 58, 72, 85, 93, 100]
+  // for (const step of steps) {
+  //   await new Promise(r => setTimeout(r, 350))
+  //   progress.value = step
+  // }
+  const uplodadresult=await uploadVideo(selectedFile.value!) 
+  console.log(uplodadresult)
+  jobid.value=uplodadresult.jobId
+  
+  isProcessing.value = true
+  // progress.value = 0
 
 
 
-  isProcessing.value = false
-  isDone.value = true
+
+  // isProcessing.value = false
+  // isDone.value = true
 }
+onMounted(()=>{
+  setInterval(async()=>{
+
+    if(isProcessing.value == true){
+      const result=await baseApi.get(`job/${jobid.value}`)
+      console.log(result)
+      progress.value=result.progress
+      if(result.data.progress === 100){
+        isProcessing.value = false
+        isDone.value = true
+      }
+    }
+  
+  },1000*10)
+})
 
 const copyOutput = async () => {
   await navigator.clipboard.writeText(subtitleOutput)
@@ -129,7 +147,7 @@ const copyOutput = async () => {
 const progressLabel = computed(() => {
   if (progress.value < 30) return 'Uploading media...'
   if (progress.value < 60) return 'Transcribing audio...'
-  if (progress.value < 85) return 'Generating subtitles...'
+  if (progress.value < 85) return 'burning subtitles...'
   if (progress.value < 100) return 'Formatting output...'
   return 'Complete!'
 })
@@ -332,16 +350,16 @@ const progressLabel = computed(() => {
               ></div>
             </div>
             <div class="progress-steps">
-              <div v-for="step in ['Upload', 'Transcribe', 'Generate', 'Format']" :key="step"
+              <div v-for="step in ['Upload', 'Transcribe', 'Burning', 'Format']" :key="step"
                 class="progress-step"
                 :class="{
                   'progress-step--done': (step === 'Upload' && progress >= 30) ||
                                          (step === 'Transcribe' && progress >= 60) ||
-                                         (step === 'Generate' && progress >= 85) ||
+                                         (step === 'Burning' && progress >= 85) ||
                                          (step === 'Format' && progress >= 100)
                 }"
               >
-                <Check v-if="(step === 'Upload' && progress >= 30) || (step === 'Transcribe' && progress >= 60) || (step === 'Generate' && progress >= 85) || (step === 'Format' && progress >= 100)" :size="10" />
+                <Check v-if="(step === 'Upload' && progress >= 30) || (step === 'Transcribe' && progress >= 60) || (step === 'Burning' && progress >= 85) || (step === 'Format' && progress >= 100)" :size="10" />
                 <Clock v-else :size="10" />
                 {{ step }}
               </div>

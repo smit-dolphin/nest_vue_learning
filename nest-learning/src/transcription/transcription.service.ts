@@ -16,7 +16,7 @@ export class TranscriptionService {
 
     // creating output path for file 
     const absoultePath = path.join(root, 'uploads', 'subtitle', `${videoId}`);
-    const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli.exe');
+    const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli');
     const absoluteModelPath = path.join(root, 'Release', 'models', 'ggml-base.bin');
 
     // ensure subtitle output directory exists

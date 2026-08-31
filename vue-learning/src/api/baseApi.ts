@@ -26,7 +26,7 @@ baseApi.interceptors.response.use(
 
       try {
         const authStore = useAuthStore()
-        const response = await axios.get('http://localhost:3000/auth/refresh')
+        const response = await axios.post('http://localhost:3000/auth/refresh')
         const newAccessToken = response.data?.accessToken
 
         authStore.setAccessToken(newAccessToken)

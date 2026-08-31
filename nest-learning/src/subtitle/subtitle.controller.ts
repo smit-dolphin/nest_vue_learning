@@ -7,11 +7,11 @@ export class SubtitleController {
 
     constructor(private readonly subtitleService: SubtitleService) {}
 
-    @Post(':id')
-    genrateSubtitle(@Param('id') id:string){
-        return this.subtitleService.genrateSubtitle(id)
+    // @Post(':id')
+    // genrateSubtitle(@Param('id') id:string){
+    //     return this.subtitleService.genrateSubtitle(id)
 
-    }
+    // }
 
 
 
