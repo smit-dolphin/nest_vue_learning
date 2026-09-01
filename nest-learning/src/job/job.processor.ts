@@ -14,8 +14,8 @@ export class JobProcessor extends WorkerHost{
     }
 
     async process(job: Job) {
-        const { videoId } = job.data;
-        await this.subtitleService.genrateSubtitle(videoId,job)
+        const { videoId ,options} = job.data;
+        await this.subtitleService.genrateSubtitle(videoId,options,job)
         console.log(`Processing video with ID: ${videoId}`);
   }
 }

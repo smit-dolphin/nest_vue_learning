@@ -174,8 +174,7 @@ export class AuthController {
         };
     }
 
-@Post('logout')
-@UseGuards(JwtAuthGuard)
+@Post('logout') 
 logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie('refreshToken');
 

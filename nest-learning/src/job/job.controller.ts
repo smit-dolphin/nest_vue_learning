@@ -6,12 +6,19 @@ import { InjectQueue } from '@nestjs/bullmq';
 @Controller('job')
 export class JobController {
     constructor(private readonly jobService: JobService,
-        @InjectQueue('video-processing') private readonly queue:Queue
+        @InjectQueue('video-processing') private readonly queue:Queue,
+
     ) {}
 
     @Get('add-job')
     async addJob() {
         return this.jobService.addJobToQueue({ message: 'Hello, this is a test job!' });
+    }
+    
+
+    @Get('job/:userId')
+    async getJobsByUserId(@Param('userId') userId: string){
+        return await this.jobService.getJobByUserId(userId)
     }
 
     @Get(':jobId')
@@ -27,4 +34,8 @@ export class JobController {
     progress: job.progress,
   };
     }
+
+
+
+    
 }

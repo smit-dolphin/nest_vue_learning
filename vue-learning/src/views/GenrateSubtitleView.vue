@@ -1,29 +1,34 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import {
   Upload,
   Captions,
-  Globe2,
   Sparkles,
-  ChevronDown,
-  Play,
   Download,
   Copy,
   Check,
   Loader2,
   FileVideo,
-  Wand2,
   Languages,
-  AlignLeft,
   Clock,
-  Trash2,
   X,
 } from 'lucide-vue-next'
 import {
-uploadVideo,
-genrateSubtitle
+  uploadVideo, 
 } from "../services/videoService.ts"
 import baseApi from '@/api/baseApi.ts'
+
+import SettingPannel from "../components/GenrateSubtitle/SettingPannel.vue"
+
+export interface SubtitleSettings {
+  language: string
+  format: string
+  timestamps: boolean
+  speakerLabels: boolean
+  autoTranslate: boolean
+  punctuation: boolean
+  wordLevel: boolean
+}
 
 /* ─── State ─── */
 const isDragging = ref(false)
@@ -36,24 +41,45 @@ const selectedLang = ref('English')
 const selectedFormat = ref('SRT')
 const langOpen = ref(false)
 const formatOpen = ref(false)
-const jobid =ref(null)
+const jobid = ref(null)
+const subtitleSettings = ref<SubtitleSettings>(
+  {
+    language: 'English',
+    format: 'SRT',
+    timestamps: true,
+    speakerLabels: false,
+    autoTranslate: false,
+    punctuation: true,
+    wordLevel: false,
+  }
+)
+const params=computed(()=>({ 
+  leng: subtitleSettings.value.language,
+  formate: subtitleSettings.value.format,
+  lables: subtitleSettings.value.speakerLabels,
+  autoTranslate: subtitleSettings.value.autoTranslate,
+  autoPunctuation: subtitleSettings.value.punctuation,
+  wordLevelTiming: subtitleSettings.value.wordLevel,
+  burnVideo: true,}))
 
-/* ─── Options ─── */
-const languages = [
-  'English', 'Spanish', 'French', 'German', 'Japanese',
-  'Korean', 'Portuguese', 'Arabic', 'Hindi', 'Chinese (Simplified)',
-]
+const outputfilepath=ref<null|string>(null)
 
-const formats = ['SRT', 'WebVTT', 'ASS/SSA', 'JSON', 'Plain Text']
 
-const subtitleOptions = ref({
-  timestamps: true,
-  speakerLabels: false,
-  autoTranslate: false,
-  punctuation: true,
-  wordLevel: false,
-})
-
+// watch(
+//   subtitleSettings,
+//   () => {
+//    const params = {
+//   leng: subtitleSettings.language,
+//   formate: subtitleSettings.format,
+//   lables: subtitleSettings.speakerLabels,
+//   autoTranslate: subtitleSettings.autoTranslate,
+//   autoPunctuation: subtitleSettings.punctuation,
+//   wordLevelTiming: subtitleSettings.wordLevel,
+//   burnVideo: subtitleSettings.burnVideo,
+// } 
+//   },
+//   { immediate: true }
+// )
 /* ─── Mock subtitle output ─── */
 const subtitleOutput = `1
 00:00:01,200 --> 00:00:04,800
@@ -103,16 +129,21 @@ const fileSizeMB = computed(() =>
 
 const startProcessing = async () => {
   if (!selectedFile.value || isProcessing.value) return
-  
+
   // const steps = [10, 25, 40, 58, 72, 85, 93, 100]
   // for (const step of steps) {
   //   await new Promise(r => setTimeout(r, 350))
   //   progress.value = step
-  // }
-  const uplodadresult=await uploadVideo(selectedFile.value!) 
-  console.log(uplodadresult)
-  jobid.value=uplodadresult.jobId
-  
+  // } 
+  const uplodadresult = await uploadVideo(
+  selectedFile.value!,
+  params.value
+)
+
+console.log(uplodadresult)
+jobid.value = uplodadresult.jobId
+
+
   isProcessing.value = true
   // progress.value = 0
 
@@ -122,20 +153,23 @@ const startProcessing = async () => {
   // isProcessing.value = false
   // isDone.value = true
 }
-onMounted(()=>{
-  setInterval(async()=>{
+onMounted(() => {
+  setInterval(async () => {
 
-    if(isProcessing.value == true){
-      const result=await baseApi.get(`job/${jobid.value}`)
+    if (isProcessing.value == true) {
+      const result = await baseApi.get(`job/${jobid.value}`)
       console.log(result)
-      progress.value=result.progress
-      if(result.data.progress === 100){
+      progress.value = result.progress
+      if (result.progress === 100) {
         isProcessing.value = false
         isDone.value = true
+        
       }
     }
-  
-  },1000*10)
+
+  }, 1000 * 10)
+
+
 })
 
 const copyOutput = async () => {
@@ -151,6 +185,12 @@ const progressLabel = computed(() => {
   if (progress.value < 100) return 'Formatting output...'
   return 'Complete!'
 })
+
+
+
+function handleSettings(settings: SubtitleSettings) {
+  subtitleSettings.value = settings
+}
 </script>
 
 <template>
@@ -179,24 +219,13 @@ const progressLabel = computed(() => {
       <div class="gen-page__left">
 
         <!-- Upload Zone -->
-        <div
-          class="upload-zone"
-          :class="{
-            'upload-zone--dragging': isDragging,
-            'upload-zone--has-file': !!selectedFile
-          }"
-          @dragover.prevent="isDragging = true"
-          @dragleave="isDragging = false"
-          @drop.prevent="onDrop"
-          @click="!selectedFile && triggerUpload()"
-        >
-          <input
-            id="file-input"
-            type="file"
-            accept="video/*,audio/*"
-            class="upload-zone__input"
-            @change="onFileInput"
-          />
+        <div class="upload-zone" :class="{
+          'upload-zone--dragging': isDragging,
+          'upload-zone--has-file': !!selectedFile
+        }" @dragover.prevent="isDragging = true" @dragleave="isDragging = false" @drop.prevent="onDrop"
+          @click="!selectedFile && triggerUpload()">
+          <input id="file-input" type="file" accept="video/*,audio/*" class="upload-zone__input"
+            @change="onFileInput" />
 
           <Transition name="fade" mode="out-in">
             <!-- File selected state -->
@@ -227,101 +256,11 @@ const progressLabel = computed(() => {
           </Transition>
         </div>
 
-        <!-- Settings Panel -->
-        <div class="settings-card">
-          <div class="settings-card__header">
-            <Wand2 :size="16" />
-            <span>Subtitle Settings</span>
-          </div>
+        <SettingPannel @settingsChange="handleSettings" />
 
-          <div class="settings-grid">
-            <!-- Language -->
-            <div class="settings-field">
-              <label class="settings-label">
-                <Globe2 :size="13" /> Language
-              </label>
-              <div class="custom-select" @click="langOpen = !langOpen">
-                <span>{{ selectedLang }}</span>
-                <ChevronDown :size="14" :class="{ 'rotated': langOpen }" />
-                <Transition name="dropdown">
-                  <div v-if="langOpen" class="custom-select__dropdown">
-                    <button
-                      v-for="lang in languages"
-                      :key="lang"
-                      class="custom-select__option"
-                      :class="{ 'custom-select__option--active': lang === selectedLang }"
-                      @click.stop="selectedLang = lang; langOpen = false"
-                    >
-                      {{ lang }}
-                      <Check v-if="lang === selectedLang" :size="12" />
-                    </button>
-                  </div>
-                </Transition>
-              </div>
-            </div>
-
-            <!-- Format -->
-            <div class="settings-field">
-              <label class="settings-label">
-                <AlignLeft :size="13" /> Output Format
-              </label>
-              <div class="custom-select" @click="formatOpen = !formatOpen">
-                <span>{{ selectedFormat }}</span>
-                <ChevronDown :size="14" :class="{ 'rotated': formatOpen }" />
-                <Transition name="dropdown">
-                  <div v-if="formatOpen" class="custom-select__dropdown">
-                    <button
-                      v-for="fmt in formats"
-                      :key="fmt"
-                      class="custom-select__option"
-                      :class="{ 'custom-select__option--active': fmt === selectedFormat }"
-                      @click.stop="selectedFormat = fmt; formatOpen = false"
-                    >
-                      {{ fmt }}
-                      <Check v-if="fmt === selectedFormat" :size="12" />
-                    </button>
-                  </div>
-                </Transition>
-              </div>
-            </div>
-          </div>
-
-          <!-- Toggles -->
-          <div class="settings-toggles">
-            <div v-for="(val, key) in subtitleOptions" :key="key" class="toggle-row">
-              <div class="toggle-row__info">
-                <p class="toggle-row__label">{{ {
-                  timestamps: 'Include Timestamps',
-                  speakerLabels: 'Speaker Labels',
-                  autoTranslate: 'Auto-Translate',
-                  punctuation: 'Auto Punctuation',
-                  wordLevel: 'Word-Level Timing',
-                }[key] }}</p>
-                <p class="toggle-row__desc">{{ {
-                  timestamps: 'Add time codes to each subtitle block',
-                  speakerLabels: 'Identify and label different speakers',
-                  autoTranslate: 'Translate to the selected language',
-                  punctuation: 'Add punctuation automatically',
-                  wordLevel: 'Precise timing per word',
-                }[key] }}</p>
-              </div>
-              <button
-                class="toggle-btn"
-                :class="{ 'toggle-btn--on': subtitleOptions[key as keyof typeof subtitleOptions] }"
-                @click="subtitleOptions[key as keyof typeof subtitleOptions] = !subtitleOptions[key as keyof typeof subtitleOptions]"
-              >
-                <span class="toggle-btn__thumb"></span>
-              </button>
-            </div>
-          </div>
-        </div>
 
         <!-- Generate Button -->
-        <button
-          class="btn btn--generate"
-          :disabled="!selectedFile || isProcessing"
-          @click="startProcessing"
-        >
+        <button class="btn btn--generate" :disabled="!selectedFile || isProcessing" @click="startProcessing">
           <Loader2 v-if="isProcessing" :size="18" class="spin" />
           <Sparkles v-else :size="18" />
           <span>{{ isProcessing ? 'Generating…' : 'Generate Subtitles' }}</span>
@@ -343,23 +282,20 @@ const progressLabel = computed(() => {
               <span class="progress-card__pct">{{ progress }}%</span>
             </div>
             <div class="progress-track">
-              <div
-                class="progress-fill"
-                :style="{ width: progress + '%' }"
-                :class="{ 'progress-fill--done': isDone }"
-              ></div>
+              <div class="progress-fill" :style="{ width: progress + '%' }" :class="{ 'progress-fill--done': isDone }">
+              </div>
             </div>
             <div class="progress-steps">
-              <div v-for="step in ['Upload', 'Transcribe', 'Burning', 'Format']" :key="step"
-                class="progress-step"
+              <div v-for="step in ['Upload', 'Transcribe', 'Burning', 'Format']" :key="step" class="progress-step"
                 :class="{
                   'progress-step--done': (step === 'Upload' && progress >= 30) ||
-                                         (step === 'Transcribe' && progress >= 60) ||
-                                         (step === 'Burning' && progress >= 85) ||
-                                         (step === 'Format' && progress >= 100)
-                }"
-              >
-                <Check v-if="(step === 'Upload' && progress >= 30) || (step === 'Transcribe' && progress >= 60) || (step === 'Burning' && progress >= 85) || (step === 'Format' && progress >= 100)" :size="10" />
+                    (step === 'Transcribe' && progress >= 60) ||
+                    (step === 'Burning' && progress >= 85) ||
+                    (step === 'Format' && progress >= 100)
+                }">
+                <Check
+                  v-if="(step === 'Upload' && progress >= 30) || (step === 'Transcribe' && progress >= 60) || (step === 'Burning' && progress >= 85) || (step === 'Format' && progress >= 100)"
+                  :size="10" />
                 <Clock v-else :size="10" />
                 {{ step }}
               </div>
@@ -373,7 +309,8 @@ const progressLabel = computed(() => {
             <div class="output-card__header">
               <div>
                 <h3 class="output-card__title">Subtitle Output</h3>
-                <p class="output-card__sub">{{ selectedFormat }} · {{ selectedLang }} · {{ subtitleOutput.split('\n\n').length }} segments</p>
+                <p class="output-card__sub">{{ selectedFormat }} · {{ selectedLang }} · {{
+                  subtitleOutput.split('\n\n').length }} segments</p>
               </div>
               <div class="output-card__actions">
                 <button class="btn btn--sm btn--ghost" @click="copyOutput">
@@ -394,11 +331,7 @@ const progressLabel = computed(() => {
             <div class="subtitle-blocks">
               <h4 class="subtitle-blocks__title">Preview</h4>
               <div class="subtitle-block-list">
-                <div
-                  v-for="(block, i) in subtitleOutput.trim().split('\n\n')"
-                  :key="i"
-                  class="subtitle-block"
-                >
+                <div v-for="(block, i) in subtitleOutput.trim().split('\n\n')" :key="i" class="subtitle-block">
                   <div class="subtitle-block__meta">
                     <span class="subtitle-block__num">#{{ i + 1 }}</span>
                     <span class="subtitle-block__time">
@@ -413,6 +346,8 @@ const progressLabel = computed(() => {
           </div>
         </Transition>
 
+        
+
         <!-- Empty State (right panel) -->
         <Transition name="fade">
           <div v-if="!isProcessing && !isDone" class="empty-panel">
@@ -422,7 +357,8 @@ const progressLabel = computed(() => {
             <p class="empty-panel__title">Your subtitles will appear here</p>
             <p class="empty-panel__hint">Upload a file and click Generate to start</p>
             <div class="empty-panel__features">
-              <div v-for="feat in ['98% accuracy', '50+ languages', 'Word-level timing', 'Instant export']" :key="feat" class="empty-panel__feat">
+              <div v-for="feat in ['98% accuracy', '50+ languages', 'Word-level timing', 'Instant export']" :key="feat"
+                class="empty-panel__feat">
                 <Check :size="12" />
                 <span>{{ feat }}</span>
               </div>
@@ -531,7 +467,9 @@ const progressLabel = computed(() => {
   border-color: var(--border-light);
 }
 
-.upload-zone__input { display: none; }
+.upload-zone__input {
+  display: none;
+}
 
 .upload-zone__empty {
   display: flex;
@@ -555,8 +493,15 @@ const progressLabel = computed(() => {
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-6px);
+  }
 }
 
 .upload-zone__title {
@@ -593,7 +538,10 @@ const progressLabel = computed(() => {
   flex-shrink: 0;
 }
 
-.upload-zone__file-info { flex: 1; overflow: hidden; }
+.upload-zone__file-info {
+  flex: 1;
+  overflow: hidden;
+}
 
 .upload-zone__filename {
   font-size: 0.88rem;
@@ -632,165 +580,6 @@ const progressLabel = computed(() => {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
-/* Settings Card */
-.settings-card {
-  background: var(--secondary-color);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 1.25rem;
-  margin-top: 1rem;
-}
-
-.settings-card__header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 1rem;
-}
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1.25rem;
-}
-
-.settings-field { position: relative; }
-
-.settings-label {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-muted);
-  margin-bottom: 0.4rem;
-}
-
-/* Custom Select */
-.custom-select {
-  background: var(--card-color);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.55rem 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  transition: border-color 0.2s;
-  position: relative;
-}
-
-.custom-select:hover {
-  border-color: var(--border-light);
-}
-
-.custom-select .rotated {
-  transform: rotate(180deg);
-  transition: transform 0.2s;
-}
-
-.custom-select__dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0; right: 0;
-  background: var(--card-color);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  box-shadow: var(--shadow-md);
-  z-index: 50;
-  overflow: hidden;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.custom-select__option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  transition: background 0.15s;
-}
-
-.custom-select__option:hover { background: var(--hover-color); color: var(--text-primary); }
-.custom-select__option--active { color: var(--primary-color); background: var(--active-color); }
-
-/* Toggle Rows */
-.settings-toggles {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-}
-
-.toggle-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.toggle-row:last-child { border-bottom: none; }
-
-.toggle-row__label {
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 2px;
-}
-
-.toggle-row__desc {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.toggle-btn {
-  width: 40px;
-  height: 22px;
-  background: var(--card-color);
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  cursor: pointer;
-  padding: 2px;
-  transition: background 0.25s, border-color 0.25s;
-  flex-shrink: 0;
-  position: relative;
-}
-
-.toggle-btn--on {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-}
-
-.toggle-btn__thumb {
-  display: block;
-  width: 16px;
-  height: 16px;
-  background: #fff;
-  border-radius: 50%;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.4);
-}
-
-.toggle-btn--on .toggle-btn__thumb {
-  transform: translateX(18px);
-}
 
 /* Generate Button */
 .btn--generate {
@@ -874,18 +663,27 @@ const progressLabel = computed(() => {
 .progress-fill::after {
   content: '';
   position: absolute;
-  top: 0; left: -100%;
-  width: 100%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
   animation: shimmer 1.5s infinite;
 }
 
 @keyframes shimmer {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+
+  100% {
+    left: 100%;
+  }
 }
 
-.progress-fill--done::after { display: none; }
+.progress-fill--done::after {
+  display: none;
+}
 
 .progress-steps {
   display: flex;
@@ -994,7 +792,9 @@ const progressLabel = computed(() => {
   transition: border-color 0.2s;
 }
 
-.subtitle-block:hover { border-color: var(--border-light); }
+.subtitle-block:hover {
+  border-color: var(--border-light);
+}
 
 .subtitle-block__meta {
   display: flex;
@@ -1088,7 +888,9 @@ const progressLabel = computed(() => {
   padding: 0.4rem 0.75rem;
 }
 
-.empty-panel__feat svg { color: var(--success-color); }
+.empty-panel__feat svg {
+  color: var(--success-color);
+}
 
 /* Buttons */
 .btn {
@@ -1110,21 +912,33 @@ const progressLabel = computed(() => {
   color: #fff;
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.35);
 }
-.btn--primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(139,92,246,0.5); }
+
+.btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(139, 92, 246, 0.5);
+}
 
 .btn--ghost {
   background: var(--card-color);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
 }
-.btn--ghost:hover { background: var(--hover-color); color: var(--text-primary); border-color: var(--border-light); }
+
+.btn--ghost:hover {
+  background: var(--hover-color);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
 
 .btn--outline {
   background: transparent;
   color: var(--primary-color);
   border: 1px solid rgba(139, 92, 246, 0.4);
 }
-.btn--outline:hover { background: var(--team-color-light); }
+
+.btn--outline:hover {
+  background: var(--team-color-light);
+}
 
 .btn--sm {
   font-size: 0.78rem;
@@ -1132,20 +946,54 @@ const progressLabel = computed(() => {
 }
 
 /* Helpers */
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-.text-purple { color: var(--primary-color); }
-.text-green { color: var(--success-color); }
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.text-purple {
+  color: var(--primary-color);
+}
+
+.text-green {
+  color: var(--success-color);
+}
 
 /* Transitions */
-.fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease, transform 0.25s ease; }
-.fade-enter-from { opacity: 0; transform: translateY(6px); }
-.fade-leave-to { opacity: 0; transform: translateY(-6px); }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
 
-.dropdown-enter-active, .dropdown-leave-active { transition: opacity 0.15s ease, transform 0.15s ease; }
-.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-6px); }
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
 
 @media (max-width: 1024px) {
-  .gen-page__grid { grid-template-columns: 1fr; }
+  .gen-page__grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
