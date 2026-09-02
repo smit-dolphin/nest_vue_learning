@@ -38,9 +38,9 @@ const handleLogin = async () => {
     // after i get data i have to store it in store 
 
     authStore.setAccessToken(result.data.accessToken)
-    const userdata=await fetchMyProfile()
-    console.log(userdata)
-    authStore.setUser(userdata)
+    // const userdata=await fetchMyProfile()
+    // console.log(userdata)
+    // authStore.setUser(userdata)
 
 
 

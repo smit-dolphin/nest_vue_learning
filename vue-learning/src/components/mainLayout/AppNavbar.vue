@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
 import {
@@ -9,6 +9,8 @@ import {
 } from 'lucide-vue-next'
 
 import ProfileTab from '../mainLayout/navbar/ProfileTab.vue'
+import { getMyProfile } from '@/services/authService.ts';
+import { useAuthStore } from '@/stores/authStore.ts';
 
 const props = defineProps<{
   collapsed?: boolean
@@ -18,6 +20,7 @@ const route = useRoute()
 
 const searchQuery = ref('')
 const notifCount = ref(3)
+const authStore = useAuthStore()  
 
 const pageTitle = computed(() => {
   const map: Record<string, string> = {
@@ -31,6 +34,20 @@ const pageTitle = computed(() => {
 
   return map[route.path] ?? 'Dashboard'
 })
+
+
+const fetchMyProfile=async()=>{
+
+  const response =await getMyProfile()
+  return response
+}
+
+onMounted(async () => {
+  const userdata = await fetchMyProfile()
+  
+    authStore.setUser(userdata)
+})
+
 
 const breadcrumbs = computed(() => {
   if (route.path === '/') {

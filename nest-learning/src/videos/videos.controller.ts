@@ -5,13 +5,23 @@ import { extname } from 'path';
 import { VideosService } from './videos.service.js';
 import { SubtitleService } from '../subtitle/subtitle.service.js'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+
+
+
+
+
 @Controller('videos')
 export class VideosController {
 
     constructor(
         private readonly videosService: VideosService,
         private readonly subtitleService: SubtitleService
-    ) { }
+    ) {}
+
+
+    // ─────────────────────────────────────────
+    // VIDEO ROUTES
+    // ─────────────────────────────────────────
 
     @Post('/')
     @UseGuards(JwtAuthGuard)
@@ -23,25 +33,43 @@ export class VideosController {
                 cb(null, `${unique}${extname(file.originalname)}`);
             },
         }),
-        limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+        limits: {
+            fileSize: 100 * 1024 * 1024,
+        },
         fileFilter: (req, file, cb) => {
-            const allowed = ['video/mp4', 'video/webm', 'video/mkv', 'video/avi'];
+            const allowed = [
+                'video/mp4',
+                'video/webm',
+                'video/mkv',
+                'video/avi',
+            ];
+
             if (!allowed.includes(file.mimetype)) {
-                return cb(new BadRequestException('Only video files are allowed'), false);
+                return cb(
+                    new BadRequestException('Only video files are allowed'),
+                    false,
+                );
             }
+
             cb(null, true);
         },
     }))
-    uploadVideo(@UploadedFile() file: Express.Multer.File, @Req() req: any,
+    uploadVideo(
+        @UploadedFile() file: Express.Multer.File,
+        @Req() req: any,
+
         @Query('leng') leng: string,
         @Query('formate') formate: string,
         @Query('lables') lables: boolean,
-        @Query('autoTranslate') autoTranslate:boolean,
+        @Query('autoTranslate') autoTranslate: boolean,
         @Query('autoPunctuation') autoPunctuation: boolean,
         @Query('wordLevelTiming') wordLevelTiming: boolean,
-        @Query('burnVideo') burnVideo: boolean
+        @Query('burnVideo') burnVideo: boolean,
     ) {
-        if (!file) throw new BadRequestException('No file uploaded');
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+
         const option = {
             leng,
             formate,
@@ -49,18 +77,93 @@ export class VideosController {
             autoTranslate,
             autoPunctuation,
             wordLevelTiming,
-            burnVideo
-        }
-        return this.videosService.saveVideo(file, req.user.sub,option);
+            burnVideo,
+        };
+
+        return this.videosService.saveVideo(
+            file,
+            req.user.sub,
+            option,
+        );
     }
 
+
+    // GET all videos
     @Get()
     getVideos() {
         return this.videosService.getVideos();
     }
 
+
+    // GET videos of specific user
     @Get('user/:userId')
-    getUserVideos(@Param('userId') userId: string) {
+    getUserVideos(
+        @Param('userId') userId: string,
+    ) {
         return this.videosService.getUserVideos(userId);
+    }
+
+
+    // ─────────────────────────────────────────
+    // SUBTITLE ROUTES
+    // ─────────────────────────────────────────
+
+    // Get all subtitles belonging to a video
+    @Get(':videoId/subtitles')
+    getSubtitleFiles(
+        @Param('videoId') videoId: string,
+    ) {
+        // return this.subtitleService.getSubtitleFiles(videoId);
+    }
+
+
+    // Download subtitle
+    @Get(':videoId/subtitles/:subtitleId/download')
+    downloadSubtitleFile(
+        @Param('videoId') videoId: string,
+        @Param('subtitleId') subtitleId: string,
+    ) {
+        // return this.subtitleService.downloadSubtitleFile(
+        //     videoId,
+        //     subtitleId,
+        // );
+    }
+
+
+    // Preview subtitle
+    @Get(':videoId/subtitles/:subtitleId/preview')
+    previewSubtitleFile(
+        @Param('videoId') videoId: string,
+        @Param('subtitleId') subtitleId: string,
+    ) {
+    }
+
+
+    // Preview burned video
+    @Get(':videoId/subtitles/:subtitleId/preview/burn')
+    previewSubtitleFileWithBurn(
+        @Param('videoId') videoId: string,
+        @Param('subtitleId') subtitleId: string,
+    ) {
+    }
+
+
+    // Download burned video
+    @Get(':videoId/subtitles/:subtitleId/preview/burn/download')
+    downloadSubtitleFileWithBurn(
+        @Param('videoId') videoId: string,
+        @Param('subtitleId') subtitleId: string,
+    ) {
+    }
+
+
+    // ─────────────────────────────────────────
+    // BURNED VIDEO
+    // ─────────────────────────────────────────
+
+    @Get(':videoId/burn')
+    burnedVideo(
+        @Param('videoId') videoId: string,
+    ) {
     }
 }

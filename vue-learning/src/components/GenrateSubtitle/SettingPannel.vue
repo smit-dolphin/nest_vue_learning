@@ -8,19 +8,7 @@ import {
   Wand2,
   AlignLeft,
 } from 'lucide-vue-next'
-
-
-/* ─── Types ─── */
-
-export interface SubtitleSettings {
-  language: string
-  format: string
-  timestamps: boolean
-  speakerLabels: boolean
-  autoTranslate: boolean
-  punctuation: boolean
-  wordLevel: boolean
-}
+import type { SubtitleSettings } from './types'
 
 
 /* ─── Emit ─── */
