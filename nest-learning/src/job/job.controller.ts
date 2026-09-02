@@ -20,6 +20,15 @@ export class JobController {
     async getJobsByUserId(@Param('userId') userId: string) {
         return await this.jobService.getJobByUserId(userId)
     }
+
+    @Get('/:userId/list/:jobId')
+    async getJobById(
+        @Param('userId') userId: string, 
+        @Param('jobId') jobId: string
+    ) {
+        return this.jobService.getJobById(userId, jobId);
+    }
+
     @Get(':jobId')
     async getJobStatus(@Param('jobId') jobId: string) {
         const job = await this.queue.getJob(jobId);

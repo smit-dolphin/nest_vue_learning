@@ -6,6 +6,7 @@ import { TranscriptionService } from '../transcription/transcription.service.js'
 import path from 'node:path';
 import { Job } from 'bullmq';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
+import { AgentService } from '../agent/agent.service.js';
 
 @Injectable()
 export class SubtitleService {
@@ -13,7 +14,8 @@ export class SubtitleService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly ffmpegService: FfmpegService,
-        private readonly transcriptionService: TranscriptionService
+        private readonly transcriptionService: TranscriptionService,
+        private readonly agentService: AgentService
     ) { }
 
     async genrateSubtitle(
@@ -44,6 +46,7 @@ export class SubtitleService {
         const jobEntry = await this.prisma.subtitleJob.create({
             data: {
                 videoId: videoResult.id,
+                queueJobId: job.id,
                 languageCode: options?.leng || 'en',
                 status: 'PROCESSING',
                 startedAt: new Date(),
@@ -79,6 +82,10 @@ export class SubtitleService {
                 );
 
             await job.updateProgress(60);
+
+            if(options.autoTranslate === true || options.autoTranslate === 'true'){
+                await this.agentService.TranslateTranscribtionFile(resultGenratedSubtitle.id, options.targetLanguage);
+            }
 
 
             //___Valid_Output_Format__Check__________

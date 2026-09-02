@@ -30,6 +30,22 @@ export class JobService {
         return { jobId: job.id };
     }
 
+    async getJobById(userId:string,jobId: string) {
+        const job = await this.prisma.subtitleJob.findUnique({
+            where: {
+                id: jobId,
+                video: {
+                    userId,
+                },
+            },
+        });
+        if (!job) {
+            return { message: 'Job not found' };
+        }
+
+        return job
+    }
+
     async getJobByUserId(userId: string) {
         return await this.prisma.subtitleJob.findMany({
             where: {

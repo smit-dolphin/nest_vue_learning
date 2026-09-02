@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JobService } from '../job/job.service.js';
+import { spawn } from 'child_process';
 
 
 
@@ -22,12 +23,15 @@ export class VideosService {
     ) { }
 
     async saveVideo(file: Express.Multer.File, userId: string, options: SubtitleOptions) {
+        const duration = await this.getVideoDuration(file.path);
+
         const result = await this.prisma.video.create({
             data: {
                 filename: file.filename,
                 path: file.path,
                 mimetype: file.mimetype,
                 size: file.size,
+                duration: duration ?? null,
                 userId,
             },
         });
@@ -56,5 +60,35 @@ export class VideosService {
 
     async getUserVideos(userId: string) {
         return await this.prisma.video.findMany({ where: { userId } });
+    }
+
+    // Probes an uploaded video file with ffprobe and returns its duration in seconds.
+    // Returns null if the file cannot be probed or duration is unavailable.
+    async getVideoDuration(videoPath: string): Promise<number | null> {
+        return new Promise((resolve) => {
+            const ffprobe = spawn('ffprobe', [
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_entries', 'format=duration',
+                videoPath,
+            ]);
+
+            let output = '';
+            ffprobe.stdout.on('data', (chunk) => { output += chunk; });
+            ffprobe.on('error', () => resolve(null));
+            ffprobe.on('close', (code) => {
+                if (code !== 0) {
+                    resolve(null);
+                    return;
+                }
+                try {
+                    const info = JSON.parse(output);
+                    const duration = Number(info?.format?.duration);
+                    resolve(Number.isFinite(duration) ? duration : null);
+                } catch {
+                    resolve(null);
+                }
+            });
+        });
     }
 }

@@ -117,7 +117,8 @@ export class TranscriptionService {
         size: file.size,
         duration: file.duration,
         videoId: file.videoId,
-        languageCode: file.languageCode
+        languageCode: file.languageCode,
+        subtitleFormat: this.mapSubtitleFormat(file.subtitleFormat),
       }
     })
 
@@ -128,6 +129,15 @@ export class TranscriptionService {
 
     return transcriptionAudio
 
+  }
+
+  // Maps a subtitle extension string (e.g. ".srt", ".vtt") to the schema's
+  // SubtitleFormat enum ("SRT" | "VTT"). Falls back to SRT for formats the
+  // schema does not support (JSON, Plain Text).
+  mapSubtitleFormat(extension: string): 'SRT' | 'VTT' {
+    const normalized = (extension || '').toLowerCase();
+    if (normalized === '.vtt' || normalized === 'vtt') return 'VTT';
+    return 'SRT';
   }
 
 }

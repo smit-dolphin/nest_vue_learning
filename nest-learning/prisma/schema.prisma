@@ -90,6 +90,8 @@ model Audio {
 model SubtitleJob {
   id String @id @default(cuid())
 
+  queueJobId String?  @unique
+
   videoId String
   video   Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
 

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { Loader2, Sparkles } from 'lucide-vue-next'
 import { uploadVideo } from '../services/videoService.ts'
-import baseApi from '@/api/baseApi.ts'
+import { useCurrentJobStore } from '../stores/currentJobStore.ts'
 
 import PageHeader from '../components/GenrateSubtitle/PageHeader.vue'
 import UploadZone from '../components/GenrateSubtitle/UploadZone.vue'
@@ -13,11 +13,7 @@ import EmptyPanel from '../components/GenrateSubtitle/EmptyPanel.vue'
 import type { SubtitleSettings } from '../components/GenrateSubtitle/types'
 
 /* ─── State ─── */
-const selectedFile = ref<File | null>(null)
-const isProcessing = ref(false)
-const isDone = ref(false)
-const progress = ref(0)
-const jobid = ref<string | null>(null)
+const sourceFile = ref<File | null>(null)
 const subtitleSettings = ref<SubtitleSettings>({
   language: 'English',
   format: 'SRT',
@@ -27,6 +23,11 @@ const subtitleSettings = ref<SubtitleSettings>({
   punctuation: true,
   wordLevel: false,
 })
+
+const jobStore = useCurrentJobStore()
+const isProcessing = jobStore.isProcessing
+const isDone = jobStore.isDone
+const progress = jobStore.progress
 
 const params = computed(() => ({
   leng: subtitleSettings.value.language,
@@ -61,34 +62,21 @@ You can export in SRT, WebVTT, or any major subtitle format.`
 
 /* ─── Methods ─── */
 const startProcessing = async () => {
-  if (!selectedFile.value || isProcessing.value) return
+  if (!sourceFile.value || isProcessing.value) return
 
-  const uplodadresult = await uploadVideo(selectedFile.value!, params.value)
-
+  const uplodadresult = await uploadVideo(sourceFile.value!, params.value)
   console.log(uplodadresult)
-  jobid.value = uplodadresult.jobId
 
-  isProcessing.value = true
+  jobStore.startJob(uplodadresult.jobId)
 }
 
-let pollTimer: ReturnType<typeof setInterval> | null = null
-
 onMounted(() => {
-  pollTimer = setInterval(async () => {
-    if (isProcessing.value && jobid.value) {
-      const result = await baseApi.get(`job/${jobid.value}`)
-      console.log(result)
-      progress.value = result.progress
-      if (result.progress === 100) {
-        isProcessing.value = false
-        isDone.value = true
-      }
-    }
-  }, 1000 * 10)
+  // Resume polling for an in-flight job persisted in the store (e.g. after refresh)
+  jobStore.restore()
 })
 
 onBeforeUnmount(() => {
-  if (pollTimer) clearInterval(pollTimer)
+  jobStore.stopPolling()
 })
 
 function handleSettings(settings: SubtitleSettings) {
@@ -105,12 +93,12 @@ function handleSettings(settings: SubtitleSettings) {
       <!-- Left: Upload + Settings -->
       <div class="gen-page__left">
         <!-- Upload Zone -->
-        <UploadZone v-model="selectedFile" />
+        <UploadZone v-model="sourceFile" />
 
         <SettingPannel @settingsChange="handleSettings" />
 
         <!-- Generate Button -->
-        <button class="btn btn--generate" :disabled="!selectedFile || isProcessing" @click="startProcessing">
+        <button class="btn btn--generate" :disabled="!sourceFile || isProcessing" @click="startProcessing">
           <Loader2 v-if="isProcessing" :size="18" class="spin" />
           <Sparkles v-else :size="18" />
           <span>{{ isProcessing ? 'Generating…' : 'Generate Subtitles' }}</span>
