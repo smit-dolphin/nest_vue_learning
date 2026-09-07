@@ -1,5 +1,19 @@
-export type Status = 'all' | 'done' | 'processing' | 'failed'
+export type VideoStatus = 'UPLOADED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+export type Status = 'all' | VideoStatus
 export type ViewMode = 'grid' | 'list'
+
+export interface LibraryVideo {
+  id: string
+  title: string
+  mimetype: string
+  duration: string
+  size: string
+  status: VideoStatus
+  date: string
+  color: string
+  createdAt: string
+  sizeBytes: number
+}
 
 export interface VideoItem {
   id: string | number
@@ -14,8 +28,9 @@ export interface VideoItem {
 }
 
 export const filters: { label: string; value: Status }[] = [
-  { label: 'All Files', value: 'all' },
-  { label: 'Completed', value: 'done' },
-  { label: 'Processing', value: 'processing' },
-  { label: 'Failed', value: 'failed' },
+  { label: 'All Videos', value: 'all' },
+  { label: 'Uploaded', value: 'UPLOADED' },
+  { label: 'Processing', value: 'PROCESSING' },
+  { label: 'Completed', value: 'COMPLETED' },
+  { label: 'Failed', value: 'FAILED' },
 ]

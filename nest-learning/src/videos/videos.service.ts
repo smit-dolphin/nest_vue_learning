@@ -4,6 +4,10 @@ import { JobService } from '../job/job.service.js';
 import { spawn } from 'child_process';
 
 
+import { unlink } from 'fs/promises';
+import { resolve } from 'path';
+
+
 
 export interface SubtitleOptions {
     leng: string;
@@ -91,4 +95,38 @@ export class VideosService {
             });
         });
     }
+
+
+    async deleteVideo(videoId: string) {
+        const video = await this.prisma.video.findUnique({
+            where: { id: videoId },
+        });
+
+        if (!video) {
+            throw new Error('Video not found');
+        }
+
+        // Convert relative path like:
+        // uploads/video.mp4
+        //
+        // into absolute path like:
+        // /your/project/uploads/video.mp4
+        const absolutePath = resolve(process.cwd(), video.path);
+
+        try {
+            await unlink(absolutePath);
+            console.log(`Video file deleted: ${absolutePath}`);
+        } catch (error) {
+            console.error(
+                `Failed to delete video file: ${absolutePath}`,
+                error,
+            );
+        }
+
+        // Delete database record
+        return await this.prisma.video.delete({
+            where: { id: videoId },
+        });
+    }
+
 }

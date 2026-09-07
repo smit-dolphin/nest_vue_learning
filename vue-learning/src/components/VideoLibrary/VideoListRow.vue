@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { FileVideo, Download, Trash2 } from 'lucide-vue-next'
-import type { VideoItem } from './types'
+import type { LibraryVideo } from './types'
 import StatusChip from './StatusChip.vue'
 
 defineProps<{
-  video: VideoItem
+  video: LibraryVideo
 }>()
 
 const emit = defineEmits<{
@@ -21,14 +21,13 @@ const emit = defineEmits<{
       </div>
       <span class="video-list__filename" :title="video.title">{{ video.title }}</span>
     </div>
-    <span class="video-list__cell">{{ video.lang }}</span>
+    <span class="video-list__cell">{{ video.mimetype }}</span>
     <span class="video-list__cell">{{ video.duration }}</span>
     <span class="video-list__cell">{{ video.size }}</span>
-    <span class="video-list__cell">{{ video.segments || '—' }}</span>
     <StatusChip :status="video.status" />
     <span class="video-list__cell">{{ video.date }}</span>
     <div class="video-list__actions">
-      <button class="action-btn" :disabled="video.status !== 'done'" @click="emit('download')"><Download :size="13" /></button>
+      <button class="action-btn" :disabled="video.status !== 'COMPLETED'" @click="emit('download')"><Download :size="13" /></button>
       <button class="action-btn action-btn--danger" @click="emit('delete')"><Trash2 :size="13" /></button>
     </div>
   </div>
@@ -36,7 +35,7 @@ const emit = defineEmits<{
 
 <style scoped>
 .video-list__row {
-  display: grid; grid-template-columns: 3fr 1fr 80px 80px 80px 100px 120px 80px;
+  display: grid; grid-template-columns: 3fr 1.2fr 80px 80px 100px 120px 80px;
   gap: 0.5rem; padding: 0.8rem 1rem; align-items: center;
   border-bottom: 1px solid var(--border-color); transition: background 0.15s;
 }

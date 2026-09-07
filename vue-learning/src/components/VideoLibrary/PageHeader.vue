@@ -3,7 +3,6 @@ import { FileVideo, Upload } from 'lucide-vue-next'
 
 defineProps<{
   total: number
-  subtitled: number
 }>()
 
 const emit = defineEmits<{
@@ -17,7 +16,7 @@ const emit = defineEmits<{
       <div class="page-header__icon"><FileVideo :size="22" /></div>
       <div>
         <h2 class="page-header__title">Video Library</h2>
-        <p class="page-header__sub">{{ total }} videos · {{ subtitled }} subtitled</p>
+          <p class="page-header__sub">{{ total }} videos in your library</p>
       </div>
     </div>
     <button class="btn btn--primary" @click="emit('upload')">

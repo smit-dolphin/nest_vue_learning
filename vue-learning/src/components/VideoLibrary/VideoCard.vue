@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { Play, Globe2, Captions, Download, Trash2, MoreHorizontal } from 'lucide-vue-next'
-import type { VideoItem } from './types'
+import { Play, FileType, Download, Trash2, MoreHorizontal } from 'lucide-vue-next'
+import type { LibraryVideo } from './types'
 import StatusChip from './StatusChip.vue'
 
 defineProps<{
-  video: VideoItem
+  video: LibraryVideo
 }>()
 
 const emit = defineEmits<{
@@ -32,16 +32,15 @@ const emit = defineEmits<{
     <div class="video-card__body">
       <p class="video-card__title">{{ video.title }}</p>
       <div class="video-card__meta">
-        <span><Globe2 :size="11" /> {{ video.lang }}</span>
+        <span><FileType :size="11" /> {{ video.mimetype }}</span>
         <span>{{ video.size }}</span>
-        <span v-if="video.segments"><Captions :size="11" /> {{ video.segments }} seg</span>
       </div>
       <p class="video-card__date">{{ video.date }}</p>
     </div>
 
     <!-- Actions -->
     <div class="video-card__actions">
-      <button class="action-btn" title="Download SRT" :disabled="video.status !== 'done'" @click="emit('download')">
+      <button class="action-btn" title="Download" :disabled="video.status !== 'COMPLETED'" @click="emit('download')">
         <Download :size="14" />
       </button>
       <button class="action-btn action-btn--danger" title="Delete" @click="emit('delete')">

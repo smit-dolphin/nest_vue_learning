@@ -7,40 +7,53 @@ import VideoCard from '../components/VideoLibrary/VideoCard.vue'
 import VideoListRow from '../components/VideoLibrary/VideoListRow.vue'
 import EmptyState from '../components/VideoLibrary/EmptyState.vue'
 import type { Status, ViewMode } from '../components/VideoLibrary/types'
-import { useJobStore } from '../stores/jobStore'
+import { useVideoLibraryStore } from '../stores/videoLibraryStore'
 
-const jobStore = useJobStore()
+const videoStore = useVideoLibraryStore()
 
 const searchQuery = ref('')
 const activeFilter = ref<Status>('all')
 const viewMode = ref<ViewMode>('grid')
 const sortBy = ref('newest')
 
-const videos = computed(() => jobStore.videos)
+const videos = computed(() => videoStore.videos)
 
 const filtered = computed(() => {
   return videos.value
     .filter(v => activeFilter.value === 'all' || v.status === activeFilter.value)
     .filter(v => v.title.toLowerCase().includes(searchQuery.value.toLowerCase()))
+    .sort((a, b) => {
+      if (sortBy.value === 'oldest') return a.createdAt.localeCompare(b.createdAt)
+      if (sortBy.value === 'size') return b.sizeBytes - a.sizeBytes
+      return b.createdAt.localeCompare(a.createdAt)
+    })
 })
 
-const subtitledCount = computed(() => videos.value.filter(v => v.status === 'done').length)
-
-const hasError = computed(() => jobStore.error !== null)
+const hasError = computed(() => videoStore.error !== null)
 
 onMounted(() => {
-  jobStore.fetchJobs()
+  videoStore.fetchVideos()
 })
 
 const onUpload = () => {
   // TODO: wire upload handler
+}
+
+const onDelete = async (videoId: string, title: string) => {
+  if (!window.confirm(`Delete "${title}"?`)) return
+
+  try {
+    await videoStore.removeVideo(videoId)
+  } catch {
+    // The store exposes the request error in the page's existing error state.
+  }
 }
 </script>
 
 <template>
   <div class="library-page">
 
-    <PageHeader :total="videos.length" :subtitled="subtitledCount" @upload="onUpload" />
+    <PageHeader :total="videos.length" @upload="onUpload" />
 
     <SearchToolbar
       v-model:search-query="searchQuery"
@@ -50,15 +63,15 @@ const onUpload = () => {
     />
 
     <!-- Grid View -->
-    <div v-if="jobStore.isLoading" class="state-message">
+    <div v-if="videoStore.isLoading" class="state-message">
       <Loader2 :size="32" class="spin" />
       <p>Loading videos...</p>
     </div>
 
     <div v-else-if="hasError" class="state-message">
       <p>Failed to load videos</p>
-      <span>{{ jobStore.error }}</span>
-      <button class="btn btn--primary" @click="jobStore.fetchJobs()">Retry</button>
+      <span>{{ videoStore.error }}</span>
+      <button class="btn btn--primary" @click="videoStore.fetchVideos()">Retry</button>
     </div>
 
     <!-- Grid View -->
@@ -68,7 +81,7 @@ const onUpload = () => {
         :key="video.id"
         :video="video"
         @download="() => {}"
-        @delete="() => {}"
+        @delete="onDelete(video.id, video.title)"
         @more="() => {}"
       />
 
@@ -79,10 +92,9 @@ const onUpload = () => {
     <div v-else class="video-list">
       <div class="video-list__head">
         <span>File</span>
-        <span>Language</span>
+        <span>Type</span>
         <span>Duration</span>
         <span>Size</span>
-        <span>Segments</span>
         <span>Status</span>
         <span>Date</span>
         <span></span>
@@ -93,7 +105,7 @@ const onUpload = () => {
         :key="video.id"
         :video="video"
         @download="() => {}"
-        @delete="() => {}"
+        @delete="onDelete(video.id, video.title)"
       />
 
       <EmptyState v-if="!filtered.length" />
@@ -126,7 +138,7 @@ const onUpload = () => {
 /* List View */
 .video-list { background: var(--secondary-color); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden; }
 .video-list__head {
-  display: grid; grid-template-columns: 3fr 1fr 80px 80px 80px 100px 120px 80px;
+  display: grid; grid-template-columns: 3fr 1.2fr 80px 80px 100px 120px 80px;
   gap: 0.5rem; padding: 0.75rem 1rem;
   font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--text-muted); border-bottom: 1px solid var(--border-color);

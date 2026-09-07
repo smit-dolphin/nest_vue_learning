@@ -5,6 +5,7 @@ export interface VideoDto {
   filename: string
   path: string
   mimetype: string
+  size: number
   duration: number | null
 }
 

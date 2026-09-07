@@ -103,6 +103,14 @@ export class VideosController {
         return this.videosService.getUserVideos(userId);
     }
 
+    //delete video by id
+    @Get('delete/:videoId')
+    deleteVideo(
+        @Param('videoId') videoId: string,
+    ) {
+        return this.videosService.deleteVideo(videoId);
+    }
+
 
     
 }

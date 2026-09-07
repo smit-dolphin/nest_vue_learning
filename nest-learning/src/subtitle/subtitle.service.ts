@@ -189,6 +189,180 @@ export class SubtitleService {
         }
     }
 
+
+
+    // i should create services which genrate only subtitles files and limited formates 
+    // and also create a service which only burn video subtitle by allowed formates 
+    
+    //_____Genrate_Subtitle_File_________________________
+    async generateSubtitleFile(
+        id: string,
+        options: any,
+        job: Job
+    ) {
+        const root = process.cwd();
+
+        // ─────────────────────────────────────────────
+        // 1. Find Video
+        // ─────────────────────────────────────────────
+
+        const videoResult = await this.prisma.video.findUnique({
+            where: {
+                id,
+            },
+        });
+
+        await job.updateProgress(10);
+
+        if (!videoResult) {
+            throw new NotFoundException('Video not found');
+        }
+
+        // ─────────────────────────────────────────────
+        // 2. Create Subtitle Job DB Entry
+        // ─────────────────────────────────────────────
+
+        const jobEntry = await this.prisma.subtitleJob.create({
+            data: {
+                videoId: videoResult.id,
+                queueJobId: job.id,
+                languageCode: options?.leng || 'en',
+                status: 'PROCESSING',
+                startedAt: new Date(),
+                completedAt: null,
+                errorMessage: null,
+            },
+        });
+
+        try {
+            // ─────────────────────────────────────────
+            // 3. Translation Options
+            // ─────────────────────────────────────────
+
+            const shouldTranslate =
+                options?.autoTranslate === true ||
+                options?.autoTranslate === 'true';
+
+            const targetLanguage =
+                options?.targetLanguage ||
+                options?.leng ||
+                'en';
+
+            // ─────────────────────────────────────────
+            // 4. Video → Audio
+            // ─────────────────────────────────────────
+
+            const generatedAudio =
+                await this.ffmpegService.videoToAudio(
+                    videoResult.path,
+                    videoResult.id,
+                );
+
+            await job.updateProgress(30);
+
+            // ─────────────────────────────────────────
+            // 5. Audio → Subtitle using Whisper
+            // ─────────────────────────────────────────
+
+            const absoluteAudioPath =
+                path.join(root, generatedAudio.path);
+
+            const generatedSubtitle =
+                await this.transcriptionService.transcriptAudio(
+                    absoluteAudioPath,
+                    videoResult.id,
+                    {
+                        ...options,
+
+                        // If translation is enabled:
+                        // Whisper first generates English,
+                        // then Gemini translates English → target.
+                        //
+                        // Otherwise Whisper directly generates
+                        // the requested language.
+                        leng: shouldTranslate
+                            ? 'en'
+                            : targetLanguage,
+                    },
+                );
+
+            await job.updateProgress(60);
+
+            // ─────────────────────────────────────────
+            // 6. Optional AI Translation
+            // ─────────────────────────────────────────
+
+            if (shouldTranslate) {
+                await this.agentService.TranslateTranscribtionFile(
+                    generatedSubtitle.id,
+                    targetLanguage,
+                );
+            }
+
+            await job.updateProgress(80);
+
+            // ─────────────────────────────────────────
+            // 7. Mark Job Completed
+            // ─────────────────────────────────────────
+
+            await this.prisma.subtitleJob.update({
+                where: {
+                    id: jobEntry.id,
+                },
+                data: {
+                    status: 'COMPLETED',
+                    completedAt: new Date(),
+                    errorMessage: null,
+                },
+            });
+
+            await job.updateProgress(100);
+
+            // ─────────────────────────────────────────
+            // 8. Return Generated Subtitle
+            // ─────────────────────────────────────────
+
+            return generatedSubtitle;
+
+        } catch (error) {
+
+            // ─────────────────────────────────────────
+            // Job Failed
+            // ─────────────────────────────────────────
+
+            await this.prisma.subtitleJob.update({
+                where: {
+                    id: jobEntry.id,
+                },
+                data: {
+                    status: 'FAILED',
+                    errorMessage:
+                        error instanceof Error
+                            ? error.message
+                            : 'Unknown error',
+                },
+            });
+
+            // Very important:
+            // Let BullMQ know that the job failed.
+            throw error;
+        }
+    }
+
+
+    //_____Burn_Subtitle_in_Video_________________________
+    async burnSubtitleInVideo(
+        videoPath: string,
+        subtitlePath: string,
+    ) {
+        return this.ffmpegService.burnSubtitleInVideo(
+            videoPath,
+            this.resolveStoredPath(subtitlePath),
+        );
+    }
+
+
+
     private resolveStoredPath(storedPath: string): string {
         const root = process.cwd();
 

@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import {
   History, Search, Captions, Globe2, Clock, CheckCircle2,
   AlertCircle, Loader2, Download, RotateCcw, Trash2,
-  CalendarDays, TrendingUp, ChevronDown
+  CalendarDays, TrendingUp
 } from 'lucide-vue-next'
+import { useJobStore } from '../stores/jobStore'
+import type { JobDto } from '../services/jobService'
 
 const searchQuery = ref('')
 const filterStatus = ref('all')
-const filterPeriod = ref('all')
+
+const jobStore = useJobStore()
 
 interface HistoryItem {
-  id: number
+  id: string
   title: string
   lang: string
   format: string
@@ -23,30 +26,58 @@ interface HistoryItem {
   accuracy?: number
 }
 
-const items: HistoryItem[] = [
-  { id: 1, title: 'Product Demo Q3 2026.mp4', lang: 'English', format: 'SRT', duration: '4:32', segments: 42, status: 'done', date: 'Today', time: '2:05 PM', accuracy: 98.4 },
-  { id: 2, title: 'CEO Interview Final.mov', lang: 'Spanish', format: 'WebVTT', duration: '12:18', segments: 98, status: 'done', date: 'Today', time: '11:32 AM', accuracy: 97.8 },
-  { id: 3, title: 'Tutorial Episode 7.mp4', lang: 'French', format: 'SRT', duration: '8:45', segments: 0, status: 'processing', date: 'Today', time: '9:14 AM' },
-  { id: 4, title: 'Marketing Reel.mp4', lang: 'German', format: 'SRT', duration: '1:20', segments: 14, status: 'done', date: 'Yesterday', time: '6:50 PM', accuracy: 99.1 },
-  { id: 5, title: 'Webinar Recording.mkv', lang: 'Japanese', format: 'ASS', duration: '58:02', segments: 412, status: 'done', date: 'Yesterday', time: '3:10 PM', accuracy: 96.2 },
-  { id: 6, title: 'Onboarding v2.mp4', lang: 'Korean', format: 'SRT', duration: '6:14', segments: 0, status: 'failed', date: 'Yesterday', time: '1:25 PM' },
-  { id: 7, title: 'Conference Talk AI 2026.mp4', lang: 'English', format: 'WebVTT', duration: '32:48', segments: 278, status: 'done', date: 'Aug 17', time: '10:00 AM', accuracy: 98.9 },
-  { id: 8, title: 'Product Teaser Short.mp4', lang: 'Portuguese', format: 'SRT', duration: '0:45', segments: 8, status: 'done', date: 'Aug 16', time: '4:30 PM', accuracy: 99.5 },
-  { id: 9, title: 'Sales Training Part 3.mp4', lang: 'English', format: 'JSON', duration: '22:10', segments: 182, status: 'done', date: 'Aug 15', time: '2:15 PM', accuracy: 97.3 },
-]
+const statusMap: Record<JobDto['status'], HistoryItem['status']> = {
+  COMPLETED: 'done',
+  PENDING: 'processing',
+  PROCESSING: 'processing',
+  QUEUED: 'processing',
+  FAILED: 'failed',
+}
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  const today = new Date()
+  const yesterday = new Date(today)
+  yesterday.setDate(today.getDate() - 1)
+
+  if (date.toDateString() === today.toDateString()) return 'Today'
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeString('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+})
+
+const items = computed<HistoryItem[]>(() => jobStore.jobs.map((job) => ({
+  id: job.id,
+  title: job.video?.filename ?? 'Untitled video',
+  lang: job.languageCode ?? '—',
+  format: '—',
+  duration: job.video?.duration == null ? '—' : `${Math.floor(job.video.duration / 60)}:${String(Math.round(job.video.duration % 60)).padStart(2, '0')}`,
+  segments: 0,
+  status: statusMap[job.status] ?? 'processing',
+  date: formatDate(job.createdAt),
+  time: formatTime(job.createdAt),
+})))
+
+onMounted(() => {
+  jobStore.fetchJobs()
+})
 
 // Group by date
 const grouped = computed(() => {
   const q = searchQuery.value.toLowerCase()
-  const filtered = items.filter(i => {
+  const filtered = items.value.filter(i => {
     const matchSearch = i.title.toLowerCase().includes(q) || i.lang.toLowerCase().includes(q)
     const matchStatus = filterStatus.value === 'all' || i.status === filterStatus.value
     return matchSearch && matchStatus
   })
   const groups: Record<string, HistoryItem[]> = {}
   for (const item of filtered) {
-    if (!groups[item.date]) groups[item.date] = []
-    groups[item.date].push(item)
+    const group = groups[item.date] ?? (groups[item.date] = [])
+    group.push(item)
   }
   return groups
 })
@@ -55,10 +86,12 @@ const statusIcon = (s: string) => ({ done: CheckCircle2, processing: Loader2, fa
 const statusColor = (s: string) => ({ done: '#10b981', processing: '#8b5cf6', failed: '#ef4444' }[s] ?? '')
 const statusBg = (s: string) => ({ done: 'rgba(16,185,129,0.1)', processing: 'rgba(139,92,246,0.1)', failed: 'rgba(239,68,68,0.1)' }[s] ?? '')
 
-const totalDone = computed(() => items.filter(i => i.status === 'done').length)
+const totalDone = computed(() => items.value.filter(i => i.status === 'done').length)
 const avgAccuracy = computed(() => {
-  const doneItems = items.filter(i => i.accuracy)
-  return (doneItems.reduce((a, b) => a + (b.accuracy ?? 0), 0) / doneItems.length).toFixed(1)
+  const doneItems = items.value.filter(i => i.accuracy)
+  return doneItems.length
+    ? (doneItems.reduce((a, b) => a + (b.accuracy ?? 0), 0) / doneItems.length).toFixed(1)
+    : '0.0'
 })
 </script>
 
