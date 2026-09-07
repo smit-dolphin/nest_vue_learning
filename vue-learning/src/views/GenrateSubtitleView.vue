@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { Loader2, Sparkles } from 'lucide-vue-next'
 import { uploadVideo } from '../services/videoService.ts'
 import { useCurrentJobStore } from '../stores/currentJobStore.ts'
+import { useSettingsStore } from '../stores/settingsStore.ts'
 
 import PageHeader from '../components/GenrateSubtitle/PageHeader.vue'
 import UploadZone from '../components/GenrateSubtitle/UploadZone.vue'
@@ -14,28 +17,20 @@ import type { SubtitleSettings } from '../components/GenrateSubtitle/types'
 
 /* ─── State ─── */
 const sourceFile = ref<File | null>(null)
-const subtitleSettings = ref<SubtitleSettings>({
-  language: 'English',
-  format: 'SRT',
-  timestamps: true,
-  speakerLabels: false,
-  autoTranslate: false,
-  punctuation: true,
-  wordLevel: false,
-})
+const settingsStore = useSettingsStore()
+const subtitleSettings = settingsStore.settings
 
 const jobStore = useCurrentJobStore()
-const isProcessing = jobStore.isProcessing
-const isDone = jobStore.isDone
-const progress = jobStore.progress
+const { isProcessing, isDone, progress } = storeToRefs(jobStore)
 
 const params = computed(() => ({
-  leng: subtitleSettings.value.language,
-  formate: subtitleSettings.value.format,
-  lables: subtitleSettings.value.speakerLabels,
-  autoTranslate: subtitleSettings.value.autoTranslate,
-  autoPunctuation: subtitleSettings.value.punctuation,
-  wordLevelTiming: subtitleSettings.value.wordLevel,
+  leng: subtitleSettings.language,
+  formate: subtitleSettings.format,
+  timestamps: subtitleSettings.timestamps,
+  lables: subtitleSettings.speakerLabels,
+  autoTranslate: subtitleSettings.autoTranslate,
+  autoPunctuation: subtitleSettings.punctuation,
+  wordLevelTiming: subtitleSettings.wordLevel,
   burnVideo: true,
 }))
 
@@ -80,7 +75,7 @@ onBeforeUnmount(() => {
 })
 
 function handleSettings(settings: SubtitleSettings) {
-  subtitleSettings.value = settings
+  settingsStore.updateSettings(settings)
 }
 </script>
 

@@ -21,7 +21,7 @@ export class TranscriptionService {
     // creating output path for file (no extension — whisper-cli appends it automatically)
     const absoultePath = path.join(root, 'uploads', 'subtitle', `${videoId}`);
     const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli');
-    const absoluteModelPath = path.join(root, 'Release', 'models', 'ggml-base.bin');
+    const absoluteModelPath = path.join(root, 'Release', 'models', 'ggml-small.bin');
 
     // ensure subtitle output directory exists
     await fs.mkdir(path.join(root, 'uploads', 'subtitle'), { recursive: true });
@@ -43,9 +43,11 @@ export class TranscriptionService {
       "-of",
       absoultePath,
       "-l",
-      `${options.leng || 'en'}`,
+      "auto",
       ...wordLevelTiming
     ])
+
+    // `${options.leng || 'en'}`
 
     wisper.stdout?.on("data", (data) => {
       console.log(`Whisper stdout: ${data.toString()}`);
@@ -76,6 +78,7 @@ export class TranscriptionService {
     // whisper-cli appends the extension itself, so the actual file on disk is:
     //   absoultePath + subtitleFormat.extension  (e.g. "…/videoId.srt")
     const fullSubtitlePath = `${absoultePath}${subtitleFormat.extension}`;
+    const storedSubtitlePath = path.relative(root, fullSubtitlePath);
     console.log('[Whisper] expected subtitle file path:', fullSubtitlePath);
     const filename = path.basename(fullSubtitlePath);
     const filesize = await fs.stat(fullSubtitlePath);
@@ -83,8 +86,7 @@ export class TranscriptionService {
     const subtitleObject = {
       filename: filename,
       mimeType: subtitleFormat.mimeType,
-      // store the full path including extension so downstream services can use it directly
-      path: fullSubtitlePath,
+      path: storedSubtitlePath,
       size: filesize.size,
       duration: 0.0,
       subtitleFormat: subtitleFormat.extension,

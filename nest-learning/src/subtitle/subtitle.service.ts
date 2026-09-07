@@ -57,6 +57,10 @@ export class SubtitleService {
 
 
         try {
+            const shouldTranslate =
+                options.autoTranslate === true ||
+                options.autoTranslate === 'true';
+            const targetLanguage = options.targetLanguage || options.leng || 'en';
 
             //___Video_to_Audio__Service_____________
 
@@ -78,13 +82,20 @@ export class SubtitleService {
                 await this.transcriptionService.transcriptAudio(
                     absoluteAudioPath,
                     videoResult.id,
-                    options
+                    {
+                        ...options,
+                        leng: shouldTranslate ? 'en' : targetLanguage,
+                    }
                 );
 
             await job.updateProgress(60);
 
-            if(options.autoTranslate === true || options.autoTranslate === 'true'){
-                await this.agentService.TranslateTranscribtionFile(resultGenratedSubtitle.id, options.targetLanguage);
+            //___AI_Agent_based_Translation__________
+            if (shouldTranslate) {
+                await this.agentService.TranslateTranscribtionFile(
+                    resultGenratedSubtitle.id,
+                    targetLanguage
+                );
             }
 
 
@@ -129,7 +140,7 @@ export class SubtitleService {
             const burnedVideo =
                 await this.ffmpegService.burnSubtitleInVideo(
                     videoResult.path,
-                    resultGenratedSubtitle.path
+                    this.resolveStoredPath(resultGenratedSubtitle.path)
                 );
 
             await job.updateProgress(100);
@@ -176,5 +187,17 @@ export class SubtitleService {
 
             throw error;
         }
+    }
+
+    private resolveStoredPath(storedPath: string): string {
+        const root = process.cwd();
+
+        if (storedPath.startsWith('/uploads/')) {
+            return path.join(root, storedPath.slice(1));
+        }
+
+        return path.isAbsolute(storedPath)
+            ? storedPath
+            : path.resolve(root, storedPath);
     }
 }

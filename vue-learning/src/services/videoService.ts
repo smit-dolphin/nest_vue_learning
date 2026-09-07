@@ -11,10 +11,16 @@ export interface SubtitleSettings {
   burnVideo: boolean
 }
 
+export interface UploadResult {
+  result: unknown
+  jobId: string
+  options: Record<string, unknown>
+}
+
 export const uploadVideo = async (
   file: File,
   params: SubtitleSettings,
-) => {
+): Promise<UploadResult> => {
   const formData = new FormData()
 
   formData.append('video', file)
@@ -31,7 +37,7 @@ export const uploadVideo = async (
     },
   })
 
-  return response
+  return response as unknown as UploadResult
 }
 
 export const generateSubtitle = async (videoId: string) => {

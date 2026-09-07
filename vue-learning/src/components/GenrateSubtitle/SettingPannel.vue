@@ -9,6 +9,7 @@ import {
   AlignLeft,
 } from 'lucide-vue-next'
 import type { SubtitleSettings } from './types'
+import { useSettingsStore } from '../../stores/settingsStore'
 
 
 /* ─── Emit ─── */
@@ -18,10 +19,16 @@ const emit = defineEmits<{
 }>()
 
 
+/* ─── Persisted settings store ─── */
+
+const settingsStore = useSettingsStore()
+const savedSettings = settingsStore.settings
+
+
 /* ─── State ─── */
 
 const selectedLang = ref('English')
-const selectedFormat = ref('SRT')
+const selectedFormat = ref(savedSettings.format)
 
 const langOpen = ref(false)
 const formatOpen = ref(false)
@@ -121,15 +128,20 @@ const formats = [
   'Plain Text',
 ]
 
+/* ─── Restore persisted values ─── */
+
+const savedLangName = languages.find((l) => l.code === savedSettings.language)?.name
+if (savedLangName) selectedLang.value = savedLangName
+
 
 /* ─── Subtitle Options ─── */
 
 const subtitleOptions = ref({
-  timestamps: true,
-  speakerLabels: false,
-  autoTranslate: false,
-  punctuation: true,
-  wordLevel: false,
+  timestamps: savedSettings.timestamps,
+  speakerLabels: savedSettings.speakerLabels,
+  autoTranslate: savedSettings.autoTranslate,
+  punctuation: savedSettings.punctuation,
+  wordLevel: savedSettings.wordLevel,
 })
 
 
@@ -148,6 +160,7 @@ function sendSettings() {
     wordLevel: subtitleOptions.value.wordLevel,
   }
 
+  settingsStore.updateSettings(settings)
   emit('settingsChange', settings)
 }
 
