@@ -8,6 +8,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
+  (e: 'open'): void
   (e: 'download'): void
   (e: 'delete'): void
   (e: 'more'): void
@@ -17,7 +18,7 @@ const emit = defineEmits<{
 <template>
   <div class="video-card">
     <!-- Thumbnail -->
-    <div class="video-card__thumb" :style="{ background: `linear-gradient(135deg, ${video.color}22, ${video.color}08)` }">
+    <div class="video-card__thumb" :style="{ background: `linear-gradient(135deg, ${video.color}22, ${video.color}08)` }" @click="emit('open')">
       <div class="video-card__play-icon" :style="{ color: video.color }">
         <Play :size="22" fill="currentColor" />
       </div>
@@ -26,6 +27,9 @@ const emit = defineEmits<{
       <div class="video-card__status-badge">
         <StatusChip :status="video.status" />
       </div>
+      <span class="video-card__type-badge" :style="{ color: video.color }">
+        {{ video.type === 'BURNED_VIDEO' ? 'Burned' : 'Uploaded' }}
+      </span>
     </div>
 
     <!-- Info -->
@@ -79,6 +83,10 @@ const emit = defineEmits<{
 }
 .video-card__status-badge {
   position: absolute; top: 8px; left: 8px;
+}
+.video-card__type-badge {
+  position: absolute; right: 8px; top: 8px; padding: 2px 7px;
+  border-radius: 6px; background: rgba(0,0,0,0.65); font-size: 0.68rem; font-weight: 700;
 }
 
 .video-card__body { padding: 0.85rem 0.85rem 0.5rem; flex: 1; }

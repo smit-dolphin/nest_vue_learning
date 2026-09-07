@@ -13,6 +13,8 @@ const STATUS_COLORS: Record<VideoStatus, string> = {
   FAILED: '#ef4444',
 }
 
+const BURNED_VIDEO_COLOR = '#f97316'
+
 function formatDuration(seconds: number | null): string {
   if (seconds === null || Number.isNaN(seconds)) return '—'
 
@@ -60,8 +62,11 @@ function toLibraryVideo(video: VideoDto): LibraryVideo {
     size: formatBytes(video.size),
     duration: formatDuration(video.duration),
     status: video.status,
+    type: video.type,
     date: formatDate(video.createdAt),
-    color: STATUS_COLORS[video.status],
+    color: video.type === 'BURNED_VIDEO'
+      ? BURNED_VIDEO_COLOR
+      : STATUS_COLORS[video.status],
     createdAt: video.createdAt,
     sizeBytes: video.size,
   }

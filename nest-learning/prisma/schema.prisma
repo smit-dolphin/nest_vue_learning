@@ -33,9 +33,14 @@ model Video {
   mimetype String
   size     Int
   duration Float?
+  type     VideoType @default(VIDEO)
 
   status       VideoStatus @default(UPLOADED)
   errorMessage String?
+
+  parentVideoId String?
+  parentVideo   Video?  @relation("VideoDerivatives", fields: [parentVideoId], references: [id], onDelete: Cascade)
+  derivedVideos Video[] @relation("VideoDerivatives")
 
   userId String
   user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -48,6 +53,7 @@ model Video {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([parentVideoId])
 }
 
 model Subtitle {
@@ -118,6 +124,11 @@ enum VideoStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+enum VideoType {
+  VIDEO
+  BURNED_VIDEO
 }
 
 enum JobStatus {

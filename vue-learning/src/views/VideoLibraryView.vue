@@ -6,21 +6,27 @@ import SearchToolbar from '../components/VideoLibrary/SearchToolbar.vue'
 import VideoCard from '../components/VideoLibrary/VideoCard.vue'
 import VideoListRow from '../components/VideoLibrary/VideoListRow.vue'
 import EmptyState from '../components/VideoLibrary/EmptyState.vue'
-import type { Status, ViewMode } from '../components/VideoLibrary/types'
+import PopupModal from '../components/Containers/PopupModal.vue'
+import { getVideoStreamUrl } from '../services/videoService'
+import type { LibraryFilter, ViewMode } from '../components/VideoLibrary/types'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
 
 const videoStore = useVideoLibraryStore()
 
 const searchQuery = ref('')
-const activeFilter = ref<Status>('all')
+const activeFilter = ref<LibraryFilter>('all')
 const viewMode = ref<ViewMode>('grid')
 const sortBy = ref('newest')
+const deleteCandidate = ref<{ id: string; title: string } | null>(null)
+const selectedVideo = ref<{ id: string; title: string; mimetype: string } | null>(null)
 
 const videos = computed(() => videoStore.videos)
 
 const filtered = computed(() => {
   return videos.value
-    .filter(v => activeFilter.value === 'all' || v.status === activeFilter.value)
+    .filter(v => activeFilter.value === 'all'
+      || (activeFilter.value === 'uploaded' && v.type === 'VIDEO')
+      || (activeFilter.value === 'burned' && v.type === 'BURNED_VIDEO'))
     .filter(v => v.title.toLowerCase().includes(searchQuery.value.toLowerCase()))
     .sort((a, b) => {
       if (sortBy.value === 'oldest') return a.createdAt.localeCompare(b.createdAt)
@@ -39,13 +45,23 @@ const onUpload = () => {
   // TODO: wire upload handler
 }
 
-const onDelete = async (videoId: string, title: string) => {
-  if (!window.confirm(`Delete "${title}"?`)) return
+const requestDelete = (videoId: string, title: string) => {
+  deleteCandidate.value = { id: videoId, title }
+}
+
+const openVideo = (video: { id: string; title: string; mimetype: string }) => {
+  selectedVideo.value = video
+}
+
+const confirmDelete = async () => {
+  if (!deleteCandidate.value) return
 
   try {
-    await videoStore.removeVideo(videoId)
+    await videoStore.removeVideo(deleteCandidate.value.id)
   } catch {
     // The store exposes the request error in the page's existing error state.
+  } finally {
+    deleteCandidate.value = null
   }
 }
 </script>
@@ -80,8 +96,9 @@ const onDelete = async (videoId: string, title: string) => {
         v-for="video in filtered"
         :key="video.id"
         :video="video"
+        @open="openVideo(video)"
         @download="() => {}"
-        @delete="onDelete(video.id, video.title)"
+        @delete="requestDelete(video.id, video.title)"
         @more="() => {}"
       />
 
@@ -104,12 +121,43 @@ const onDelete = async (videoId: string, title: string) => {
         v-for="video in filtered"
         :key="video.id"
         :video="video"
+        @open="openVideo(video)"
         @download="() => {}"
-        @delete="onDelete(video.id, video.title)"
+        @delete="requestDelete(video.id, video.title)"
       />
 
       <EmptyState v-if="!filtered.length" />
     </div>
+
+    <PopupModal
+      :model-value="selectedVideo !== null"
+      :title="selectedVideo?.title ?? 'Video preview'"
+      @update:model-value="value => !value && (selectedVideo = null)"
+    >
+      <video
+        v-if="selectedVideo"
+        class="video-player"
+        controls
+        autoplay
+        :src="getVideoStreamUrl(selectedVideo.id)"
+        :type="selectedVideo.mimetype"
+      >
+        Your browser does not support video playback.
+      </video>
+    </PopupModal>
+
+    <PopupModal
+      :model-value="deleteCandidate !== null"
+      title="Delete video?"
+      @update:model-value="value => !value && (deleteCandidate = null)"
+    >
+      <p class="delete-confirmation">This will permanently delete <strong>{{ deleteCandidate?.title }}</strong>.</p>
+
+      <template #footer>
+        <button class="btn btn--secondary" type="button" @click="deleteCandidate = null">Cancel</button>
+        <button class="btn btn--danger" type="button" @click="confirmDelete">Delete</button>
+      </template>
+    </PopupModal>
 
   </div>
 </template>
@@ -131,6 +179,12 @@ const onDelete = async (videoId: string, title: string) => {
 .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; padding: 0.55rem 1.1rem; border: none; text-decoration: none; }
 .btn--primary { background: var(--team-gradient); color: #fff; box-shadow: 0 4px 12px rgba(139,92,246,0.4); }
 .btn--primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(139,92,246,0.5); }
+.btn--secondary { background: var(--card-color); color: var(--text-secondary); border: 1px solid var(--border-color); }
+.btn--danger { background: #ef4444; color: #fff; }
+.btn--danger:hover { background: #dc2626; }
+.delete-confirmation { margin: 0; line-height: 1.5; }
+.delete-confirmation strong { color: var(--text-primary); }
+.video-player { display: block; width: 100%; max-height: 65vh; border-radius: 8px; background: #000; }
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

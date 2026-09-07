@@ -1,6 +1,7 @@
 import { baseApi } from '../api/baseApi'
 
 export type VideoStatus = 'UPLOADED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
+export type VideoType = 'VIDEO' | 'BURNED_VIDEO'
 
 export interface VideoDto {
   id: string
@@ -9,6 +10,7 @@ export interface VideoDto {
   mimetype: string
   size: number
   duration: number | null
+  type: VideoType
   status: VideoStatus
   errorMessage: string | null
   userId: string
@@ -72,4 +74,8 @@ export const deleteVideo = async (videoId: string): Promise<VideoDto> => {
   const response = await baseApi.get<VideoDto>(`/videos/delete/${videoId}`)
 
   return response as unknown as VideoDto
+}
+
+export const getVideoStreamUrl = (videoId: string): string => {
+  return `${baseApi.defaults.baseURL}/videos/stream/${videoId}`
 }

@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { TranscriptionService } from '../transcription/transcription.service.js';
 import path from 'node:path';
+import { stat } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 import { Job } from 'bullmq';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
 import { AgentService } from '../agent/agent.service.js';
@@ -143,6 +145,23 @@ export class SubtitleService {
                     this.resolveStoredPath(resultGenratedSubtitle.path)
                 );
 
+            const burnedVideoStats = await stat(burnedVideo.path);
+            const burnedVideoDuration =
+                await this.getVideoDuration(burnedVideo.path);
+
+            await this.prisma.video.create({
+                data: {
+                    filename: path.basename(burnedVideo.path),
+                    path: burnedVideo.path,
+                    mimetype: 'video/mp4',
+                    size: burnedVideoStats.size,
+                    duration: burnedVideoDuration,
+                    type: 'BURNED_VIDEO',
+                    userId: videoResult.userId,
+                    parentVideoId: videoResult.id,
+                },
+            });
+
             await job.updateProgress(100);
 
 
@@ -187,6 +206,36 @@ export class SubtitleService {
 
             throw error;
         }
+    }
+
+    private async getVideoDuration(videoPath: string): Promise<number | null> {
+        return new Promise((resolve) => {
+            const ffprobe = spawn('ffprobe', [
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_entries', 'format=duration',
+                videoPath,
+            ]);
+
+            let output = '';
+            ffprobe.stdout.on('data', (chunk: Buffer) => {
+                output += chunk.toString();
+            });
+            ffprobe.on('error', () => resolve(null));
+            ffprobe.on('close', (code: number) => {
+                if (code !== 0) {
+                    resolve(null);
+                    return;
+                }
+
+                try {
+                    const duration = Number(JSON.parse(output)?.format?.duration);
+                    resolve(Number.isFinite(duration) ? duration : null);
+                } catch {
+                    resolve(null);
+                }
+            });
+        });
     }
 
 

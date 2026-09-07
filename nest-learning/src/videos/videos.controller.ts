@@ -1,6 +1,7 @@
-import { Controller, Post, Req, Get, Param, UseGuards, UploadedFile, UseInterceptors, BadRequestException, Query } from '@nestjs/common';
+import { Controller, Post, Req, Get, Param, UseGuards, UploadedFile, UseInterceptors, BadRequestException, Query, StreamableFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
+import { createReadStream } from 'fs';
 import { extname } from 'path';
 import { VideosService } from './videos.service.js';
 import { SubtitleService } from '../subtitle/subtitle.service.js'
@@ -109,6 +110,18 @@ export class VideosController {
         @Param('videoId') videoId: string,
     ) {
         return this.videosService.deleteVideo(videoId);
+    }
+
+    @Get('stream/:videoId')
+    async streamVideo(
+        @Param('videoId') videoId: string,
+    ) {
+        const video = await this.videosService.streamVideo(videoId);
+
+        return new StreamableFile(createReadStream(video.filePath), {
+            type: video.mimetype,
+            disposition: `inline; filename="${video.filename}"`,
+        });
     }
 
 

@@ -8,6 +8,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
+  (e: 'open'): void
   (e: 'download'): void
   (e: 'delete'): void
 }>()
@@ -15,13 +16,15 @@ const emit = defineEmits<{
 
 <template>
   <div class="video-list__row">
-    <div class="video-list__file">
+    <div class="video-list__file" role="button" tabindex="0" @click="emit('open')" @keydown.enter="emit('open')">
       <div class="video-list__file-icon" :style="{ background: `${video.color}22`, color: video.color }">
         <FileVideo :size="14" />
       </div>
       <span class="video-list__filename" :title="video.title">{{ video.title }}</span>
     </div>
-    <span class="video-list__cell">{{ video.mimetype }}</span>
+    <span class="video-list__cell video-list__type" :style="{ color: video.color }">
+      {{ video.type === 'BURNED_VIDEO' ? 'Burned' : 'Uploaded' }}
+    </span>
     <span class="video-list__cell">{{ video.duration }}</span>
     <span class="video-list__cell">{{ video.size }}</span>
     <StatusChip :status="video.status" />

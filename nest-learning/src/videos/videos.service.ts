@@ -1,11 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JobService } from '../job/job.service.js';
 import { spawn } from 'child_process';
 
 
 import { unlink } from 'fs/promises';
-import { resolve } from 'path';
+import { stat } from 'fs/promises';
+import { basename, isAbsolute, resolve } from 'path';
 
 
 
@@ -100,33 +101,63 @@ export class VideosService {
     async deleteVideo(videoId: string) {
         const video = await this.prisma.video.findUnique({
             where: { id: videoId },
+            include: { audio: true },
         });
 
         if (!video) {
             throw new Error('Video not found');
         }
 
-        // Convert relative path like:
-        // uploads/video.mp4
-        //
-        // into absolute path like:
-        // /your/project/uploads/video.mp4
-        const absolutePath = resolve(process.cwd(), video.path);
+        await this.removeFile(video.path, 'video');
 
-        try {
-            await unlink(absolutePath);
-            console.log(`Video file deleted: ${absolutePath}`);
-        } catch (error) {
-            console.error(
-                `Failed to delete video file: ${absolutePath}`,
-                error,
-            );
+        for (const audio of video.audio) {
+            await this.removeFile(audio.path, 'audio');
         }
 
         // Delete database record
         return await this.prisma.video.delete({
             where: { id: videoId },
         });
+    }
+
+    async streamVideo(videoId: string) {
+        const video = await this.prisma.video.findUnique({
+            where: { id: videoId },
+        });
+
+        if (!video) {
+            throw new NotFoundException('Video not found');
+        }
+
+        const filePath = isAbsolute(video.path)
+            ? video.path
+            : resolve(process.cwd(), video.path.replace(/^[/\\]+/, ''));
+
+        try {
+            await stat(filePath);
+        } catch {
+            throw new NotFoundException('Video file not found');
+        }
+
+        return {
+            filePath,
+            filename: basename(video.filename),
+            mimetype: video.mimetype,
+        };
+    }
+
+    private async removeFile(filePath: string, fileType: string) {
+        const absolutePath = resolve(process.cwd(), filePath.replace(/^[/\\]+/, ''));
+
+        try {
+            await unlink(absolutePath);
+            console.log(`${fileType} file deleted: ${absolutePath}`);
+        } catch (error) {
+            console.error(
+                `Failed to delete ${fileType} file: ${absolutePath}`,
+                error,
+            );
+        }
     }
 
 }

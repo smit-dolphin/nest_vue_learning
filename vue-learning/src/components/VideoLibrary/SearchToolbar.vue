@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Search, Grid3x3, List } from 'lucide-vue-next'
-import type { Status, ViewMode } from './types'
+import type { LibraryFilter, ViewMode } from './types'
 import { filters } from './types'
 
 const searchQuery = defineModel<string>('searchQuery', { default: '' })
-const activeFilter = defineModel<Status>('activeFilter', { default: 'all' })
+const activeFilter = defineModel<LibraryFilter>('activeFilter', { default: 'all' })
 const sortBy = defineModel<string>('sortBy', { default: 'newest' })
 const viewMode = defineModel<ViewMode>('viewMode', { default: 'grid' })
 </script>
