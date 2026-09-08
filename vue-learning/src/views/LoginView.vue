@@ -6,6 +6,7 @@ import baseApi from '@/api/baseApi' // Assuming you have baseApi configured
 import axios from 'axios'
 import {useAuthStore} from "../stores/authStore.ts"
 import {getMyProfile} from "../services/authService.ts"
+import { toast } from 'vue-sonner'
 
 const router = useRouter()
 const email = ref('')
@@ -42,8 +43,7 @@ const handleLogin = async () => {
     // console.log(userdata)
     // authStore.setUser(userdata)
 
-
-
+  toast.success('Signed in successfully.')
     router.push('/')
   } catch (error: any) {
     console.log(error)

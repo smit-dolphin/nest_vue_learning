@@ -30,6 +30,24 @@ export class FfmpegService {
     // const audioOutputPath= `/upload/audio/${unique}.wav`
 
 
+    const existingAudioRecords = await this.prisma.audio.findMany({
+      where: { videoId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    for (const existingAudio of existingAudioRecords) {
+      const existingAudioPath = existingAudio.path.startsWith('/uploads/')
+        ? path.resolve(existingAudio.path.slice(1))
+        : path.resolve(existingAudio.path);
+
+      try {
+        await fs.access(existingAudioPath);
+        return existingAudio;
+      } catch {
+        await this.prisma.audio.delete({ where: { id: existingAudio.id } });
+      }
+    }
+
     const unique =
       Date.now() + '-' + Math.round(Math.random() * 1e9);
 

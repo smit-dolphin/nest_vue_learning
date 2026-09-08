@@ -37,6 +37,21 @@ export async function getSubtitleFiles(videoId: string): Promise<SubtitleFile[]>
   return response as unknown as SubtitleFile[]
 }
 
+export async function downloadSubtitleFile(subtitleId: string, filename: string): Promise<void> {
+  const blob = await baseApi.get<Blob>(`/subtitle/download/${subtitleId}`, {
+    responseType: 'blob',
+  }) as unknown as Blob
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 // Converts seconds into SRT timestamp format HH:MM:SS,mmm
 export function formatSecondsToSrt(seconds: number): string {
   const pad = (num: number, size = 2) => String(Math.floor(num)).padStart(size, '0')
@@ -59,7 +74,7 @@ export function parseSrtTimeToSeconds(timeStr: string): number {
   const parts = normalized.split(':')
   if (parts.length === 3) {
     const [h, m, s] = parts
-    return (parseFloat(h) || 0) * 3600 + (parseFloat(m) || 0) * 60 + (parseFloat(s) || 0)
+    return (parseFloat(h!) || 0) * 3600 + (parseFloat(m!) || 0) * 60 + (parseFloat(s!) || 0)
   }
   return parseFloat(timeStr) || 0
 }

@@ -69,6 +69,7 @@ function toLibraryVideo(video: VideoDto): LibraryVideo {
       : STATUS_COLORS[video.status],
     createdAt: video.createdAt,
     sizeBytes: video.size,
+    parentVideoId: video.parentVideoId ?? null,
   }
 }
 
@@ -103,7 +104,7 @@ export const useVideoLibraryStore = defineStore('video-library', () => {
 
     try {
       await deleteVideo(videoId)
-      videos.value = videos.value.filter(video => video.id !== videoId)
+      await fetchVideos()
     } catch (err: unknown) {
       error.value = isAxiosError(err)
         ? err.response?.data?.message ?? 'Failed to delete video'

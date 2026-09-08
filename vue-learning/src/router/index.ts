@@ -12,6 +12,7 @@ import HelpView from '../views/HelpView.vue'
 
 import LoginView from '../views/LoginView.vue'
 import RegisterUser from '../views/RegisterUser.vue'
+import NotFoundView from '../views/NotFoundView.vue'
 
 
 const router = createRouter({
@@ -28,6 +29,11 @@ const router = createRouter({
       component: RegisterUser,
     },
     {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
+    },
+    {
       path: '/',
       component: MainLayout,
       children: [
@@ -39,6 +45,11 @@ const router = createRouter({
         {
           path: '/generate-subtitle',
           name: 'generate-subtitle',
+          component: GenrateSubtitleView,
+        },
+        {
+          path: '/generate-subtitle/:videoId',
+          name: 'generate-subtitle-video',
           component: GenrateSubtitleView,
         },
         {

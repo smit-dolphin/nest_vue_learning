@@ -7,9 +7,10 @@ import VideoCard from '../components/VideoLibrary/VideoCard.vue'
 import VideoListRow from '../components/VideoLibrary/VideoListRow.vue'
 import EmptyState from '../components/VideoLibrary/EmptyState.vue'
 import PopupModal from '../components/Containers/PopupModal.vue'
-import { getVideoStreamUrl } from '../services/videoService'
+import { downloadVideoFile, getVideoStreamUrl } from '../services/videoService'
 import type { LibraryFilter, ViewMode } from '../components/VideoLibrary/types'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
+import { toast } from 'vue-sonner'
 
 const videoStore = useVideoLibraryStore()
 
@@ -19,6 +20,7 @@ const viewMode = ref<ViewMode>('grid')
 const sortBy = ref('newest')
 const deleteCandidate = ref<{ id: string; title: string } | null>(null)
 const selectedVideo = ref<{ id: string; title: string; mimetype: string } | null>(null)
+const downloadError = ref<string | null>(null)
 
 const videos = computed(() => videoStore.videos)
 
@@ -53,11 +55,23 @@ const openVideo = (video: { id: string; title: string; mimetype: string }) => {
   selectedVideo.value = video
 }
 
+const downloadVideo = async (video: { id: string; title: string }) => {
+  downloadError.value = null
+
+  try {
+    await downloadVideoFile(video.id, video.title)
+    toast.success(`Downloading ${video.title}.`)
+  } catch {
+    downloadError.value = `Could not download ${video.title}.`
+  }
+}
+
 const confirmDelete = async () => {
   if (!deleteCandidate.value) return
 
   try {
     await videoStore.removeVideo(deleteCandidate.value.id)
+    toast.success('Video deleted successfully.')
   } catch {
     // The store exposes the request error in the page's existing error state.
   } finally {
@@ -97,7 +111,7 @@ const confirmDelete = async () => {
         :key="video.id"
         :video="video"
         @open="openVideo(video)"
-        @download="() => {}"
+        @download="downloadVideo(video)"
         @delete="requestDelete(video.id, video.title)"
       />
 
@@ -121,12 +135,14 @@ const confirmDelete = async () => {
         :key="video.id"
         :video="video"
         @open="openVideo(video)"
-        @download="() => {}"
+        @download="downloadVideo(video)"
         @delete="requestDelete(video.id, video.title)"
       />
 
       <EmptyState v-if="!filtered.length" />
     </div>
+
+    <p v-if="downloadError" class="download-error">{{ downloadError }}</p>
 
     <PopupModal
       :model-value="selectedVideo !== null"
@@ -174,6 +190,7 @@ const confirmDelete = async () => {
 }
 .state-message p { font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin: 0; }
 .state-message span { font-size: 0.8rem; }
+.download-error { margin: 0; color: #ef4444; font-size: 0.8rem; }
 
 .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; padding: 0.55rem 1.1rem; border: none; text-decoration: none; }
 .btn--primary { background: var(--team-gradient); color: #fff; box-shadow: 0 4px 12px rgba(139,92,246,0.4); }

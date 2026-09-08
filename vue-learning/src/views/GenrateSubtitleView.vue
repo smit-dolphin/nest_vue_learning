@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount } from 'vue'
-import { ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { Loader2, Sparkles } from 'lucide-vue-next'
-import { uploadVideo } from '../services/videoService.ts'
+import { AlertCircle, Loader2, Sparkles } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
+import { downloadVideoFile, generateSubtitleForVideo, getVideoStreamUrl, uploadVideo } from '../services/videoService.ts'
+import { downloadSubtitleFile, getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
 import { useCurrentJobStore } from '../stores/currentJobStore.ts'
 import { useSettingsStore } from '../stores/settingsStore.ts'
 
@@ -11,9 +13,20 @@ import PageHeader from '../components/GenrateSubtitle/PageHeader.vue'
 import UploadZone from '../components/GenrateSubtitle/UploadZone.vue'
 import SettingPannel from '../components/GenrateSubtitle/SettingPannel.vue'
 import ProgressCard from '../components/GenrateSubtitle/ProgressCard.vue'
-import OutputCard from '../components/GenrateSubtitle/OutputCard.vue'
+import GeneratedVideoCard from '../components/GenrateSubtitle/GeneratedVideoCard.vue'
 import EmptyPanel from '../components/GenrateSubtitle/EmptyPanel.vue'
 import type { SubtitleSettings } from '../components/GenrateSubtitle/types'
+import { useVideoLibraryStore } from '../stores/videoLibraryStore.ts'
+import type { LibraryVideo } from '../components/VideoLibrary/types'
+
+const route = useRoute()
+const videoStore = useVideoLibraryStore()
+const existingVideo = ref<{ filename: string; mimetype: string; size: number } | null>(null)
+const sourceVideoId = ref<string | null>(null)
+const generatedVideo = ref<LibraryVideo | null>(null)
+const generatedSubtitle = ref<SubtitleFile | null>(null)
+const generationStartedAt = ref<number | null>(null)
+const videoId = computed(() => typeof route.params.videoId === 'string' ? route.params.videoId : null)
 
 /* ─── State ─── */
 const sourceFile = ref<File | null>(null)
@@ -21,7 +34,7 @@ const settingsStore = useSettingsStore()
 const { settings: subtitleSettings } = storeToRefs(settingsStore)
 
 const jobStore = useCurrentJobStore()
-const { isProcessing, isDone, progress } = storeToRefs(jobStore)
+const { isProcessing, isDone, isFailed, progress, error: jobError } = storeToRefs(jobStore)
 
 const params = computed(() => ({
   leng: subtitleSettings.value.language,
@@ -34,44 +47,85 @@ const params = computed(() => ({
   burnVideo: true,
 }))
 
-/* ─── Mock subtitle output ─── */
-const subtitleOutput = `1
-00:00:01,200 --> 00:00:04,800
-Welcome to the product demonstration for Q3 2026.
-
-2
-00:00:05,000 --> 00:00:08,400
-Today we'll be showcasing our latest AI-powered features.
-
-3
-00:00:08,600 --> 00:00:12,200
-The subtitle engine processes video in real-time with 98% accuracy.
-
-4
-00:00:12,500 --> 00:00:16,100
-Let's dive into the new dashboard and explore the capabilities.
-
-5
-00:00:16,300 --> 00:00:20,000
-You can export in SRT, WebVTT, or any major subtitle format.`
-
 /* ─── Methods ─── */
-const startProcessing = async () => {
-  if (!sourceFile.value || isProcessing.value) return
+const loadGeneratedVideo = async () => {
+  if (!sourceVideoId.value) return
 
-  const uplodadresult = await uploadVideo(sourceFile.value!, params.value)
-  console.log(uplodadresult)
+  await videoStore.fetchVideos()
+  const matchingVideos = videoStore.videos
+    .filter((video) => video.type === 'BURNED_VIDEO' && video.parentVideoId === sourceVideoId.value)
+    .filter((video) => {
+      if (!generationStartedAt.value) return true
+      return new Date(video.createdAt).getTime() >= generationStartedAt.value
+    })
+    .sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime())
 
-  jobStore.startJob(uplodadresult.jobId)
+  generatedVideo.value = matchingVideos[0] ?? null
+
+  const subtitleFiles = await getSubtitleFiles(sourceVideoId.value).catch(() => [])
+  generatedSubtitle.value = subtitleFiles
+    .filter((file) => {
+      if (!generationStartedAt.value) return true
+      return new Date(file.createdAt).getTime() >= generationStartedAt.value
+    })
+    .sort((first, second) => new Date(second.createdAt).getTime() - new Date(first.createdAt).getTime())[0] ?? null
 }
 
-onMounted(() => {
+const downloadGeneratedVideo = async () => {
+  if (!generatedVideo.value) return
+  await downloadVideoFile(generatedVideo.value.id, generatedVideo.value.title)
+  toast.success(`Downloading ${generatedVideo.value.title}.`)
+}
+
+const downloadGeneratedSubtitle = async () => {
+  if (!generatedSubtitle.value) return
+  await downloadSubtitleFile(generatedSubtitle.value.id, generatedSubtitle.value.filename)
+  toast.success(`Downloading ${generatedSubtitle.value.filename}.`)
+}
+
+const startProcessing = async () => {
+  if ((!sourceFile.value && !videoId.value) || isProcessing.value) return
+
+  generatedVideo.value = null
+  generationStartedAt.value = Date.now()
+
+  try {
+    const result = videoId.value
+      ? await generateSubtitleForVideo(videoId.value, params.value)
+      : await uploadVideo(sourceFile.value!, params.value)
+
+    sourceVideoId.value = videoId.value ?? (result.result as { id?: string })?.id ?? null
+    jobStore.startJob(result.jobId)
+    toast.success('Subtitle generation started.')
+  } catch {
+    toast.error('Could not start subtitle generation.')
+  }
+}
+
+onMounted(async () => {
+  if (videoId.value) {
+    await videoStore.fetchVideos()
+    const video = videoStore.videos.find((item) => item.id === videoId.value)
+    if (video) {
+      sourceVideoId.value = video.id
+      existingVideo.value = {
+        filename: video.title,
+        mimetype: video.mimetype,
+        size: video.sizeBytes,
+      }
+    }
+  }
+
   // Resume polling for an in-flight job persisted in the store (e.g. after refresh)
   jobStore.restore()
 })
 
 onBeforeUnmount(() => {
   jobStore.stopPolling()
+})
+
+watch(isDone, (done) => {
+  if (done) void loadGeneratedVideo()
 })
 
 function handleSettings(settings: SubtitleSettings) {
@@ -88,12 +142,12 @@ function handleSettings(settings: SubtitleSettings) {
       <!-- Left: Upload + Settings -->
       <div class="gen-page__left">
         <!-- Upload Zone -->
-        <UploadZone v-model="sourceFile" />
+        <UploadZone v-model="sourceFile" :existing-video="existingVideo" />
 
         <SettingPannel @settingsChange="handleSettings" />
 
         <!-- Generate Button -->
-        <button class="btn btn--generate" :disabled="!sourceFile || isProcessing" @click="startProcessing">
+        <button class="btn btn--generate" :disabled="(!sourceFile && !existingVideo) || isProcessing" @click="startProcessing">
           <Loader2 v-if="isProcessing" :size="18" class="spin" />
           <Sparkles v-else :size="18" />
           <span>{{ isProcessing ? 'Generating…' : 'Generate Subtitles' }}</span>
@@ -107,13 +161,23 @@ function handleSettings(settings: SubtitleSettings) {
           <ProgressCard v-if="isProcessing || isDone" :progress="progress" />
         </Transition>
 
-        <!-- Output Card -->
+        <div v-if="isFailed || jobError" class="generation-error" role="alert">
+          <AlertCircle :size="20" />
+          <div>
+            <strong>Generation failed</strong>
+            <p>{{ jobError ?? 'The subtitle job could not be completed.' }}</p>
+          </div>
+        </div>
+
+        <!-- Generated video -->
         <Transition name="fade">
-          <OutputCard
-            v-if="isDone"
-            :subtitle-output="subtitleOutput"
-            :format="subtitleSettings.format"
-            :language="subtitleSettings.language"
+          <GeneratedVideoCard
+            v-if="isDone && generatedVideo"
+            :title="generatedVideo.title"
+            :stream-url="getVideoStreamUrl(generatedVideo.id)"
+            :subtitle="generatedSubtitle"
+            @download-video="downloadGeneratedVideo"
+            @download-subtitle="downloadGeneratedSubtitle"
           />
         </Transition>
 
@@ -133,6 +197,20 @@ function handleSettings(settings: SubtitleSettings) {
   flex-direction: column;
   gap: 1.5rem;
 }
+
+.generation-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+}
+.generation-error strong { display: block; color: var(--text-primary); font-size: 0.85rem; }
+.generation-error p { margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.78rem; }
 
 .gen-page__grid {
   display: grid;

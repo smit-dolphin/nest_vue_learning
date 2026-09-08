@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ArrowLeft, FileText, Loader2, RefreshCw } from 'lucide-vue-next'
+import { ArrowLeft, Download, FileText, Loader2, RefreshCw } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
-import { getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
+import { downloadSubtitleFile, getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
+import { toast } from 'vue-sonner'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +13,8 @@ const videoStore = useVideoLibraryStore()
 const files = ref<SubtitleFile[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
+const downloadingId = ref<string | null>(null)
+const downloadError = ref<string | null>(null)
 
 const videoId = computed(() => String(route.params.videoId))
 const video = computed(() => videoStore.videos.find(item => item.id === videoId.value))
@@ -33,6 +36,20 @@ const loadFiles = async () => {
     error.value = 'No subtitle files were found for this video.'
   } finally {
     isLoading.value = false
+  }
+}
+
+const downloadFile = async (file: SubtitleFile) => {
+  downloadingId.value = file.id
+  downloadError.value = null
+
+  try {
+    await downloadSubtitleFile(file.id, file.filename)
+    toast.success(`Downloading ${file.filename}.`)
+  } catch {
+    downloadError.value = `Could not download ${file.filename}.`
+  } finally {
+    downloadingId.value = null
   }
 }
 
@@ -61,6 +78,7 @@ onMounted(async () => {
         <div>
           <h2>Available files</h2>
           <p>{{ files.length }} subtitle file{{ files.length === 1 ? '' : 's' }}</p>
+          <p v-if="downloadError" class="download-error">{{ downloadError }}</p>
         </div>
         <button class="refresh-button" type="button" title="Refresh files" @click="loadFiles">
           <RefreshCw :size="15" />
@@ -94,6 +112,7 @@ onMounted(async () => {
               <th>Type</th>
               <th>Size</th>
               <th>Created</th>
+              <th aria-label="Actions"></th>
             </tr>
           </thead>
           <tbody>
@@ -109,6 +128,20 @@ onMounted(async () => {
               <td>{{ file.mimeType }}</td>
               <td>{{ formatBytes(file.size) }}</td>
               <td>{{ new Date(file.createdAt).toLocaleDateString() }}</td>
+              <td class="file-actions">
+                <button
+                  class="download-button"
+                  type="button"
+                  :title="`Download ${file.filename}`"
+                  :aria-label="`Download ${file.filename}`"
+                  :disabled="downloadingId === file.id"
+                  @click="downloadFile(file)"
+                >
+                  <Loader2 v-if="downloadingId === file.id" :size="15" class="spin" />
+                  <Download v-else :size="15" />
+                  <span>{{ downloadingId === file.id ? 'Downloading' : 'Download' }}</span>
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -129,6 +162,7 @@ h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 2rem); }
 .files-panel__header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--border-color); }
 .files-panel__header h2 { margin: 0; font-size: 1rem; }
 .files-panel__header p { margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.78rem; }
+.download-error { color: #ef4444 !important; }
 .files-table-wrap { overflow-x: auto; }
 .files-table { width: 100%; border-collapse: collapse; min-width: 720px; }
 .files-table th, .files-table td { padding: 0.85rem 1.1rem; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; white-space: nowrap; }
@@ -138,6 +172,10 @@ h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 2rem); }
 .files-table tbody tr:hover { background: var(--hover-color); }
 .file-name { display: flex; align-items: center; gap: 0.65rem; color: var(--text-primary); }
 .file-name svg { color: #f97316; flex-shrink: 0; }
+.file-actions { text-align: right !important; }
+.download-button { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--border-color); border-radius: 7px; padding: 0.42rem 0.65rem; background: transparent; color: var(--text-secondary); font-size: 0.75rem; cursor: pointer; }
+.download-button:hover:not(:disabled) { border-color: #f97316; color: #f97316; }
+.download-button:disabled { cursor: wait; opacity: 0.65; }
 .table-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.65rem; min-height: 250px; color: var(--text-muted); font-size: 0.85rem; }
 .table-state--error { color: #ef4444; }
 .spin { animation: spin 1s linear infinite; }

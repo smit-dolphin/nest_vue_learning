@@ -14,6 +14,7 @@ export interface VideoDto {
   status: VideoStatus
   errorMessage: string | null
   userId: string
+  parentVideoId?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -64,6 +65,25 @@ export const generateSubtitle = async (videoId: string) => {
   return response
 }
 
+export const generateSubtitleForVideo = async (
+  videoId: string,
+  params: SubtitleSettings,
+): Promise<UploadResult> => {
+  const response = await baseApi.post(`/videos/generate-subtitle/${videoId}`, null, {
+    params: {
+      leng: params.leng,
+      formate: params.formate,
+      lables: params.lables,
+      autoTranslate: params.autoTranslate,
+      autoPunctuation: params.autoPunctuation,
+      wordLevelTiming: params.wordLevelTiming,
+      burnVideo: params.burnVideo,
+    },
+  })
+
+  return response as unknown as UploadResult
+}
+
 export const getUserVideos = async (userId: string): Promise<VideoDto[]> => {
   const response = await baseApi.get<VideoDto[]>(`/videos/user/${userId}`)
 
@@ -78,4 +98,19 @@ export const deleteVideo = async (videoId: string): Promise<VideoDto> => {
 
 export const getVideoStreamUrl = (videoId: string): string => {
   return `${baseApi.defaults.baseURL}/videos/stream/${videoId}`
+}
+
+export const downloadVideoFile = async (videoId: string, filename: string): Promise<void> => {
+  const blob = await baseApi.get<Blob>(`/videos/download/${videoId}`, {
+    responseType: 'blob',
+  }) as unknown as Blob
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
 }

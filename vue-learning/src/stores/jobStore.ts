@@ -90,8 +90,8 @@ export const useJobStore = defineStore('jobs', () => {
       videos.value = data.map(jobToVideoItem)
     } catch (err: unknown) {
       error.value = isAxiosError(err)
-        ? err.response?.data?.message ?? 'Failed to load videos'
-        : 'Failed to load videos'
+        ? err.response?.data?.message ?? 'Failed to load history'
+        : 'Failed to load history'
     } finally {
       isLoading.value = false
     }

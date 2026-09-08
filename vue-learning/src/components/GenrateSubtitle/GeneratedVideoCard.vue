@@ -1,0 +1,148 @@
+<script setup lang="ts">
+import { Download, Film } from 'lucide-vue-next'
+import type { SubtitleFile } from '../../services/subtitleService'
+
+const props = defineProps<{
+  title: string
+  streamUrl: string
+  subtitle: SubtitleFile | null
+}>()
+
+const emit = defineEmits<{
+  (event: 'download-video'): void
+  (event: 'download-subtitle'): void
+}>()
+</script>
+
+<template>
+  <section class="generated-card">
+    <div class="generated-card__header">
+      <div class="generated-card__heading">
+        <div class="generated-card__icon"><Film :size="16" /></div>
+        <div>
+          <h3>Generated Video</h3>
+          <p>{{ title }}</p>
+        </div>
+      </div>
+      <div class="generated-card__actions">
+        <button class="generated-card__download" type="button" title="Download video" @click="emit('download-video')">
+          <Download :size="14" />
+          Download video
+        </button>
+        <button
+          class="generated-card__download"
+          type="button"
+          title="Download subtitle file"
+          :disabled="!props.subtitle"
+          @click="emit('download-subtitle')"
+        >
+          <Download :size="14" />
+          Download subtitles
+        </button>
+      </div>
+    </div>
+
+    <video class="generated-card__video" controls :src="streamUrl">
+      Your browser does not support video playback.
+    </video>
+  </section>
+</template>
+
+<style scoped>
+.generated-card {
+  background: var(--secondary-color);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.generated-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+}
+
+.generated-card__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.generated-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.generated-card__icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--primary-color);
+  background: var(--team-color-light);
+  border-radius: 8px;
+}
+
+.generated-card h3 {
+  margin: 0 0 2px;
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.generated-card p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.generated-card__download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0.45rem 0.7rem;
+  color: var(--text-muted);
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.generated-card__download:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--border-light);
+  background: var(--hover-color);
+}
+
+.generated-card__download:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.generated-card__video {
+  display: block;
+  width: calc(100% - 2.5rem);
+  max-height: 480px;
+  margin: 0 1.25rem 1.25rem;
+  border-radius: 10px;
+  background: #000;
+}
+
+@media (max-width: 640px) {
+  .generated-card__header { align-items: flex-start; flex-direction: column; }
+  .generated-card__actions { width: 100%; }
+  .generated-card__download { flex: 1; justify-content: center; }
+}
+</style>

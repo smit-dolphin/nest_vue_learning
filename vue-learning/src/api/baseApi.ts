@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/stores/authStore'
 import axios from 'axios'
 import router from '@/router'
+import { toast } from 'vue-sonner'
 
 export const baseApi = axios.create({
   baseURL: 'http://localhost:3000',
@@ -42,10 +43,17 @@ baseApi.interceptors.response.use(
       } catch (refreshError) {
         const authStore = useAuthStore()
         authStore.clearAuth()
+        toast.error('Your session has expired. Please sign in again.')
         router.replace('/login')
         return Promise.reject(refreshError)
       }
     }
+
+    if (error.response?.status !== 401) {
+      const message = error.response?.data?.message
+      toast.error(typeof message === 'string' ? message : 'Something went wrong. Please try again.')
+    }
+
     return Promise.reject(error);
   }
 )

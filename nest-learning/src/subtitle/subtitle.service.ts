@@ -80,7 +80,7 @@ export class SubtitleService {
             const absoluteAudioPath =
                 path.join(root, resultGenrate.path);
 
-            const resultGenratedSubtitle =
+            let resultGenratedSubtitle =
                 await this.transcriptionService.transcriptAudio(
                     absoluteAudioPath,
                     videoResult.id,
@@ -94,7 +94,7 @@ export class SubtitleService {
 
             //___AI_Agent_based_Translation__________
             if (shouldTranslate) {
-                await this.agentService.TranslateTranscribtionFile(
+                resultGenratedSubtitle = await this.agentService.TranslateTranscribtionFile(
                     resultGenratedSubtitle.id,
                     targetLanguage
                 );
@@ -316,7 +316,7 @@ export class SubtitleService {
             const absoluteAudioPath =
                 path.join(root, generatedAudio.path);
 
-            const generatedSubtitle =
+            let generatedSubtitle =
                 await this.transcriptionService.transcriptAudio(
                     absoluteAudioPath,
                     videoResult.id,
@@ -342,7 +342,7 @@ export class SubtitleService {
             // ─────────────────────────────────────────
 
             if (shouldTranslate) {
-                await this.agentService.TranslateTranscribtionFile(
+                generatedSubtitle = await this.agentService.TranslateTranscribtionFile(
                     generatedSubtitle.id,
                     targetLanguage,
                 );
@@ -424,6 +424,30 @@ export class SubtitleService {
         }
 
         return subtitleFiles;
+    }
+
+    async downloadSubtitle(id: string) {
+        const subtitle = await this.prisma.subtitle.findUnique({
+            where: { id },
+        });
+
+        if (!subtitle) {
+            throw new NotFoundException('Subtitle not found');
+        }
+
+        const filePath = this.resolveStoredPath(subtitle.path);
+
+        try {
+            await stat(filePath);
+        } catch {
+            throw new NotFoundException('Subtitle file not found');
+        }
+
+        return {
+            filePath,
+            filename: subtitle.filename,
+            mimeType: subtitle.mimeType,
+        };
     }
 
 

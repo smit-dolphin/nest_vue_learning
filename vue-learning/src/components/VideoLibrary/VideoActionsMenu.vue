@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { MoreHorizontal, Eye, Files } from 'lucide-vue-next'
+import { MoreHorizontal, Eye, Files, Sparkles } from 'lucide-vue-next'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
@@ -18,13 +18,12 @@ const updateMenuPosition = () => {
   if (!element) return
 
   const rect = element.getBoundingClientRect()
-  const menuWidth = 160
-  const menuHeight = 82
+  const menuWidth = 180
+  const menuHeight = 116
   const edgePadding = 8
-  const horizontalOffset = 150
   const opensUp = rect.bottom + menuHeight > window.innerHeight - edgePadding
   const left = Math.min(
-    Math.max(rect.right - menuWidth + horizontalOffset, edgePadding),
+    Math.max(rect.right - menuWidth, edgePadding),
     window.innerWidth - menuWidth - edgePadding,
   )
 
@@ -84,6 +83,15 @@ onBeforeUnmount(() => {
       <div v-if="isOpen" class="actions-menu__popover" :style="menuPosition" role="menu" @click.stop>
       <RouterLink
         class="actions-menu__item"
+        :to="`/generate-subtitle/${props.videoId}`"
+        role="menuitem"
+        @click="closeMenu"
+      >
+        <Sparkles :size="14" />
+        Generate subtitles
+      </RouterLink>
+      <RouterLink
+        class="actions-menu__item"
         :to="`/library/subtitles/${props.videoId}`"
         role="menuitem"
         @click="closeMenu"
@@ -106,6 +114,28 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.action-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  border-radius: 7px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.action-btn:hover {
+  background: var(--hover-color);
+  color: var(--text-primary);
+  border-color: var(--border-light);
+}
+.action-btn:focus-visible {
+  outline: 2px solid var(--border-light);
+  outline-offset: 2px;
+}
 .actions-menu__popover {
   position: fixed;
   z-index: 2000;

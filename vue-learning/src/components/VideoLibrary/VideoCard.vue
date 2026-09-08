@@ -44,7 +44,7 @@ const emit = defineEmits<{
 
     <!-- Actions -->
     <div class="video-card__actions">
-      <button class="action-btn" title="Download" :disabled="video.status !== 'COMPLETED'" @click="emit('download')">
+      <button class="action-btn" type="button" title="Download video" aria-label="Download video" @click="emit('download')">
         <Download :size="14" />
       </button>
       <button class="action-btn action-btn--danger" title="Delete" @click="emit('delete')">

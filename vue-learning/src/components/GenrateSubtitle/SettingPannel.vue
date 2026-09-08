@@ -1,15 +1,14 @@
 <script setup lang="ts">
 
-import { ref } from 'vue'
+import { computed } from 'vue'
 import {
   Globe2,
-  ChevronDown,
-  Check,
   Wand2,
   AlignLeft,
 } from 'lucide-vue-next'
 import type { SubtitleSettings } from './types'
 import { useSettingsStore } from '../../stores/settingsStore'
+import DropdownSelect from '../Common/DropdownSelect.vue'
 
 
 /* ─── Emit ─── */
@@ -22,17 +21,30 @@ const emit = defineEmits<{
 /* ─── Persisted settings store ─── */
 
 const settingsStore = useSettingsStore()
-const savedSettings = settingsStore.settings
-
-
 /* ─── State ─── */
 
-const selectedLang = ref('English')
-const selectedFormat = ref(savedSettings.format)
+const selectedLang = computed({
+  get: () => languages.find((language) => language.code === settingsStore.settings.language)?.name ?? 'English',
+  set: (name: string) => {
+    const language = languages.find((option) => option.name === name)
+    if (language) {
+      settingsStore.updateSettings({
+        ...settingsStore.settings,
+        language: language.code,
+      })
+    }
+  },
+})
 
-const langOpen = ref(false)
-const formatOpen = ref(false)
-
+const selectedFormat = computed({
+  get: () => settingsStore.settings.format,
+  set: (format: string) => {
+    settingsStore.updateSettings({
+      ...settingsStore.settings,
+      format,
+    })
+  },
+})
 
 /* ─── Options ─── */
 
@@ -128,21 +140,25 @@ const formats = [
   'Plain Text',
 ]
 
-/* ─── Restore persisted values ─── */
+const languageOptions = languages.map((language) => ({
+  label: language.name,
+  value: language.name,
+}))
 
-const savedLangName = languages.find((l) => l.code === savedSettings.language)?.name
-if (savedLangName) selectedLang.value = savedLangName
-
+const formatOptions = formats.map((format) => ({
+  label: format,
+  value: format,
+}))
 
 /* ─── Subtitle Options ─── */
 
-const subtitleOptions = ref({
-  timestamps: savedSettings.timestamps,
-  speakerLabels: savedSettings.speakerLabels,
-  autoTranslate: savedSettings.autoTranslate,
-  punctuation: savedSettings.punctuation,
-  wordLevel: savedSettings.wordLevel,
-})
+const subtitleOptions = computed(() => ({
+  timestamps: settingsStore.settings.timestamps,
+  speakerLabels: settingsStore.settings.speakerLabels,
+  autoTranslate: settingsStore.settings.autoTranslate,
+  punctuation: settingsStore.settings.punctuation,
+  wordLevel: settingsStore.settings.wordLevel,
+}))
 
 
 /* ─── Send Settings To Parent ─── */
@@ -165,24 +181,13 @@ function sendSettings() {
 }
 
 
-/* ─── Select Language ─── */
+/* ─── Select Settings ─── */
 
-function selectLanguage(lang: string) {
-
-  selectedLang.value = lang
-  langOpen.value = false
-
+function onLanguageChange() {
   sendSettings()
 }
 
-
-/* ─── Select Format ─── */
-
-function selectFormat(format: string) {
-
-  selectedFormat.value = format
-  formatOpen.value = false
-
+function onFormatChange() {
   sendSettings()
 }
 
@@ -192,10 +197,10 @@ function selectFormat(format: string) {
 function toggleOption(
   key: keyof typeof subtitleOptions.value
 ) {
-
-  subtitleOptions.value[key] =
-    !subtitleOptions.value[key]
-
+  settingsStore.updateSettings({
+    ...settingsStore.settings,
+    [key]: !settingsStore.settings[key],
+  })
   sendSettings()
 }
 
@@ -229,51 +234,12 @@ sendSettings()
         </label>
 
 
-        <div
-          class="custom-select"
-          @click="langOpen = !langOpen"
-        >
-
-          <span>{{ selectedLang }}</span>
-
-          <ChevronDown
-            :size="14"
-            :class="{ rotated: langOpen }"
-          />
-
-
-          <Transition name="dropdown">
-
-            <div
-              v-if="langOpen"
-              class="custom-select__dropdown"
-            >
-
-              <button
-                v-for="lang in languages"
-                :key="lang.name"
-                class="custom-select__option"
-                :class="{
-                  'custom-select__option--active':
-                    lang.name === selectedLang
-                }"
-                @click.stop="selectLanguage(lang.name)"
-              >
-
-                {{ lang.name }}
-
-                <Check
-                  v-if="lang.name === selectedLang"
-                  :size="12"
-                />
-
-              </button>
-
-            </div>
-
-          </Transition>
-
-        </div>
+        <DropdownSelect
+          v-model="selectedLang"
+          :options="languageOptions"
+          ariaLabel="Language"
+          @update:model-value="onLanguageChange"
+        />
 
       </div>
 
@@ -288,51 +254,12 @@ sendSettings()
         </label>
 
 
-        <div
-          class="custom-select"
-          @click="formatOpen = !formatOpen"
-        >
-
-          <span>{{ selectedFormat }}</span>
-
-          <ChevronDown
-            :size="14"
-            :class="{ rotated: formatOpen }"
-          />
-
-
-          <Transition name="dropdown">
-
-            <div
-              v-if="formatOpen"
-              class="custom-select__dropdown"
-            >
-
-              <button
-                v-for="fmt in formats"
-                :key="fmt"
-                class="custom-select__option"
-                :class="{
-                  'custom-select__option--active':
-                    fmt === selectedFormat
-                }"
-                @click.stop="selectFormat(fmt)"
-              >
-
-                {{ fmt }}
-
-                <Check
-                  v-if="fmt === selectedFormat"
-                  :size="12"
-                />
-
-              </button>
-
-            </div>
-
-          </Transition>
-
-        </div>
+        <DropdownSelect
+          v-model="selectedFormat"
+          :options="formatOptions"
+          ariaLabel="Output format"
+          @update:model-value="onFormatChange"
+        />
 
       </div>
 
@@ -449,73 +376,6 @@ sendSettings()
   letter-spacing: 0.5px;
   color: var(--text-muted);
   margin-bottom: 0.4rem;
-}
-
-
-/* Custom Select */
-
-.custom-select {
-  background: var(--card-color);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.55rem 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  transition: border-color 0.2s;
-  position: relative;
-}
-
-.custom-select:hover {
-  border-color: var(--border-light);
-}
-
-.custom-select .rotated {
-  transform: rotate(180deg);
-  transition: transform 0.2s;
-}
-
-.custom-select__dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: var(--card-color);
-  border: 1px solid var(--border-light);
-  border-radius: 10px;
-  box-shadow: var(--shadow-md);
-  z-index: 50;
-  overflow: hidden;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.custom-select__option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.55rem 0.75rem;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  width: 100%;
-  text-align: left;
-  transition: background 0.15s;
-}
-
-.custom-select__option:hover {
-  background: var(--hover-color);
-  color: var(--text-primary);
-}
-
-.custom-select__option--active {
-  color: var(--primary-color);
-  background: var(--active-color);
 }
 
 

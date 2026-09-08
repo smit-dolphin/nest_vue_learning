@@ -59,6 +59,33 @@ export class VideosService {
         return { result, jobId: vidoeJob.jobId, options }; // Return the saved video information along with the job ID and options
     }
 
+    async getSubtitleVideoById(videoId: string,options: SubtitleOptions) {
+
+        const result = await this.prisma.video.findUnique({
+            where: {
+                id: videoId,
+            }
+        });
+
+        if (!result) {
+            throw new Error('Failed to fetch video');
+        }
+
+        const vidoeJob = await this.jobService.addVideoProcessingJob({
+            videoId:result.id, options: {
+                formate: options.formate,
+                leng: options.leng,
+                lables: options.lables,
+                autoTranslate: options.autoTranslate,
+                autoPunctuation: options.autoPunctuation,
+                wordLevelTiming: options.wordLevelTiming,
+                burnVideo: options.burnVideo,
+            }
+        });
+
+        return { result, jobId: vidoeJob.jobId, options }
+    }
+
     async getVideos() {
         return await this.prisma.video.findMany({ include: { user: { select: { email: true } } } });
     }
@@ -101,7 +128,16 @@ export class VideosService {
     async deleteVideo(videoId: string) {
         const video = await this.prisma.video.findUnique({
             where: { id: videoId },
-            include: { audio: true },
+            include: {
+                audio: true,
+                subtitles: true,
+                derivedVideos: {
+                    include: {
+                        audio: true,
+                        subtitles: true,
+                    },
+                },
+            },
         });
 
         if (!video) {
@@ -114,7 +150,23 @@ export class VideosService {
             await this.removeFile(audio.path, 'audio');
         }
 
-        // Delete database record
+        for (const subtitle of video.subtitles) {
+            await this.removeFile(subtitle.path, 'subtitle');
+        }
+
+        for (const derivedVideo of video.derivedVideos) {
+            await this.removeFile(derivedVideo.path, 'derived video');
+
+            for (const audio of derivedVideo.audio) {
+                await this.removeFile(audio.path, 'derived audio');
+            }
+
+            for (const subtitle of derivedVideo.subtitles) {
+                await this.removeFile(subtitle.path, 'derived subtitle');
+            }
+        }
+
+        // The relation cascade removes derived video records as well.
         return await this.prisma.video.delete({
             where: { id: videoId },
         });
@@ -144,6 +196,10 @@ export class VideosService {
             filename: basename(video.filename),
             mimetype: video.mimetype,
         };
+    }
+
+    async downloadVideo(videoId: string) {
+        return this.streamVideo(videoId);
     }
 
     private async removeFile(filePath: string, fileType: string) {

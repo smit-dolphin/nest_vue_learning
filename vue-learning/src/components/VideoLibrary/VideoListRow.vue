@@ -31,8 +31,8 @@ const emit = defineEmits<{
     <StatusChip :status="video.status" />
     <span class="video-list__cell">{{ video.date }}</span>
     <div class="video-list__actions">
-      <button class="action-btn" :disabled="video.status !== 'COMPLETED'" @click="emit('download')"><Download :size="13" /></button>
-      <button class="action-btn action-btn--danger" @click="emit('delete')"><Trash2 :size="13" /></button>
+      <button class="action-btn" type="button" title="Download video" aria-label="Download video" @click="emit('download')"><Download :size="13" /></button>
+      <button class="action-btn action-btn--danger" type="button" title="Delete video" aria-label="Delete video" @click="emit('delete')"><Trash2 :size="13" /></button>
       <VideoActionsMenu v-if="video.type === 'VIDEO'" :video-id="video.id" />
     </div>
   </div>

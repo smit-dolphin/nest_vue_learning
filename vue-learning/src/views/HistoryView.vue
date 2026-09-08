@@ -66,6 +66,10 @@ onMounted(() => {
   jobStore.fetchJobs()
 })
 
+const retry = () => {
+  void jobStore.fetchJobs()
+}
+
 // Group by date
 const grouped = computed(() => {
   const q = searchQuery.value.toLowerCase()
@@ -163,6 +167,16 @@ const avgAccuracy = computed(() => {
 
     <!-- Timeline Groups -->
     <div class="timeline">
+      <div v-if="jobStore.isLoading" class="history-state">
+        <Loader2 :size="28" class="spin" />
+        <p>Loading history...</p>
+      </div>
+      <div v-else-if="jobStore.error" class="history-state history-state--error">
+        <AlertCircle :size="28" />
+        <p>{{ jobStore.error }}</p>
+        <button type="button" @click="retry">Try again</button>
+      </div>
+      <template v-else>
       <div v-for="(group, date) in grouped" :key="date" class="timeline__group">
         <!-- Date Header -->
         <div class="timeline__date-header">
@@ -231,6 +245,7 @@ const avgAccuracy = computed(() => {
         <p>No history found</p>
         <span>Your past jobs will appear here</span>
       </div>
+      </template>
     </div>
 
   </div>
@@ -238,6 +253,10 @@ const avgAccuracy = computed(() => {
 
 <style scoped>
 .history-page { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+.history-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.65rem; min-height: 220px; color: var(--text-muted); text-align: center; }
+.history-state p { margin: 0; font-size: 0.85rem; }
+.history-state--error { color: #ef4444; }
+.history-state button { border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.75rem; background: var(--secondary-color); color: var(--text-secondary); cursor: pointer; }
 
 /* Header */
 .page-header { display: flex; align-items: center; justify-content: space-between; }

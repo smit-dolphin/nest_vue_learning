@@ -15,6 +15,7 @@ export interface LibraryVideo {
   color: string
   createdAt: string
   sizeBytes: number
+  parentVideoId: string | null
 }
 
 export interface VideoItem {

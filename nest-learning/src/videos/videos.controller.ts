@@ -6,6 +6,7 @@ import { extname } from 'path';
 import { VideosService } from './videos.service.js';
 import { SubtitleService } from '../subtitle/subtitle.service.js'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import { JobService } from '../job/job.service.js';
 
 
 
@@ -16,7 +17,8 @@ export class VideosController {
 
     constructor(
         private readonly videosService: VideosService,
-        private readonly subtitleService: SubtitleService
+        private readonly subtitleService: SubtitleService,
+        private readonly jobService: JobService
     ) {}
 
 
@@ -88,6 +90,30 @@ export class VideosController {
         );
     }
 
+    //genrate subtitle from video id ,existing upload video
+    @Post('generate-subtitle/:videoId')
+     genrateSubtitleFromVideo(
+        @Param('videoId') videoId: string,
+
+        @Query('leng') leng: string,
+        @Query('formate') formate: string,
+        @Query('lables') lables: boolean,
+        @Query('autoTranslate') autoTranslate: boolean,
+        @Query('autoPunctuation') autoPunctuation: boolean,
+        @Query('wordLevelTiming') wordLevelTiming: boolean,
+        @Query('burnVideo') burnVideo: boolean,
+    ){
+        return this.videosService.getSubtitleVideoById(videoId, {
+            leng,
+            formate,
+            lables,
+            autoTranslate,
+            autoPunctuation,
+            wordLevelTiming,
+            burnVideo,
+        });
+    }
+
 
     // GET all videos
     @Get()
@@ -124,6 +150,17 @@ export class VideosController {
         });
     }
 
+    @Get('download/:videoId')
+    async downloadVideo(
+        @Param('videoId') videoId: string,
+    ) {
+        const video = await this.videosService.downloadVideo(videoId);
+
+        return new StreamableFile(createReadStream(video.filePath), {
+            type: video.mimetype,
+            disposition: `attachment; filename="${video.filename}"`,
+        });
+    }
 
     
 }

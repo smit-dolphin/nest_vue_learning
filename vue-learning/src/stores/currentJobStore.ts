@@ -19,12 +19,13 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
   const jobId = ref<string | null>(null)
   const progress = ref(0)
   const jobStatus = ref<string | null>(null)
+  const error = ref<string | null>(null)
   const isPolling = ref(false)
 
   let pollTimer: ReturnType<typeof setInterval> | null = null
 
   const isProcessing = computed(() => isPolling.value && !isDone.value && !isFailed.value)
-  const isDone = computed(() => jobStatus.value === 'completed' || progress.value >= 100)
+  const isDone = computed(() => !isFailed.value && (jobStatus.value === 'completed' || progress.value >= 100))
   const isFailed = computed(() => jobStatus.value === 'failed')
   const hasActiveJob = computed(() => jobId.value !== null)
 
@@ -51,6 +52,7 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
     jobId.value = null
     progress.value = 0
     jobStatus.value = null
+    error.value = null
     localStorage.removeItem(STORAGE_KEY)
   }
 
@@ -68,6 +70,7 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
         stopPolling()
       }
     } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Could not check job progress'
       stopPolling()
     }
   }
@@ -91,6 +94,7 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
     jobId.value = id
     progress.value = 0
     jobStatus.value = 'active'
+    error.value = null
     persist()
     startPolling()
   }
@@ -103,6 +107,7 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
     isProcessing,
     isDone,
     isFailed,
+    error,
     hasActiveJob,
     startJob,
     startPolling,

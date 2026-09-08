@@ -18,6 +18,30 @@ export class TranscriptionService {
     // using process.cwd() to always resolve from project root (works in CommonJS)
     const root = process.cwd();
 
+    const subtitleFormat = getWhisperOutputFormat(options.formate);
+    const languageCode = options.leng || 'en';
+    const subtitleFormatEnum = this.mapSubtitleFormat(subtitleFormat.extension);
+
+    const existingSubtitleRecords = await this.prisma.subtitle.findMany({
+      where: {
+        videoId,
+        languageCode,
+        subtitleFormat: subtitleFormatEnum,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    for (const existingSubtitle of existingSubtitleRecords) {
+      const existingSubtitlePath = this.resolveStoredPath(existingSubtitle.path);
+
+      try {
+        await fs.access(existingSubtitlePath);
+        return existingSubtitle;
+      } catch {
+        await this.prisma.subtitle.delete({ where: { id: existingSubtitle.id } });
+      }
+    }
+
     // creating output path for file (no extension — whisper-cli appends it automatically)
     const absoultePath = path.join(root, 'uploads', 'subtitle', `${videoId}`);
     const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli');
@@ -27,8 +51,6 @@ export class TranscriptionService {
     await fs.mkdir(path.join(root, 'uploads', 'subtitle'), { recursive: true });
 
     // resolve format safely from options (handles missing / wrong-case values)
-    const subtitleFormat = getWhisperOutputFormat(options.formate);
-
     // word level timing check — query params arrive as strings, handle both boolean and 'true'
     const isWordLevel = options.wordLevelTiming === true || options.wordLevelTiming === 'true';
     const wordLevelTiming = isWordLevel ? ['-owts', '-wt', '0.01'] : [];
@@ -91,7 +113,7 @@ export class TranscriptionService {
       duration: 0.0,
       subtitleFormat: subtitleFormat.extension,
       videoId: videoId,
-      languageCode: options.leng || "en"
+      languageCode,
     }
 
     const result = await this.transcriptionAudioDbEntry(subtitleObject)
@@ -140,6 +162,18 @@ export class TranscriptionService {
     const normalized = (extension || '').toLowerCase();
     if (normalized === '.vtt' || normalized === 'vtt') return 'VTT';
     return 'SRT';
+  }
+
+  private resolveStoredPath(storedPath: string): string {
+    const root = process.cwd();
+
+    if (storedPath.startsWith('/uploads/')) {
+      return path.join(root, storedPath.slice(1));
+    }
+
+    return path.isAbsolute(storedPath)
+      ? storedPath
+      : path.resolve(root, storedPath);
   }
 
 }

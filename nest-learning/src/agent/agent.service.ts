@@ -24,6 +24,24 @@ export class AgentService {
             throw new Error(`Transcription file with ID ${FileId} not found.`);
         }
 
+        const existingTranslationRecords = await this.prisma.subtitle.findMany({
+            where: {
+                videoId: transcriptionFile.videoId,
+                languageCode: targetLanguage || 'en',
+                subtitleFormat: transcriptionFile.subtitleFormat,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+
+        for (const existingTranslation of existingTranslationRecords) {
+            try {
+                await fs.access(this.resolveStoredPath(existingTranslation.path));
+                return existingTranslation;
+            } catch {
+                await this.prisma.subtitle.delete({ where: { id: existingTranslation.id } });
+            }
+        }
+
         //read file and create the prompt for translation       
         const filePath = this.resolveStoredPath(transcriptionFile.path);
         const filedata = await fs.readFile(filePath, 'utf-8');
@@ -44,6 +62,7 @@ export class AgentService {
         5.maintain tone as original formate given
         6.genrated charecter of words must not be random and must be presise
         7.given lenguage code must be follow and translated to that lenguage 
+        8.the charecter of target lenguage must be correct and not random
 
         files:-
         Target_Language: ${lenguageCode}
@@ -58,18 +77,34 @@ export class AgentService {
 
         console.log("lenguageCode", lenguageCode)
 
+        const extension = path.extname(transcriptionFile.filename || filePath) || '.srt';
+        const baseName = path.basename(
+            transcriptionFile.filename || filePath,
+            extension,
+        );
+        const languageSuffix = (targetLanguage || 'en').replace(/[^a-zA-Z0-9-_]/g, '-');
+        const translatedFilename = `${baseName}-${languageSuffix}-${Date.now()}${extension}`;
+        const translatedPath = path.join(path.dirname(filePath), translatedFilename);
+        const root = process.cwd();
+
         await fs.writeFile(
-            filePath,
+            translatedPath,
             TranslationResult,
             'utf-8'
         );
 
-        return this.prisma.subtitle.update({
-            where: {
-                id: FileId,
-            },
+        const translatedStats = await fs.stat(translatedPath);
+
+        return this.prisma.subtitle.create({
             data: {
+                filename: translatedFilename,
+                mimeType: transcriptionFile.mimeType,
+                path: path.relative(root, translatedPath),
+                size: translatedStats.size,
+                duration: transcriptionFile.duration,
                 languageCode: targetLanguage || 'en',
+                subtitleFormat: transcriptionFile.subtitleFormat,
+                videoId: transcriptionFile.videoId,
             },
         });
     }

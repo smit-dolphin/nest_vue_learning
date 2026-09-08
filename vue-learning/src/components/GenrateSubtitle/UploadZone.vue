@@ -4,10 +4,22 @@ import { Upload, FileVideo, X } from 'lucide-vue-next'
 
 const model = defineModel<File | null>({ required: true })
 
+const props = defineProps<{
+  existingVideo?: {
+    filename: string
+    mimetype: string
+    size: number
+  } | null
+}>()
+
 const isDragging = ref(false)
 
 const fileSizeMB = computed(() =>
-  model.value ? (model.value.size / 1024 / 1024).toFixed(2) : '0'
+  model.value
+    ? (model.value.size / 1024 / 1024).toFixed(2)
+    : props.existingVideo
+      ? (props.existingVideo.size / 1024 / 1024).toFixed(2)
+      : '0'
 )
 
 const onDrop = (e: DragEvent) => {
@@ -35,25 +47,25 @@ const removeFile = () => {
     class="upload-zone"
     :class="{
       'upload-zone--dragging': isDragging,
-      'upload-zone--has-file': !!model,
+      'upload-zone--has-file': !!model || !!existingVideo,
     }"
     @dragover.prevent="isDragging = true"
     @dragleave="isDragging = false"
     @drop.prevent="onDrop"
-    @click="!model && triggerUpload()"
+    @click="!model && !existingVideo && triggerUpload()"
   >
     <input id="file-input" type="file" accept="video/*,audio/*" class="upload-zone__input" @change="onFileInput" />
 
     <Transition name="fade" mode="out-in">
-      <div v-if="model" key="file" class="upload-zone__file">
+      <div v-if="model || existingVideo" key="file" class="upload-zone__file">
         <div class="upload-zone__file-icon">
           <FileVideo :size="28" />
         </div>
         <div class="upload-zone__file-info">
-          <p class="upload-zone__filename">{{ model.name }}</p>
-          <p class="upload-zone__filesize">{{ fileSizeMB }} MB · {{ model.type }}</p>
+          <p class="upload-zone__filename">{{ model?.name ?? existingVideo?.filename }}</p>
+          <p class="upload-zone__filesize">{{ fileSizeMB }} MB · {{ model?.type ?? existingVideo?.mimetype }}</p>
         </div>
-        <button class="upload-zone__remove" @click.stop="removeFile">
+        <button v-if="model" class="upload-zone__remove" @click.stop="removeFile">
           <X :size="16" />
         </button>
       </div>
