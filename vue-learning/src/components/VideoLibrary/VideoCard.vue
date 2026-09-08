@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { Play, FileType, Download, Trash2, MoreHorizontal } from 'lucide-vue-next'
+import { Play, FileType, Download, Trash2 } from 'lucide-vue-next'
 import type { LibraryVideo } from './types'
 import StatusChip from './StatusChip.vue'
+import VideoActionsMenu from './VideoActionsMenu.vue'
 
 defineProps<{
   video: LibraryVideo
@@ -11,7 +12,6 @@ const emit = defineEmits<{
   (e: 'open'): void
   (e: 'download'): void
   (e: 'delete'): void
-  (e: 'more'): void
 }>()
 </script>
 
@@ -50,9 +50,7 @@ const emit = defineEmits<{
       <button class="action-btn action-btn--danger" title="Delete" @click="emit('delete')">
         <Trash2 :size="14" />
       </button>
-      <button class="action-btn" title="More" @click="emit('more')">
-        <MoreHorizontal :size="14" />
-      </button>
+      <VideoActionsMenu v-if="video.type === 'VIDEO'" :video-id="video.id" />
     </div>
   </div>
 </template>
@@ -60,7 +58,7 @@ const emit = defineEmits<{
 <style scoped>
 .video-card {
   background: var(--secondary-color); border: 1px solid var(--border-color);
-  border-radius: 14px; overflow: hidden; transition: border-color 0.2s, transform 0.2s;
+  border-radius: 14px; overflow: visible; transition: border-color 0.2s, transform 0.2s;
   display: flex; flex-direction: column;
 }
 .video-card:hover { border-color: var(--border-light); transform: translateY(-3px); }

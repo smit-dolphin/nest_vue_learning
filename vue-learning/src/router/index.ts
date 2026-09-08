@@ -5,6 +5,7 @@ import MainLayout from '../layouts/MainLayout.vue'
 import HomeView from '../views/HomeView.vue'
 import GenrateSubtitleView from '../views/GenrateSubtitleView.vue'
 import VideoLibraryView from '../views/VideoLibraryView.vue'
+import SubtitleFilesView from '../views/SubtitleFilesView.vue'
 import HistoryView from '../views/HistoryView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import HelpView from '../views/HelpView.vue'
@@ -44,6 +45,11 @@ const router = createRouter({
           path: '/library',
           name: 'library',
           component: VideoLibraryView,
+        },
+        {
+          path: '/library/subtitles/:videoId',
+          name: 'subtitle-files',
+          component: SubtitleFilesView,
         },
         {
           path: '/history',

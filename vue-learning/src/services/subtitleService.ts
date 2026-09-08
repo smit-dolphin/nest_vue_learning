@@ -19,6 +19,24 @@ export interface GenerationOptions {
   removeFillers: boolean
 }
 
+export interface SubtitleFile {
+  id: string
+  filename: string
+  mimeType: string
+  path: string
+  size: number
+  duration: number | null
+  languageCode: string
+  subtitleFormat: string
+  createdAt: string
+  updatedAt: string
+}
+
+export async function getSubtitleFiles(videoId: string): Promise<SubtitleFile[]> {
+  const response = await baseApi.get<SubtitleFile[]>(`/subtitle/${videoId}`)
+  return response as unknown as SubtitleFile[]
+}
+
 // Converts seconds into SRT timestamp format HH:MM:SS,mmm
 export function formatSecondsToSrt(seconds: number): string {
   const pad = (num: number, size = 2) => String(Math.floor(num)).padStart(size, '0')

@@ -18,19 +18,19 @@ import type { SubtitleSettings } from '../components/GenrateSubtitle/types'
 /* ─── State ─── */
 const sourceFile = ref<File | null>(null)
 const settingsStore = useSettingsStore()
-const subtitleSettings = settingsStore.settings
+const { settings: subtitleSettings } = storeToRefs(settingsStore)
 
 const jobStore = useCurrentJobStore()
 const { isProcessing, isDone, progress } = storeToRefs(jobStore)
 
 const params = computed(() => ({
-  leng: subtitleSettings.language,
-  formate: subtitleSettings.format,
-  timestamps: subtitleSettings.timestamps,
-  lables: subtitleSettings.speakerLabels,
-  autoTranslate: subtitleSettings.autoTranslate,
-  autoPunctuation: subtitleSettings.punctuation,
-  wordLevelTiming: subtitleSettings.wordLevel,
+  leng: subtitleSettings.value.language,
+  formate: subtitleSettings.value.format,
+  timestamps: subtitleSettings.value.timestamps,
+  lables: subtitleSettings.value.speakerLabels,
+  autoTranslate: subtitleSettings.value.autoTranslate,
+  autoPunctuation: subtitleSettings.value.punctuation,
+  wordLevelTiming: subtitleSettings.value.wordLevel,
   burnVideo: true,
 }))
 

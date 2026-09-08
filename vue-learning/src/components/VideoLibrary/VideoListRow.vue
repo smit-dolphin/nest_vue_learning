@@ -2,6 +2,7 @@
 import { FileVideo, Download, Trash2 } from 'lucide-vue-next'
 import type { LibraryVideo } from './types'
 import StatusChip from './StatusChip.vue'
+import VideoActionsMenu from './VideoActionsMenu.vue'
 
 defineProps<{
   video: LibraryVideo
@@ -32,6 +33,7 @@ const emit = defineEmits<{
     <div class="video-list__actions">
       <button class="action-btn" :disabled="video.status !== 'COMPLETED'" @click="emit('download')"><Download :size="13" /></button>
       <button class="action-btn action-btn--danger" @click="emit('delete')"><Trash2 :size="13" /></button>
+      <VideoActionsMenu v-if="video.type === 'VIDEO'" :video-id="video.id" />
     </div>
   </div>
 </template>

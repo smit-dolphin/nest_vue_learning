@@ -411,6 +411,22 @@ export class SubtitleService {
     }
 
 
+    ///_____Get_Subtitle_Files_________________________
+    async getSubtitleFiles(videoId: string) {
+        const subtitleFiles = await this.prisma.subtitle.findMany({
+            where: {
+                videoId: videoId,
+            },
+        });
+
+        if (!subtitleFiles || subtitleFiles.length === 0) {
+            throw new NotFoundException('No subtitle files found for the given video ID');
+        }
+
+        return subtitleFiles;
+    }
+
+
 
     private resolveStoredPath(storedPath: string): string {
         const root = process.cwd();

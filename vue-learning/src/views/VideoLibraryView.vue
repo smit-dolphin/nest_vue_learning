@@ -99,7 +99,6 @@ const confirmDelete = async () => {
         @open="openVideo(video)"
         @download="() => {}"
         @delete="requestDelete(video.id, video.title)"
-        @more="() => {}"
       />
 
       <EmptyState v-if="!filtered.length" show-hint />

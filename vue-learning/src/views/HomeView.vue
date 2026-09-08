@@ -12,6 +12,9 @@ import {
   Zap,
   FileVideo,
 } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/authStore'
+
+const authstore=useAuthStore()
 
 const stats = [
   {
@@ -84,7 +87,7 @@ const statusClass = (s: string) => ({
           <Sparkles :size="13" />
           <span>AI-Powered Subtitle Engine</span>
         </div>
-        <h2 class="dashboard__hero-title">Welcome back, <span class="gradient-text">Smit</span> 👋</h2>
+        <h2 class="dashboard__hero-title">Welcome back, <span class="gradient-text">{{ authstore?.user?.username ?? "User" }}</span> 👋</h2>
         <p class="dashboard__hero-sub">Your subtitle generator is running smoothly. Here's an overview of your activity.</p>
         <div class="dashboard__hero-actions">
           <router-link to="/generate-subtitle" class="btn btn--primary">

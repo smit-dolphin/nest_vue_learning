@@ -1,4 +1,4 @@
-import { Controller,Post,Param } from '@nestjs/common';
+import { Controller,Post,Param, Get } from '@nestjs/common';
 import { SubtitleService } from './subtitle.service.js';
 
 
@@ -12,6 +12,11 @@ export class SubtitleController {
     //     return this.subtitleService.genrateSubtitle(id)
 
     // }
+    
+    @Get(':videoId')
+    getSubtitle(@Param('videoId') videoId:string){
+        return this.subtitleService.getSubtitleFiles(videoId)
+    }
 
 
 

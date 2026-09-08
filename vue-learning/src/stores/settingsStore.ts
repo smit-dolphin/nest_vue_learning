@@ -18,11 +18,11 @@ export const useSettingsStore = defineStore('settings', {
 
   actions: {
     updateSettings(settings: SubtitleSettings) {
-      this.settings = { ...settings }
+      Object.assign(this.settings, settings)
     },
 
     resetSettings() {
-      this.settings = { ...DEFAULT_SETTINGS }
+      Object.assign(this.settings, DEFAULT_SETTINGS)
     },
   },
 
