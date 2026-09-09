@@ -26,6 +26,47 @@ export class VideosController {
     // VIDEO ROUTES
     // ─────────────────────────────────────────
 
+    @Post('upload/:userId')
+    @UseInterceptors(FileInterceptor('video', {
+        storage: diskStorage({
+            destination: './uploads',
+            filename: (req, file, cb) => {
+                const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                cb(null, `${unique}${extname(file.originalname)}`);
+            },
+        }),
+        limits: {
+            fileSize: 100 * 1024 * 1024,
+        },
+        fileFilter: (req, file, cb) => {
+            const allowed = [
+                'video/mp4',
+                'video/webm',
+                'video/mkv',
+                'video/avi',
+            ];
+
+            if (!allowed.includes(file.mimetype)) {
+                return cb(
+                    new BadRequestException('Only video files are allowed'),
+                    false,
+                );
+            }
+
+            cb(null, true);
+        },
+    }))
+    uploadVideoOnly(
+        @UploadedFile() file: Express.Multer.File,
+        @Param('userId') userId: string,
+    ) {
+        if (!file) {
+            throw new BadRequestException('No file uploaded');
+        }
+
+        return this.videosService.saveUploadedVideo(file, userId);
+    }
+
     @Post('/')
     @UseGuards(JwtAuthGuard)
     @UseInterceptors(FileInterceptor('video', {

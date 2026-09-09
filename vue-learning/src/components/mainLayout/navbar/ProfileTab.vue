@@ -12,10 +12,10 @@ const toggleMenu = () => {
   isOpen.value = !isOpen.value
 }
 
-const currentProfileDiv=ref(null)
+const currentProfileDiv = ref<HTMLElement | null>(null)
 
 const onClickHandle = (event: MouseEvent)=> {
-      if(currentProfileDiv.value && !currentProfileDiv.value.contains(event.target)){
+  if (currentProfileDiv.value && event.target instanceof Node && !currentProfileDiv.value.contains(event.target)) {
         isOpen.value=false
       }
 }
@@ -103,10 +103,14 @@ const logout = async  () => {
         <div class="navbar__menu-divider"></div>
 
         <!-- Profile -->
-        <button class="navbar__menu-item">
+        <router-link
+          class="navbar__menu-item"
+          to="/profile"
+          @click="isOpen = false"
+        >
           <User :size="16" />
           <span>Profile</span>
-        </button>
+        </router-link>
 
         <!-- Logout -->
         <button

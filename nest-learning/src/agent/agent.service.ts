@@ -29,6 +29,7 @@ export class AgentService {
                 videoId: transcriptionFile.videoId,
                 languageCode: targetLanguage || 'en',
                 subtitleFormat: transcriptionFile.subtitleFormat,
+                id: { not: transcriptionFile.id },
             },
             orderBy: { createdAt: 'desc' },
         });

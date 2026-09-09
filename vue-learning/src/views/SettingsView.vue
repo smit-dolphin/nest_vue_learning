@@ -48,6 +48,14 @@ const saveProfile = () => {
   saved.value = true
   setTimeout(() => (saved.value = false), 2000)
 }
+
+const preferenceIcons = { autoDownload: Captions, darkMode: Moon, compactView: Palette }
+const preferenceLabels = { autoDownload: 'Auto Download', darkMode: 'Dark Mode', compactView: 'Compact View' }
+const preferenceDescriptions = {
+  autoDownload: 'Automatically download SRT after generation',
+  darkMode: 'Use dark theme across the app',
+  compactView: 'Show a more condensed interface',
+}
 </script>
 
 <template>
@@ -179,10 +187,10 @@ const saveProfile = () => {
               <div v-if="typeof val === 'boolean'">
                 <div class="pref-toggle-row__inner">
                   <div class="pref-toggle-row__info">
-                    <component :is="{ autoDownload: Captions, darkMode: Moon, compactView: Palette }[key] ?? Captions" :size="15" />
+                    <component :is="preferenceIcons[key as keyof typeof preferenceIcons] ?? Captions" :size="15" />
                     <div>
-                      <p class="pref-toggle-row__label">{{ { autoDownload: 'Auto Download', darkMode: 'Dark Mode', compactView: 'Compact View' }[key] }}</p>
-                      <p class="pref-toggle-row__desc">{{ { autoDownload: 'Automatically download SRT after generation', darkMode: 'Use dark theme across the app', compactView: 'Show a more condensed interface' }[key] }}</p>
+                      <p class="pref-toggle-row__label">{{ preferenceLabels[key as keyof typeof preferenceLabels] }}</p>
+                      <p class="pref-toggle-row__desc">{{ preferenceDescriptions[key as keyof typeof preferenceDescriptions] }}</p>
                     </div>
                   </div>
                   <button class="toggle-btn" :class="{ 'toggle-btn--on': prefs[key as keyof typeof prefs] }"

@@ -86,7 +86,7 @@ export class SubtitleService {
                     videoResult.id,
                     {
                         ...options,
-                        leng: shouldTranslate ? 'en' : targetLanguage,
+                        leng: shouldTranslate ? 'auto' : targetLanguage,
                     }
                 );
 
@@ -323,14 +323,13 @@ export class SubtitleService {
                     {
                         ...options,
 
-                        // If translation is enabled:
-                        // Whisper first generates English,
-                        // then Gemini translates English → target.
+                        // Whisper detects the source language,
+                        // then Gemini translates it to the target language.
                         //
                         // Otherwise Whisper directly generates
                         // the requested language.
                         leng: shouldTranslate
-                            ? 'en'
+                            ? 'auto'
                             : targetLanguage,
                     },
                 );

@@ -9,6 +9,7 @@ import SubtitleFilesView from '../views/SubtitleFilesView.vue'
 import HistoryView from '../views/HistoryView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import HelpView from '../views/HelpView.vue'
+import ProfileView from '../views/ProfileView.vue'
 
 import LoginView from '../views/LoginView.vue'
 import RegisterUser from '../views/RegisterUser.vue'
@@ -71,6 +72,11 @@ const router = createRouter({
           path: '/settings',
           name: 'settings',
           component: SettingsView,
+        },
+        {
+          path: '/profile',
+          name: 'profile',
+          component: ProfileView,
         },
         {
           path: '/help',

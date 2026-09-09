@@ -59,6 +59,27 @@ export class VideosService {
         return { result, jobId: vidoeJob.jobId, options }; // Return the saved video information along with the job ID and options
     }
 
+    async saveUploadedVideo(file: Express.Multer.File, userId: string) {
+        const duration = await this.getVideoDuration(file.path);
+
+        const result = await this.prisma.video.create({
+            data: {
+                filename: file.filename,
+                path: file.path,
+                mimetype: file.mimetype,
+                size: file.size,
+                duration: duration ?? null,
+                userId,
+            },
+        });
+
+        if (!result) {
+            throw new Error('Failed to save video');
+        }
+
+        return result;
+    }
+
     async getSubtitleVideoById(videoId: string,options: SubtitleOptions) {
 
         const result = await this.prisma.video.findUnique({

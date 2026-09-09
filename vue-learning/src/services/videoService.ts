@@ -36,6 +36,15 @@ export interface UploadResult {
   options: Record<string, unknown>
 }
 
+export const uploadVideoOnly = async (file: File, userId: string): Promise<VideoDto> => {
+  const formData = new FormData()
+  formData.append('video', file)
+
+  const response = await baseApi.post(`/videos/upload/${userId}`, formData)
+
+  return response as unknown as VideoDto
+}
+
 export const uploadVideo = async (
   file: File,
   params: SubtitleSettings,
