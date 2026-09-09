@@ -16,12 +16,14 @@ baseApi.interceptors.response.use(
   },
   async (error) => {
     const originalRequest = error.config
+    const requestUrl = originalRequest?.url ?? ''
+    const isAuthRequest = requestUrl === '/auth/me' || requestUrl === '/auth/refresh'
 
     // If it's a 401, not already retried, AND the url is NOT /auth/refresh
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      originalRequest.url !== '/auth/refresh'
+      requestUrl !== '/auth/refresh'
     ) {
       originalRequest._retry = true
 
@@ -49,7 +51,7 @@ baseApi.interceptors.response.use(
       }
     }
 
-    if (error.response?.status !== 401) {
+    if (error.response?.status !== 401 && !isAuthRequest) {
       const message = error.response?.data?.message
       toast.error(typeof message === 'string' ? message : 'Something went wrong. Please try again.')
     }

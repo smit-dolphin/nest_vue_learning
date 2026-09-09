@@ -4,18 +4,35 @@ import { SubtitleService } from "../subtitle/subtitle.service.js";
 
 
 
-@Processor('video-processing')
+@Processor('video-processing',{
+  concurrency: 5,
+})
 export class JobProcessor extends WorkerHost{
 
     constructor(
-        private readonly subtitleService:SubtitleService
+        private readonly subtitleService: SubtitleService,
     ) {
         super()
     }
 
     async process(job: Job) {
-        const { videoId ,options} = job.data;
-        await this.subtitleService.genrateSubtitle(videoId,options,job)
-        console.log(`Processing video with ID: ${videoId}`);
-  }
+
+        switch (job.name) {
+            case 'generate-subtitle':
+                return this.subtitleService.genrateSubtitle(
+                    job.data.videoId,
+                    job.data.options,
+                    job,
+                );
+            case 'burn-subtitle':
+                return this.subtitleService.burnExistingSubtitle(
+                    job.data.videoId,
+                    job.data.subtitleId,
+                    job,
+                    job.data.subtitleJobId,
+                );
+            default:
+                throw new Error(`Unknown job type: ${job.name}`);
+        }
+    }
 }

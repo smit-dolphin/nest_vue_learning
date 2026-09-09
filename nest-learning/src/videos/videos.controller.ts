@@ -1,4 +1,4 @@
-import { Controller, Post, Req, Get, Param, UseGuards, UploadedFile, UseInterceptors, BadRequestException, Query, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Post, Req, Get, Param, UseGuards, UploadedFile, UseInterceptors, BadRequestException, Query, StreamableFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { createReadStream } from 'fs';
@@ -152,6 +152,17 @@ export class VideosController {
             autoPunctuation,
             wordLevelTiming,
             burnVideo,
+        });
+    }
+
+    @Post(':videoId/burn-subtitle')
+    burnExistingSubtitle(
+        @Param('videoId') videoId: string,
+        @Body() body: { subtitleId: string },
+    ) {
+        return this.jobService.addBurnSubtitleJob({
+            videoId,
+            subtitleId: body.subtitleId,
         });
     }
 

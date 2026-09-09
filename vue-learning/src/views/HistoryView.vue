@@ -53,8 +53,8 @@ const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeStri
 const items = computed<HistoryItem[]>(() => jobStore.jobs.map((job) => ({
   id: job.id,
   title: job.video?.filename ?? 'Untitled video',
-  lang: job.languageCode ?? '—',
-  format: '—',
+  lang: job.languageCode ?? 'Burn video',
+  format: job.languageCode ? 'Subtitle' : 'Burned video',
   duration: job.video?.duration == null ? '—' : `${Math.floor(job.video.duration / 60)}:${String(Math.round(job.video.duration % 60)).padStart(2, '0')}`,
   segments: 0,
   status: statusMap[job.status] ?? 'processing',

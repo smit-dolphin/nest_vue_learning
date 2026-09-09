@@ -30,6 +30,36 @@ export class JobService {
         return { jobId: job.id };
     }
 
+    async addBurnSubtitleJob(data: { videoId: string; subtitleId: string }) {
+        const { videoId, subtitleId } = data;
+        const jobEntry = await this.prisma.subtitleJob.create({
+            data: {
+                videoId,
+                status: 'PENDING',
+            },
+        });
+
+        const job = await this.videoProcessingQueue.add('burn-subtitle', {
+            videoId,
+            subtitleId,
+            subtitleJobId: jobEntry.id,
+        }, {
+            removeOnComplete: {
+                count: 1000,
+            },
+            removeOnFail: {
+                count: 1000,
+            },
+        });
+
+        await this.prisma.subtitleJob.update({
+            where: { id: jobEntry.id },
+            data: { queueJobId: job.id },
+        });
+
+        return { jobId: job.id, historyId: jobEntry.id };
+    }
+
     async getJobById(userId:string,jobId: string) {
         const job = await this.prisma.subtitleJob.findUnique({
             where: {

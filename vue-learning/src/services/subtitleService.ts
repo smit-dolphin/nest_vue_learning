@@ -32,9 +32,20 @@ export interface SubtitleFile {
   updatedAt: string
 }
 
+export interface BurnSubtitleJob {
+  jobId: string
+}
+
 export async function getSubtitleFiles(videoId: string): Promise<SubtitleFile[]> {
   const response = await baseApi.get<SubtitleFile[]>(`/subtitle/${videoId}`)
   return response as unknown as SubtitleFile[]
+}
+
+export async function burnSubtitleFile(videoId: string, subtitleId: string): Promise<BurnSubtitleJob> {
+  const response = await baseApi.post<BurnSubtitleJob>(`/videos/${videoId}/burn-subtitle`, {
+    subtitleId,
+  })
+  return response as unknown as BurnSubtitleJob
 }
 
 export async function downloadSubtitleFile(subtitleId: string, filename: string): Promise<void> {

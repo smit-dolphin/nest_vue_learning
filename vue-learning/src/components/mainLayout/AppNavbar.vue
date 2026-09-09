@@ -43,9 +43,12 @@ const fetchMyProfile=async()=>{
 }
 
 onMounted(async () => {
-  const userdata = await fetchMyProfile()
-  
+  try {
+    const userdata = await fetchMyProfile()
     authStore.setUser(userdata)
+  } catch {
+    // An expired session is handled by the API interceptor and redirected to login.
+  }
 })
 
 

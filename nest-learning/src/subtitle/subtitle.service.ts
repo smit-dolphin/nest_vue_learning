@@ -409,6 +409,90 @@ export class SubtitleService {
         );
     }
 
+    async burnExistingSubtitle(
+        videoId: string,
+        subtitleId: string,
+        job: Job,
+        subtitleJobId: string,
+    ) {
+        const video = await this.prisma.video.findUnique({
+            where: { id: videoId },
+        });
+        const subtitle = await this.prisma.subtitle.findUnique({
+            where: { id: subtitleId },
+        });
+
+        if (!video) {
+            throw new NotFoundException('Video not found');
+        }
+
+        if (!subtitle) {
+            throw new NotFoundException('Subtitle not found');
+        }
+
+        if (subtitle.videoId !== video.id) {
+            throw new Error('Subtitle does not belong to this video');
+        }
+
+        await this.prisma.subtitleJob.update({
+            where: { id: subtitleJobId },
+            data: {
+                status: 'PROCESSING',
+                startedAt: new Date(),
+                errorMessage: null,
+            },
+        });
+
+        await job.updateProgress(20);
+
+        try {
+            const burnedVideo = await this.ffmpegService.burnSubtitleInVideo(
+                this.resolveStoredPath(video.path),
+                this.resolveStoredPath(subtitle.path),
+            );
+
+            await job.updateProgress(80);
+
+            const burnedVideoStats = await stat(burnedVideo.path);
+            const burnedVideoDuration = await this.getVideoDuration(burnedVideo.path);
+
+            const result = await this.prisma.video.create({
+                data: {
+                    filename: path.basename(burnedVideo.path),
+                    path: burnedVideo.path,
+                    mimetype: 'video/mp4',
+                    size: burnedVideoStats.size,
+                    duration: burnedVideoDuration,
+                    type: 'BURNED_VIDEO',
+                    userId: video.userId,
+                    parentVideoId: video.id,
+                },
+            });
+
+            await this.prisma.subtitleJob.update({
+                where: { id: subtitleJobId },
+                data: {
+                    status: 'COMPLETED',
+                    completedAt: new Date(),
+                    errorMessage: null,
+                },
+            });
+
+            await job.updateProgress(100);
+            return result;
+        } catch (error) {
+            await this.prisma.subtitleJob.update({
+                where: { id: subtitleJobId },
+                data: {
+                    status: 'FAILED',
+                    errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                },
+            });
+
+            throw error;
+        }
+    }
+
 
     ///_____Get_Subtitle_Files_________________________
     async getSubtitleFiles(videoId: string) {

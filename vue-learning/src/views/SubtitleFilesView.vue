@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ArrowLeft, Download, FileText, Loader2, RefreshCw } from 'lucide-vue-next'
+import { ArrowLeft, Download, FileText, Flame, Loader2, RefreshCw } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
-import { downloadSubtitleFile, getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
+import { burnSubtitleFile, downloadSubtitleFile, getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
+import { jobService } from '../services/jobService'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
 import { toast } from 'vue-sonner'
 
@@ -14,6 +15,7 @@ const files = ref<SubtitleFile[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 const downloadingId = ref<string | null>(null)
+const burningId = ref<string | null>(null)
 const downloadError = ref<string | null>(null)
 
 const videoId = computed(() => String(route.params.videoId))
@@ -50,6 +52,34 @@ const downloadFile = async (file: SubtitleFile) => {
     downloadError.value = `Could not download ${file.filename}.`
   } finally {
     downloadingId.value = null
+  }
+}
+
+const waitForBurnJob = async (jobId: string) => {
+  for (let attempt = 0; attempt < 120; attempt++) {
+    const job = await jobService.getJobStatus(jobId)
+
+    if (job.status === 'completed') return
+    if (job.status === 'failed') throw new Error('Burn job failed')
+
+    await new Promise(resolve => window.setTimeout(resolve, 1000))
+  }
+
+  throw new Error('Burn job timed out')
+}
+
+const burnFile = async (file: SubtitleFile) => {
+  burningId.value = file.id
+
+  try {
+    const { jobId } = await burnSubtitleFile(videoId.value, file.id)
+    await waitForBurnJob(jobId)
+    await videoStore.fetchVideos()
+    toast.success(`Burned video created from ${file.filename}.`)
+  } catch {
+    toast.error(`Could not burn ${file.filename} into the video.`)
+  } finally {
+    burningId.value = null
   }
 }
 
@@ -141,6 +171,18 @@ onMounted(async () => {
                   <Download v-else :size="15" />
                   <span>{{ downloadingId === file.id ? 'Downloading' : 'Download' }}</span>
                 </button>
+                <button
+                  class="burn-button"
+                  type="button"
+                  :title="`Burn ${file.filename} into the video`"
+                  :aria-label="`Burn ${file.filename} into the video`"
+                  :disabled="burningId === file.id"
+                  @click="burnFile(file)"
+                >
+                  <Loader2 v-if="burningId === file.id" :size="15" class="spin" />
+                  <Flame v-else :size="15" />
+                  <span>{{ burningId === file.id ? 'Burning' : 'Burn' }}</span>
+                </button>
               </td>
             </tr>
           </tbody>
@@ -164,7 +206,7 @@ h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 2rem); }
 .files-panel__header p { margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.78rem; }
 .download-error { color: #ef4444 !important; }
 .files-table-wrap { overflow-x: auto; }
-.files-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+.files-table { width: 100%; border-collapse: collapse; min-width: 820px; }
 .files-table th, .files-table td { padding: 0.85rem 1.1rem; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.8rem; white-space: nowrap; }
 .files-table th { color: var(--text-muted); font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 .files-table td { color: var(--text-secondary); }
@@ -176,6 +218,9 @@ h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 2rem); }
 .download-button { display: inline-flex; align-items: center; gap: 0.4rem; border: 1px solid var(--border-color); border-radius: 7px; padding: 0.42rem 0.65rem; background: transparent; color: var(--text-secondary); font-size: 0.75rem; cursor: pointer; }
 .download-button:hover:not(:disabled) { border-color: #f97316; color: #f97316; }
 .download-button:disabled { cursor: wait; opacity: 0.65; }
+.burn-button { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: 0.35rem; border: 1px solid rgba(249,115,22,0.35); border-radius: 7px; padding: 0.42rem 0.65rem; background: rgba(249,115,22,0.08); color: #f97316; font-size: 0.75rem; cursor: pointer; }
+.burn-button:hover:not(:disabled) { background: rgba(249,115,22,0.16); }
+.burn-button:disabled { cursor: wait; opacity: 0.65; }
 .table-state { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.65rem; min-height: 250px; color: var(--text-muted); font-size: 0.85rem; }
 .table-state--error { color: #ef4444; }
 .spin { animation: spin 1s linear infinite; }

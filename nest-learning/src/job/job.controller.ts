@@ -15,7 +15,6 @@ export class JobController {
         return this.jobService.addJobToQueue({ message: 'Hello, this is a test job!' });
     }
 
-
     @Get('/:userId/list')
     async getJobsByUserId(@Param('userId') userId: string) {
         return await this.jobService.getJobByUserId(userId)
