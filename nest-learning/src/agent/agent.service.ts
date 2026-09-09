@@ -28,6 +28,7 @@ export class AgentService {
             where: {
                 videoId: transcriptionFile.videoId,
                 languageCode: targetLanguage || 'en',
+                mimeType: transcriptionFile.mimeType,
                 subtitleFormat: transcriptionFile.subtitleFormat,
                 id: { not: transcriptionFile.id },
             },
@@ -35,6 +36,17 @@ export class AgentService {
         });
 
         for (const existingTranslation of existingTranslationRecords) {
+            const transcriptionExtension = path.extname(
+                transcriptionFile.filename || transcriptionFile.path,
+            ).toLowerCase();
+            const existingExtension = path.extname(
+                existingTranslation.filename || existingTranslation.path,
+            ).toLowerCase();
+
+            if (existingExtension !== transcriptionExtension) {
+                continue;
+            }
+
             try {
                 await fs.access(this.resolveStoredPath(existingTranslation.path));
                 return existingTranslation;

@@ -6,7 +6,7 @@ import { spawn } from 'child_process';
 
 import { unlink } from 'fs/promises';
 import { stat } from 'fs/promises';
-import { basename, isAbsolute, resolve } from 'path';
+import { basename, dirname, isAbsolute, join, resolve } from 'path';
 
 
 
@@ -149,41 +149,46 @@ export class VideosService {
     async deleteVideo(videoId: string) {
         const video = await this.prisma.video.findUnique({
             where: { id: videoId },
-            include: {
-                audio: true,
-                subtitles: true,
-                derivedVideos: {
-                    include: {
-                        audio: true,
-                        subtitles: true,
-                    },
-                },
-            },
         });
 
         if (!video) {
             throw new Error('Video not found');
         }
 
-        await this.removeFile(video.path, 'video');
+        const allVideos = await this.prisma.video.findMany({
+            where: { userId: video.userId },
+            include: {
+                audio: true,
+                subtitles: true,
+            },
+        });
 
-        for (const audio of video.audio) {
-            await this.removeFile(audio.path, 'audio');
-        }
+        const videosToDelete = allVideos.filter((candidate) => {
+            let currentId: string | null = candidate.id;
 
-        for (const subtitle of video.subtitles) {
-            await this.removeFile(subtitle.path, 'subtitle');
-        }
+            while (currentId) {
+                if (currentId === videoId) return true;
 
-        for (const derivedVideo of video.derivedVideos) {
-            await this.removeFile(derivedVideo.path, 'derived video');
-
-            for (const audio of derivedVideo.audio) {
-                await this.removeFile(audio.path, 'derived audio');
+                const currentVideo = allVideos.find((item) => item.id === currentId);
+                currentId = currentVideo?.parentVideoId ?? null;
             }
 
-            for (const subtitle of derivedVideo.subtitles) {
-                await this.removeFile(subtitle.path, 'derived subtitle');
+            return false;
+        });
+
+        for (const videoToDelete of videosToDelete) {
+            await this.removeFile(videoToDelete.path, 'video');
+
+            for (const audio of videoToDelete.audio) {
+                await this.removeFile(audio.path, 'audio');
+            }
+
+            for (const subtitle of videoToDelete.subtitles) {
+                await this.removeSubtitleFiles(
+                    subtitle.path,
+                    videoToDelete.id,
+                    'subtitle',
+                );
             }
         }
 
@@ -224,16 +229,48 @@ export class VideosService {
     }
 
     private async removeFile(filePath: string, fileType: string) {
-        const absolutePath = resolve(process.cwd(), filePath.replace(/^[/\\]+/, ''));
+        const absolutePath = isAbsolute(filePath) && !filePath.startsWith('/uploads/')
+            ? filePath
+            : resolve(process.cwd(), filePath.replace(/^[/\\]+/, ''));
 
         try {
             await unlink(absolutePath);
             console.log(`${fileType} file deleted: ${absolutePath}`);
         } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+
             console.error(
                 `Failed to delete ${fileType} file: ${absolutePath}`,
                 error,
             );
+        }
+    }
+
+    private async removeSubtitleFiles(
+        subtitlePath: string,
+        videoId: string,
+        fileType: string,
+    ) {
+        const absoluteSubtitlePath = isAbsolute(subtitlePath) && !subtitlePath.startsWith('/uploads/')
+            ? subtitlePath
+            : resolve(process.cwd(), subtitlePath.replace(/^[/\\]+/, ''));
+
+        await this.removeFile(subtitlePath, fileType);
+
+        const subtitleExtension = basename(absoluteSubtitlePath).lastIndexOf('.');
+        const subtitleSidecarPath = join(
+            dirname(absoluteSubtitlePath),
+            `${videoId}.wts`,
+        );
+        const matchingSidecarPath =
+            subtitleExtension === -1
+                ? `${absoluteSubtitlePath}.wts`
+                : `${absoluteSubtitlePath.slice(0, subtitleExtension)}.wts`;
+
+        await this.removeFile(subtitleSidecarPath, 'word-timing sidecar');
+
+        if (matchingSidecarPath !== subtitleSidecarPath) {
+            await this.removeFile(matchingSidecarPath, 'word-timing sidecar');
         }
     }
 

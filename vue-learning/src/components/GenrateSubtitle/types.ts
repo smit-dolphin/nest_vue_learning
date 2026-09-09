@@ -4,6 +4,7 @@ export interface SubtitleSettings {
   timestamps: boolean
   speakerLabels: boolean
   autoTranslate: boolean
+  burnVideo: boolean
   punctuation: boolean
   wordLevel: boolean
 }

@@ -11,6 +11,7 @@ const props = defineProps<{
   modelValue: string
   options: DropdownOption[]
   ariaLabel: string
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -32,6 +33,7 @@ const focusOption = async (index: number) => {
 }
 
 const open = async () => {
+  if (props.disabled || props.options.length === 0) return
   isOpen.value = true
   await focusOption(Math.max(selectedIndex(), 0))
 }
@@ -48,6 +50,7 @@ const selectOption = (value: string) => {
 }
 
 const toggle = () => {
+  if (props.disabled) return
   if (isOpen.value) close()
   else void open()
 }
@@ -104,6 +107,7 @@ onBeforeUnmount(() => {
       :aria-label="ariaLabel"
       aria-haspopup="listbox"
       :aria-expanded="isOpen"
+      :disabled="disabled"
       @click="toggle"
       @keydown="handleKeydown"
     >
@@ -142,6 +146,10 @@ onBeforeUnmount(() => {
 }
 .custom-select__trigger:hover, .custom-select__trigger:focus-visible {
   border-color: var(--border-light); outline: none;
+}
+.custom-select__trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 .custom-select__trigger .rotated { transform: rotate(180deg); transition: transform 0.2s; }
 .custom-select__dropdown {

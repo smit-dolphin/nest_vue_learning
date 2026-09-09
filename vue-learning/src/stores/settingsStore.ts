@@ -7,6 +7,7 @@ const DEFAULT_SETTINGS: SubtitleSettings = {
   timestamps: true,
   speakerLabels: false,
   autoTranslate: false,
+  burnVideo: false,
   punctuation: true,
   wordLevel: false,
 }

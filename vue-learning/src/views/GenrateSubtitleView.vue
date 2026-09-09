@@ -44,7 +44,7 @@ const params = computed(() => ({
   autoTranslate: subtitleSettings.value.autoTranslate,
   autoPunctuation: subtitleSettings.value.punctuation,
   wordLevelTiming: subtitleSettings.value.wordLevel,
-  burnVideo: true,
+  burnVideo: subtitleSettings.value.burnVideo,
 }))
 
 /* ─── Methods ─── */

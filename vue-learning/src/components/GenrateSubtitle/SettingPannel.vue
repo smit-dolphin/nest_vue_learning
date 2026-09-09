@@ -23,6 +23,9 @@ const emit = defineEmits<{
 const settingsStore = useSettingsStore()
 /* ─── State ─── */
 
+const isAutoTranslateEnabled = computed(() => settingsStore.settings.autoTranslate)
+const isBurnVideoEnabled = computed(() => settingsStore.settings.burnVideo)
+
 const selectedLang = computed({
   get: () => languages.find((language) => language.code === settingsStore.settings.language)?.name ?? 'English',
   set: (name: string) => {
@@ -45,6 +48,12 @@ const selectedFormat = computed({
     })
   },
 })
+
+const availableFormats = computed(() =>
+  isBurnVideoEnabled.value
+    ? formats.filter((format) => format === 'SRT' || format === 'WebVTT')
+    : formats,
+)
 
 /* ─── Options ─── */
 
@@ -145,10 +154,10 @@ const languageOptions = languages.map((language) => ({
   value: language.name,
 }))
 
-const formatOptions = formats.map((format) => ({
+const formatOptions = computed(() => availableFormats.value.map((format) => ({
   label: format,
   value: format,
-}))
+})))
 
 /* ─── Subtitle Options ─── */
 
@@ -164,14 +173,20 @@ const subtitleOptions = computed(() => ({
 /* ─── Send Settings To Parent ─── */
 
 function sendSettings() {
+  const format =
+    settingsStore.settings.burnVideo &&
+    !['SRT', 'WebVTT'].includes(selectedFormat.value)
+      ? 'SRT'
+      : selectedFormat.value
 
   const settings: SubtitleSettings = {
     language: languages.find((lang) => lang.name === selectedLang.value)?.code || 'en',
-    format: selectedFormat.value,
+    format,
 
     timestamps: subtitleOptions.value.timestamps,
     speakerLabels: subtitleOptions.value.speakerLabels,
     autoTranslate: subtitleOptions.value.autoTranslate,
+    burnVideo: settingsStore.settings.burnVideo,
     punctuation: subtitleOptions.value.punctuation,
     wordLevel: subtitleOptions.value.wordLevel,
   }
@@ -188,6 +203,20 @@ function onLanguageChange() {
 }
 
 function onFormatChange() {
+  sendSettings()
+}
+
+function toggleBurnVideo() {
+  const burnVideo = !settingsStore.settings.burnVideo
+
+  settingsStore.updateSettings({
+    ...settingsStore.settings,
+    burnVideo,
+    ...(burnVideo && !['SRT', 'WebVTT'].includes(settingsStore.settings.format)
+      ? { format: 'SRT' }
+      : {}),
+  })
+
   sendSettings()
 }
 
@@ -238,6 +267,7 @@ sendSettings()
           v-model="selectedLang"
           :options="languageOptions"
           ariaLabel="Language"
+          :disabled="!isAutoTranslateEnabled"
           @update:model-value="onLanguageChange"
         />
 
@@ -269,6 +299,27 @@ sendSettings()
     <!-- Toggles -->
 
     <div class="settings-toggles">
+
+      <div class="toggle-row">
+        <div class="toggle-row__info">
+          <p class="toggle-row__label">
+            Burn Video
+          </p>
+          <p class="toggle-row__desc">
+            Render subtitles directly into the video
+          </p>
+        </div>
+
+        <button
+          class="toggle-btn"
+          :class="{ 'toggle-btn--on': isBurnVideoEnabled }"
+          type="button"
+          aria-label="Burn video"
+          @click="toggleBurnVideo"
+        >
+          <span class="toggle-btn__thumb"></span>
+        </button>
+      </div>
 
       <div
         v-for="(val, key) in subtitleOptions"

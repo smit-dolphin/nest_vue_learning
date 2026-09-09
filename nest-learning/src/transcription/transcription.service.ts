@@ -26,12 +26,21 @@ export class TranscriptionService {
       where: {
         videoId,
         languageCode,
+        mimeType: subtitleFormat.mimeType,
         subtitleFormat: subtitleFormatEnum,
       },
       orderBy: { createdAt: 'desc' },
     });
 
     for (const existingSubtitle of existingSubtitleRecords) {
+      const existingExtension = path.extname(
+        existingSubtitle.filename || existingSubtitle.path,
+      ).toLowerCase();
+
+      if (existingExtension !== subtitleFormat.extension) {
+        continue;
+      }
+
       const existingSubtitlePath = this.resolveStoredPath(existingSubtitle.path);
 
       try {
@@ -45,7 +54,7 @@ export class TranscriptionService {
     // creating output path for file (no extension — whisper-cli appends it automatically)
     const absoultePath = path.join(root, 'uploads', 'subtitle', `${videoId}`);
     const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli');
-    const absoluteModelPath = path.join(root, 'Release', 'models', 'ggml-small.bin');
+    const absoluteModelPath = path.join(root, 'Release', 'models', 'ggml-base.bin');
 
     // ensure subtitle output directory exists
     await fs.mkdir(path.join(root, 'uploads', 'subtitle'), { recursive: true });
