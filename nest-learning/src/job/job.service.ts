@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -32,6 +32,24 @@ export class JobService {
 
     async addBurnSubtitleJob(data: { videoId: string; subtitleId: string }) {
         const { videoId, subtitleId } = data;
+        const subtitle = await this.prisma.subtitle.findFirst({
+            where: {
+                id: subtitleId,
+                videoId,
+            },
+            select: {
+                subtitleFormat: true,
+            },
+        });
+
+        if (!subtitle) {
+            throw new BadRequestException('Subtitle file was not found for this video');
+        }
+
+        if (subtitle.subtitleFormat !== 'SRT' && subtitle.subtitleFormat !== 'VTT') {
+            throw new BadRequestException('Only SRT and VTT subtitle files can be burned');
+        }
+
         const jobEntry = await this.prisma.subtitleJob.create({
             data: {
                 videoId,

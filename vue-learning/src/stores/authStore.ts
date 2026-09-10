@@ -5,6 +5,7 @@ interface User {
   username: string | null
   email: string
   role: string |null
+  profileImage: string | null
   createdAt: string
 }
 

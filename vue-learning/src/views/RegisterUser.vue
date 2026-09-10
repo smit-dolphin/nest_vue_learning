@@ -10,7 +10,7 @@ import {
 } from 'lucide-vue-next'
 import axios from 'axios'
 import { useAuthStore } from '../stores/authStore.ts'
-import { getMyProfile } from '../services/authService.ts'
+import { getMyProfile, startGoogleAuth } from '../services/authService.ts'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -53,6 +53,11 @@ const handleRegister = async () => {
   } finally {
     isLoading.value = false
   }
+}
+
+const handleGoogleRegister = () => {
+  isLoading.value = true
+  startGoogleAuth()
 }
 </script>
 
@@ -208,6 +213,23 @@ const handleRegister = async () => {
           </button>
 
         </form>
+
+        <div class="auth-divider"><span>or</span></div>
+
+        <button
+          type="button"
+          class="btn btn--google"
+          :disabled="isLoading"
+          @click="handleGoogleRegister"
+        >
+          <svg class="google-mark" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M21.35 12.27c0-.71-.06-1.39-.18-2.04H12v3.86h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.15c1.85-1.7 2.9-4.2 2.9-7.21Z" />
+            <path fill="#34A853" d="M12 21.6c2.65 0 4.88-.88 6.5-2.38l-3.15-2.45c-.87.58-1.98.92-3.35.92-2.57 0-4.75-1.74-5.53-4.08H3.22v2.53A9.82 9.82 0 0 0 12 21.6Z" />
+            <path fill="#FBBC05" d="M6.47 13.61a5.9 5.9 0 0 1 0-3.22V7.86H3.22a9.6 9.6 0 0 0 0 8.28l3.25-2.53Z" />
+            <path fill="#EA4335" d="M12 6.31c1.52 0 2.89.52 3.97 1.55l2.98-2.98C16.88 3.28 14.65 2.4 12 2.4a9.82 9.82 0 0 0-8.78 5.46l3.25 2.53C7.25 8.05 9.43 6.31 12 6.31Z" />
+          </svg>
+          Continue with Google
+        </button>
 
         <!-- Footer -->
         <div class="register-footer">
@@ -585,6 +607,64 @@ const handleRegister = async () => {
   opacity: 0.7;
 
   cursor: not-allowed;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--border-color);
+}
+
+.btn--google {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  padding: 0.78rem 1rem;
+  color: #3c4043;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-family: Arial, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.12);
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.btn--google:hover:not(:disabled) {
+  background: #f8fafd;
+  border-color: #c5c9cc;
+  box-shadow: 0 1px 3px rgba(60, 64, 67, 0.2);
+}
+
+.btn--google:focus-visible {
+  outline: 3px solid rgba(66, 133, 244, 0.35);
+  outline-offset: 2px;
+}
+
+.btn--google:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.google-mark {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
 
 

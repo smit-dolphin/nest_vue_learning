@@ -22,6 +22,18 @@ model User {
   updatedAt DateTime @updatedAt
 
   videos Video[]
+  googleAuthCodes GoogleAuthCode[]
+}
+
+model GoogleAuthCode {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([userId])
 }
 
 enum UserRole {

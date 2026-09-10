@@ -187,7 +187,7 @@ const breadcrumbs = computed(() => {
    */
   right: 0;
 
-  height: 64px;
+  height: 77px;
 
   background: rgba(24, 25, 36, 0.85);
 

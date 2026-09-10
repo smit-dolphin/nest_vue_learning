@@ -24,6 +24,13 @@ import type { AuthRequest } from './types/auth-request.js';
 
 import { GoogleAuthGuard } from './google-auth.guard.js';
 
+type GoogleProfile = {
+    id: string;
+    displayName: string;
+    emails: Array<{ value: string }>;
+    photos?: Array<{ value: string }>;
+};
+
 @Controller('auth')
 export class AuthController {
     constructor(
@@ -185,15 +192,44 @@ export class AuthController {
 
     @Get('google/callback')
     @UseGuards(GoogleAuthGuard)
-    googleCallback(@Req() req) {
-        console.log('Google User:', req.user);
+    async googleCallback(
+        @Req() req: Request & { user: GoogleProfile },
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        const profile = req.user;
+        const result = await this.authService.loginWithGoogle(
+            profile.id,
+            profile.emails[0].value,
+            profile.displayName,
+            profile.photos?.[0]?.value,
+        );
 
-        //so here we get data varifiesd by google
-        // now i check user entry by emaiil that if he exist 
-        // so if he exist then then create jwt of aceess and ref token and loges him
-        
-        
-        return req.user;
+        const code = await this.authService.createGoogleAuthCode(result.user.id);
+        const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+        return res.redirect(
+            `${frontendUrl}/auth/google/callback?code=${encodeURIComponent(code)}`,
+        );
+    }
+
+    @Post('google/exchange')
+    async exchangeGoogleCode(
+        @Body('code') code: string,
+        @Res({ passthrough: true }) res: Response,
+    ) {
+        const result = await this.authService.exchangeGoogleAuthCode(code);
+
+        res.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+
+        return {
+            message: result.message,
+            user: result.user,
+            accessToken: result.accessToken,
+        };
     }
 
     @Post('logout')

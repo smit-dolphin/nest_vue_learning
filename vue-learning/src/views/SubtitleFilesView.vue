@@ -21,6 +21,11 @@ const downloadError = ref<string | null>(null)
 const videoId = computed(() => String(route.params.videoId))
 const video = computed(() => videoStore.videos.find(item => item.id === videoId.value))
 
+const isBurnableFormat = (file: SubtitleFile) => {
+  const format = file.subtitleFormat.toUpperCase().replace('.', '')
+  return format === 'SRT' || format === 'VTT'
+}
+
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -172,6 +177,7 @@ onMounted(async () => {
                   <span>{{ downloadingId === file.id ? 'Downloading' : 'Download' }}</span>
                 </button>
                 <button
+                  v-if="isBurnableFormat(file)"
                   class="burn-button"
                   type="button"
                   :title="`Burn ${file.filename} into the video`"

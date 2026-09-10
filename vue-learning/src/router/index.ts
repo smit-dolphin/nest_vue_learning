@@ -13,6 +13,7 @@ import ProfileView from '../views/ProfileView.vue'
 
 import LoginView from '../views/LoginView.vue'
 import RegisterUser from '../views/RegisterUser.vue'
+import GoogleCallbackView from '../views/GoogleCallbackView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
 
 
@@ -28,6 +29,11 @@ const router = createRouter({
       path: '/admin/register',
       name: 'register',
       component: RegisterUser,
+    },
+    {
+      path: '/auth/google/callback',
+      name: 'google-callback',
+      component: GoogleCallbackView,
     },
     {
       path: '/:pathMatch(.*)*',

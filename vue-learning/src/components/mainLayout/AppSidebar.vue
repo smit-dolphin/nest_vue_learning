@@ -10,11 +10,16 @@ import {
   ChevronRight,
   Sparkles,
   Zap,
+  LogOut,
 } from 'lucide-vue-next'
 
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { logoutMe } from '@/services/authService'
+import { useAuthStore } from '@/stores/authStore'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 
 // Parent controls the collapsed state
 const props = defineProps<{
@@ -80,6 +85,15 @@ const isActive = (path: string) => {
 const toggleCollapsed = () => {
   emit('update:collapsed', !props.collapsed)
 }
+
+const logout = async () => {
+  try {
+    await logoutMe()
+  } finally {
+    authStore.clearAuth()
+    router.replace('/login')
+  }
+}
 </script>
 
 <template>
@@ -88,7 +102,7 @@ const toggleCollapsed = () => {
     :class="{ 'sidebar--collapsed': props.collapsed }"
   >
     <!-- Logo -->
-    <div class="sidebar__logo">
+    <div class="sidebar__logo" :class="{ 'sidebar__logo--collapsed': props.collapsed }">
       <div class="sidebar__logo-icon">
         <Sparkles :size="20" />
       </div>
@@ -101,6 +115,17 @@ const toggleCollapsed = () => {
           Sub<span class="sidebar__logo-accent">AI</span>
         </span>
       </Transition>
+
+      <button
+        class="sidebar__toggle"
+        :title="props.collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        :aria-label="props.collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        type="button"
+        @click="toggleCollapsed"
+      >
+        <ChevronLeft v-if="!props.collapsed" :size="16" />
+        <ChevronRight v-else :size="16" />
+      </button>
     </div>
 
     <!-- Upgrade Banner -->
@@ -183,25 +208,17 @@ const toggleCollapsed = () => {
       </div>
     </nav>
 
-    <!-- Collapse Toggle -->
+    <!-- Logout -->
     <button
-      class="sidebar__toggle"
-      :title="
-        props.collapsed
-          ? 'Expand'
-          : 'Collapse'
-      "
-      @click="toggleCollapsed"
+      class="sidebar__logout"
+      :title="props.collapsed ? 'Log out' : ''"
+      type="button"
+      @click="logout"
     >
-      <ChevronLeft
-        v-if="!props.collapsed"
-        :size="16"
-      />
-
-      <ChevronRight
-        v-else
-        :size="16"
-      />
+      <LogOut :size="17" />
+      <Transition name="fade">
+        <span v-if="!props.collapsed">Log out</span>
+      </Transition>
     </button>
   </aside>
 </template>
@@ -240,6 +257,7 @@ const toggleCollapsed = () => {
 ========================= */
 
 .sidebar__logo {
+  position: relative;
   display: flex;
   align-items: center;
 
@@ -252,6 +270,11 @@ const toggleCollapsed = () => {
   min-height: 64px;
 
   flex-shrink: 0;
+}
+
+.sidebar__logo--collapsed {
+  justify-content: center;
+  padding-inline: 0;
 }
 
 .sidebar__logo-icon {
@@ -479,9 +502,10 @@ const toggleCollapsed = () => {
 ========================= */
 
 .sidebar__toggle {
-  margin: 0 0.75rem;
-
-  padding: 0.5rem;
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
 
   background: var(--card-color);
 
@@ -499,16 +523,25 @@ const toggleCollapsed = () => {
 
   transition: all 0.2s;
 
-  align-self: flex-start;
-
   flex-shrink: 0;
 }
 
-.sidebar--collapsed
-.sidebar__toggle {
-  align-self: center;
-
+.sidebar__logo--collapsed .sidebar__toggle {
+  position: absolute;
+  inset: 50% auto auto 50%;
   margin: 0;
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 0.2s, background 0.2s, color 0.2s;
+}
+
+.sidebar__logo--collapsed:hover .sidebar__logo-icon {
+  opacity: 0.28;
+}
+
+.sidebar__logo--collapsed:hover .sidebar__toggle,
+.sidebar__logo--collapsed .sidebar__toggle:focus-visible {
+  opacity: 1;
 }
 
 .sidebar__toggle:hover {
@@ -517,6 +550,36 @@ const toggleCollapsed = () => {
   color: var(--text-primary);
 
   border-color: var(--border-light);
+}
+
+.sidebar__logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  margin: 0.75rem 0.5rem 0;
+  padding: 0.6rem 0.65rem;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  transition: color 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.sidebar__logout:hover {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.sidebar--collapsed .sidebar__logout {
+  justify-content: center;
+  margin-inline: 0.75rem;
+  padding-inline: 0;
 }
 
 /* =========================

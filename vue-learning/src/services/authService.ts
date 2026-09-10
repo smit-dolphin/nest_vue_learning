@@ -5,6 +5,7 @@ export interface UserProfile {
   username: string | null
   email: string
   role: string
+  profileImage: string | null
   createdAt: string
 }
 
@@ -12,10 +13,25 @@ export interface msg {
   msg:string
 }
 
+export interface AuthResult {
+  message: string
+  user: UserProfile
+  accessToken: string
+}
+
 export async function getMyProfile(): Promise<UserProfile> {
   const result = await baseApi.get<UserProfile>('/auth/me')
 
   return result as unknown as UserProfile
+}
+
+export function startGoogleAuth(): void {
+  window.location.assign(`${baseApi.defaults.baseURL}/auth/google`)
+}
+
+export async function exchangeGoogleCode(code: string): Promise<AuthResult> {
+  const result = await baseApi.post<AuthResult>('/auth/google/exchange', { code })
+  return result as unknown as AuthResult
 }
 
 export async function logoutMe(): Promise<msg> {

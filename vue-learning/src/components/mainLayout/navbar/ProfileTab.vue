@@ -8,6 +8,7 @@ const authstore = useAuthStore()
 import {logoutMe} from '@/services/authService.ts'
 
 const isOpen = ref(false) 
+const profileImageFailed = ref(false)
 const toggleMenu = () => {
   isOpen.value = !isOpen.value
 }
@@ -49,9 +50,13 @@ const logout = async  () => {
       @click="toggleMenu"
     >
       <div class="navbar__avatar">
-        <span>
-          {{ authstore?.user?.username?.slice(0, 1) || '' }}
-        </span>
+        <img
+          v-if="authstore.user?.profileImage && !profileImageFailed"
+          :src="authstore.user.profileImage"
+          alt="Profile photo"
+          @error="profileImageFailed = true"
+        />
+        <span v-else>{{ authstore?.user?.username?.slice(0, 1) || '' }}</span>
       </div>
 
       <div class="navbar__avatar-info">
@@ -86,7 +91,13 @@ const logout = async  () => {
         <!-- User Info -->
         <div class="navbar__menu-user">
           <div class="navbar__menu-avatar">
-            {{ authstore?.user?.username?.slice(0, 1) || '' }}
+            <img
+              v-if="authstore.user?.profileImage && !profileImageFailed"
+              :src="authstore.user.profileImage"
+              alt="Profile photo"
+              @error="profileImageFailed = true"
+            />
+            <span v-else>{{ authstore?.user?.username?.slice(0, 1) || '' }}</span>
           </div>
 
           <div class="navbar__menu-user-info">
@@ -159,6 +170,14 @@ const logout = async  () => {
   font-size: 0.65rem;
   font-weight: 700;
   color: #fff;
+}
+
+.navbar__avatar img,
+.navbar__menu-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .navbar__avatar-info {

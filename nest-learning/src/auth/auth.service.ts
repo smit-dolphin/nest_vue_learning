@@ -6,6 +6,7 @@ import {
 
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'node:crypto';
 
 import type { Request } from 'express';
 
@@ -43,10 +44,69 @@ export class AuthService {
     return refreshToken;
   }
 
+  async createGoogleAuthCode(userId: string) {
+    const code = randomBytes(32).toString('hex');
+    const codeHash = createHash('sha256').update(code).digest('hex');
+
+    await this.prisma.googleAuthCode.create({
+      data: {
+        id: codeHash,
+        userId,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      },
+    });
+
+    return code;
+  }
+
+  async exchangeGoogleAuthCode(code: string) {
+    const codeHash = createHash('sha256').update(code).digest('hex');
+    const authCode = await this.prisma.googleAuthCode.findUnique({
+      where: { id: codeHash },
+    });
+
+    if (!authCode || authCode.expiresAt <= new Date()) {
+      throw new UnauthorizedException('Invalid or expired Google login code');
+    }
+
+    const consumed = await this.prisma.googleAuthCode.deleteMany({
+      where: { id: codeHash },
+    });
+
+    if (consumed.count !== 1) {
+      throw new UnauthorizedException('Google login code has already been used');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: authCode.userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Google account no longer exists');
+    }
+
+    const accessToken = await this.jwtService.signAsync(
+      { sub: user.id, email: user.email },
+      { expiresIn: '15m' },
+    );
+    const refreshToken = await this.createRefreshToken(user.id, user.email);
+
+    return {
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      },
+      accessToken,
+      refreshToken,
+    };
+  }
+
 
 
   //google auth suport
-  async loginWithGoogle(sub: string, email: string, username: string, profileImage: string) {
+  async loginWithGoogle(sub: string, email: string, username: string, profileImage?: string) {
     // 1. Check if user exists
     const user = await this.prisma.user.findUnique({
       where: {
@@ -60,8 +120,8 @@ export class AuthService {
           email,
           username,
           profileImage,
-          role: "USER",
-          googleId: sub
+          role: 'USER',
+          googleId: sub,
         }
       })
 
@@ -102,11 +162,31 @@ export class AuthService {
 
     }
 
+    const accessToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        email: user.email,
+      },
+      {
+        expiresIn: '15m',
+      },
+    );
 
+    const refreshToken = await this.createRefreshToken(
+      user.id,
+      user.email,
+    );
 
-
-
-
+    return {
+      message: 'Login successful',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      },
+      accessToken,
+      refreshToken,
+    };
   }
 
   // =========================
@@ -123,6 +203,12 @@ export class AuthService {
 
     // 2. User doesn't exist
     if (!user) {
+      throw new UnauthorizedException(
+        'Invalid email or password',
+      );
+    }
+
+    if (!user.password) {
       throw new UnauthorizedException(
         'Invalid email or password',
       );
@@ -341,6 +427,7 @@ export class AuthService {
         username: true,
         email: true,
         role: true,
+        profileImage: true,
         createdAt: true
       }
     });

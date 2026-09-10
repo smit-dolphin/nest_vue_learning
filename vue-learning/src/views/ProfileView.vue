@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { CalendarDays, CheckCircle2, Mail, ShieldCheck, UserRound } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/authStore'
 
 const authStore = useAuthStore()
+const profileImageFailed = ref(false)
 
 const user = computed(() => authStore.user)
 const initials = computed(() => {
@@ -38,7 +39,15 @@ const joinedDate = computed(() => {
 
     <div class="profile-layout">
       <section class="profile-card profile-card--identity">
-        <div class="profile-avatar">{{ initials }}</div>
+        <div class="profile-avatar">
+          <img
+            v-if="user?.profileImage && !profileImageFailed"
+            :src="user.profileImage"
+            alt="Profile photo"
+            @error="profileImageFailed = true"
+          />
+          <span v-else>{{ initials }}</span>
+        </div>
         <h3>{{ user?.username || 'Unnamed user' }}</h3>
         <p>{{ user?.email || 'No email address' }}</p>
         <span class="profile-role">{{ user?.role || 'Member' }}</span>
@@ -96,6 +105,7 @@ const joinedDate = computed(() => {
 .profile-card { background: var(--secondary-color); border: 1px solid var(--border-color); border-radius: 14px; }
 .profile-card--identity { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 285px; padding: 1.5rem; text-align: center; }
 .profile-avatar { display: grid; place-items: center; width: 82px; height: 82px; margin-bottom: 1rem; color: #fff; background: var(--team-gradient); border-radius: 24px; box-shadow: 0 12px 28px rgba(139, 92, 246, 0.25); font-size: 2rem; font-weight: 800; }
+.profile-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .profile-card--identity h3 { margin: 0; color: var(--text-primary); font-size: 1.15rem; }
 .profile-card--identity p { margin: 0.4rem 0 0.85rem; color: var(--text-secondary); font-size: 0.8rem; word-break: break-word; }
 .profile-role { padding: 0.35rem 0.7rem; color: #a78bfa; background: rgba(139, 92, 246, 0.12); border-radius: 999px; font-size: 0.7rem; font-weight: 700; text-transform: capitalize; }
