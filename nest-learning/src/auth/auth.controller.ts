@@ -22,6 +22,8 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 
 import type { AuthRequest } from './types/auth-request.js';
 
+import { GoogleAuthGuard } from './google-auth.guard.js';
+
 @Controller('auth')
 export class AuthController {
     constructor(
@@ -174,12 +176,32 @@ export class AuthController {
         };
     }
 
-@Post('logout') 
-logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('refreshToken');
 
-    return {
-        msg: 'user logged out successfully'
-    };
-}
+    @Get('google')
+    @UseGuards(GoogleAuthGuard)
+    googleLogin() {
+        // Passport handles the redirect
+    }
+
+    @Get('google/callback')
+    @UseGuards(GoogleAuthGuard)
+    googleCallback(@Req() req) {
+        console.log('Google User:', req.user);
+
+        //so here we get data varifiesd by google
+        // now i check user entry by emaiil that if he exist 
+        // so if he exist then then create jwt of aceess and ref token and loges him
+        
+        
+        return req.user;
+    }
+
+    @Post('logout')
+    logout(@Res({ passthrough: true }) res: Response) {
+        res.clearCookie('refreshToken');
+
+        return {
+            msg: 'user logged out successfully'
+        };
+    }
 }

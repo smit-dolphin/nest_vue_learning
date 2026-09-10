@@ -19,7 +19,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   // =========================
   // CREATE REFRESH TOKEN
@@ -41,6 +41,72 @@ export class AuthService {
       );
 
     return refreshToken;
+  }
+
+
+
+  //google auth suport
+  async loginWithGoogle(sub: string, email: string, username: string, profileImage: string) {
+    // 1. Check if user exists
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    if (!user) {
+      const newUser = await this.prisma.user.create({
+        data: {
+          email,
+          username,
+          profileImage,
+          role: "USER",
+          googleId: sub
+        }
+      })
+
+
+      // 4. Create access token
+      const accessToken =
+        await this.jwtService.signAsync(
+          {
+            sub: newUser.id,
+            email: newUser.email,
+          },
+          {
+            expiresIn: '15m',
+          },
+        );
+
+      // 5. Create refresh token
+      const refreshToken =
+        await this.createRefreshToken(
+          newUser.id,
+          newUser.email,
+        );
+
+      // 6. Return
+      return {
+        message: 'Registration successful',
+
+        user: {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email,
+        },
+
+        accessToken,
+        refreshToken,
+      };
+
+
+    }
+
+
+
+
+
+
   }
 
   // =========================
@@ -139,7 +205,7 @@ export class AuthService {
           email: dto.email,
           username: dto.username,
           password: hashedPassword,
-          role:"USER"
+          role: "USER"
         },
       });
 
@@ -270,12 +336,12 @@ export class AuthService {
       where: {
         id: userId,
       },
-      select:{
-        id:true,
-        username:true,
-        email:true,
-        role:true,
-        createdAt:true
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        createdAt: true
       }
     });
   }
