@@ -116,12 +116,12 @@ onMounted(async () => {
     }
   }
 
-  // Resume polling for an in-flight job persisted in the store (e.g. after refresh)
+  // Resume socket updates for an in-flight job persisted in the store.
   jobStore.restore()
 })
 
 onBeforeUnmount(() => {
-  jobStore.stopPolling()
+  jobStore.stopSocketListening()
 })
 
 watch(isDone, (done) => {

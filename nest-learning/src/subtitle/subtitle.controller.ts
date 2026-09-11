@@ -1,4 +1,4 @@
-import { Controller, Post, Param, Get, StreamableFile } from '@nestjs/common';
+import { Controller, Post, Param, Get, StreamableFile, Delete } from '@nestjs/common';
 import { createReadStream } from 'node:fs';
 import { SubtitleService } from './subtitle.service.js';
 
@@ -27,6 +27,12 @@ export class SubtitleController {
     @Get(':videoId')
     getSubtitle(@Param('videoId') videoId:string){
         return this.subtitleService.getSubtitleFiles(videoId)
+    }
+
+    @Delete(':subtitleId')
+    deleteSubtitleById(@Param('subtitleId') subtitleId:string){
+        return  this.subtitleService.deleteSubtitleById(subtitleId)
+          
     }
 
 

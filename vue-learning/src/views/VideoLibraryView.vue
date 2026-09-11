@@ -144,6 +144,7 @@ const downloadVideo = async (video: { id: string; title: string }) => {
   }
 }
 
+
 const confirmDelete = async () => {
   if (!deleteCandidate.value) return
 
@@ -309,6 +310,7 @@ const confirmDelete = async () => {
         <button class="btn btn--danger" type="button" @click="confirmDelete">Delete</button>
       </template>
     </PopupModal>
+
 
   </div>
 </template>

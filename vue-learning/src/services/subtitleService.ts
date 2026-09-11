@@ -63,6 +63,11 @@ export async function downloadSubtitleFile(subtitleId: string, filename: string)
   URL.revokeObjectURL(url)
 }
 
+export async function deleteSubtitleFile(subtitleId: string): Promise<{ result: SubtitleFile; deletedFile: string[] }> {
+  const response = await baseApi.delete<{ result: SubtitleFile; deletedFile: string[] }>(`/subtitle/${subtitleId}`)
+  return response as unknown as { result: SubtitleFile; deletedFile: string[] }
+}
+
 // Converts seconds into SRT timestamp format HH:MM:SS,mmm
 export function formatSecondsToSrt(seconds: number): string {
   const pad = (num: number, size = 2) => String(Math.floor(num)).padStart(size, '0')

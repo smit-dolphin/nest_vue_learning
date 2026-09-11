@@ -1,11 +1,13 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { JobService } from './job.service.js';
+import { jobGateway } from './job.gateway.js';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
 
 @Controller('job')
 export class JobController {
     constructor(private readonly jobService: JobService,
+        private readonly gateway: jobGateway,
         @InjectQueue('video-processing') private readonly queue: Queue,
 
     ) { }
@@ -13,6 +15,11 @@ export class JobController {
     @Get('add-job')
     async addJob() {
         return this.jobService.addJobToQueue({ message: 'Hello, this is a test job!' });
+    }
+
+    @Get('test-progress')
+    testProgress() {
+        return this.gateway.sendTestProgress();
     }
 
     @Get('/:userId/list')

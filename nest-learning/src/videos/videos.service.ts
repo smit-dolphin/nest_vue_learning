@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JobService } from '../job/job.service.js';
+import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { spawn } from 'child_process';
 
 
@@ -24,7 +25,8 @@ export interface SubtitleOptions {
 export class VideosService {
 
     constructor(private readonly prisma: PrismaService,
-        private readonly jobService: JobService
+        private readonly jobService: JobService,
+        private readonly ffmpegService: FfmpegService,
     ) { }
 
     async saveVideo(file: Express.Multer.File, userId: string, options: SubtitleOptions) {
@@ -228,10 +230,66 @@ export class VideosService {
         return this.streamVideo(videoId);
     }
 
-    private async removeFile(filePath: string, fileType: string) {
-        const absolutePath = isAbsolute(filePath) && !filePath.startsWith('/uploads/')
+    async getAudioByVideoId(videoId: string) {
+        const video = await this.prisma.video.findUnique({
+            where: { id: videoId },
+        });
+
+        if (!video) {
+            throw new NotFoundException('Video not found');
+        }
+
+        return this.ffmpegService.videoToAudio(video.path, video.id);
+    }
+
+    async downloadAudio(videoId: string, audioId: string) {
+        const audio = await this.prisma.audio.findFirst({
+            where: {
+                id: audioId,
+                videoId,
+            },
+        });
+
+        if (!audio) {
+            throw new NotFoundException('Audio file not found for this video');
+        }
+
+        const filePath = this.resolveStoredPath(audio.path);
+
+        try {
+            await stat(filePath);
+        } catch {
+            throw new NotFoundException('Audio file not found');
+        }
+
+        return {
+            filePath,
+            filename: basename(audio.filename),
+            mimetype: audio.mimetype,
+        };
+    }
+
+    async deleteAudio(audioId: string) {
+        const audio = await this.prisma.audio.findUnique({
+            where: { id: audioId },
+        });
+
+        if (!audio) {
+            throw new NotFoundException('Audio file not found');
+        }
+
+        await this.removeFile(audio.path, 'audio');
+        return this.prisma.audio.delete({ where: { id: audioId } });
+    }
+
+    private resolveStoredPath(filePath: string) {
+        return isAbsolute(filePath) && !filePath.startsWith('/uploads/')
             ? filePath
             : resolve(process.cwd(), filePath.replace(/^[/\\]+/, ''));
+    }
+
+    private async removeFile(filePath: string, fileType: string) {
+        const absolutePath = this.resolveStoredPath(filePath);
 
         try {
             await unlink(absolutePath);

@@ -15,6 +15,7 @@ import LoginView from '../views/LoginView.vue'
 import RegisterUser from '../views/RegisterUser.vue'
 import GoogleCallbackView from '../views/GoogleCallbackView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
+import JobProgressTest from '../views/JobProgressTest.vue'
 
 
 const router = createRouter({
@@ -88,6 +89,11 @@ const router = createRouter({
           path: '/help',
           name: 'help',
           component: HelpView,
+        },
+        {
+          path: '/socket-test',
+          name: 'socket-test',
+          component: JobProgressTest,
         },
       ],
     },

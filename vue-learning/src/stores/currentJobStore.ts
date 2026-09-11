@@ -1,8 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import { jobService, type JobStatusDto } from '../services/jobService'
+import { socket } from '../services/socket'
 
-const POLL_INTERVAL_MS = 1000 * 10
 const STORAGE_KEY = 'current-job'
 
 function readPersistedJob(): Record<string, string | number> | null {
@@ -20,11 +19,35 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
   const progress = ref(0)
   const jobStatus = ref<string | null>(null)
   const error = ref<string | null>(null)
-  const isPolling = ref(false)
+  const isListening = ref(false)
 
-  let pollTimer: ReturnType<typeof setInterval> | null = null
+  function handleSocketProgress(data: { jobId: string; progress: number; stage: string }) {
+    if (data.jobId !== jobId.value) return
 
-  const isProcessing = computed(() => isPolling.value && !isDone.value && !isFailed.value)
+    progress.value = Math.max(0, Math.min(100, Number(data.progress) || 0))
+    jobStatus.value = progress.value >= 100 ? 'completed' : 'active'
+    error.value = null
+    persist()
+
+    if (isDone.value) {
+      stopSocketListening()
+    }
+  }
+
+  function startSocketListening() {
+    if (isListening.value) return
+    socket.on('job-progress', handleSocketProgress)
+    isListening.value = true
+    if (!socket.connected) socket.connect()
+  }
+
+  function stopSocketListening() {
+    socket.off('job-progress', handleSocketProgress)
+    if (socket.connected) socket.disconnect()
+    isListening.value = false
+  }
+
+  const isProcessing = computed(() => isListening.value && !isDone.value && !isFailed.value)
   const isDone = computed(() => !isFailed.value && (jobStatus.value === 'completed' || progress.value >= 100))
   const isFailed = computed(() => jobStatus.value === 'failed')
   const hasActiveJob = computed(() => jobId.value !== null)
@@ -41,53 +64,20 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
     progress.value = Number(saved.progress) || 0
     jobStatus.value = saved.jobStatus ? String(saved.jobStatus) : null
 
-    // Only resume polling for in-flight jobs (not already completed/failed)
+    // Only listen for progress from in-flight jobs.
     const finalStatuses = ['completed', 'failed']
     if (!jobStatus.value || !finalStatuses.includes(jobStatus.value)) {
-      startPolling()
+      startSocketListening()
     }
   }
 
   function clear() {
+    stopSocketListening()
     jobId.value = null
     progress.value = 0
     jobStatus.value = null
     error.value = null
     localStorage.removeItem(STORAGE_KEY)
-  }
-
-  async function pollStatus() {
-    if (!jobId.value) return
-
-    try {
-      const result = (await jobService.getJobStatus(jobId.value)) as JobStatusDto
-      progress.value = Number(result.progress) ?? 0
-      jobStatus.value = result.status
-
-      persist()
-
-      if (isDone.value || isFailed.value) {
-        stopPolling()
-      }
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Could not check job progress'
-      stopPolling()
-    }
-  }
-
-  function startPolling() {
-    if (pollTimer) return
-    isPolling.value = true
-    pollStatus()
-    pollTimer = setInterval(pollStatus, POLL_INTERVAL_MS)
-  }
-
-  function stopPolling() {
-    if (pollTimer) {
-      clearInterval(pollTimer)
-      pollTimer = null
-    }
-    isPolling.value = false
   }
 
   function startJob(id: string) {
@@ -96,23 +86,22 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
     jobStatus.value = 'active'
     error.value = null
     persist()
-    startPolling()
+    startSocketListening()
   }
 
   return {
     jobId,
     progress,
     jobStatus,
-    isPolling,
+    isListening,
     isProcessing,
     isDone,
     isFailed,
     error,
     hasActiveJob,
     startJob,
-    startPolling,
-    stopPolling,
-    pollStatus,
+    startSocketListening,
+    stopSocketListening,
     restore,
     clear,
   }

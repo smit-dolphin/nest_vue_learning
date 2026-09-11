@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Get, Param, UseGuards, UploadedFile, UseInterceptors, BadRequestException, Query, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Post, Req, Get, Param, UseGuards, UploadedFile, UseInterceptors, BadRequestException, Query, StreamableFile, Delete } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { createReadStream } from 'fs';
@@ -212,6 +212,29 @@ export class VideosController {
             type: video.mimetype,
             disposition: `attachment; filename="${video.filename}"`,
         });
+    }
+
+    @Get(':videoId/audio')
+    getAudioByVideoId(@Param('videoId') videoId: string) {
+        return this.videosService.getAudioByVideoId(videoId);
+    }
+
+    @Get(':videoId/audio/:audioId/download')
+    async downloadAudio(
+        @Param('videoId') videoId: string,
+        @Param('audioId') audioId: string,
+    ) {
+        const audio = await this.videosService.downloadAudio(videoId, audioId);
+
+        return new StreamableFile(createReadStream(audio.filePath), {
+            type: audio.mimetype,
+            disposition: `attachment; filename="${audio.filename}"`,
+        });
+    }
+
+    @Delete('audio/:audioId')
+    deleteAudio(@Param('audioId') audioId: string) {
+        return this.videosService.deleteAudio(audioId);
     }
 
     

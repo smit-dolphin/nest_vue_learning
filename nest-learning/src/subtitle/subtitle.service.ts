@@ -1,14 +1,16 @@
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { TranscriptionService } from '../transcription/transcription.service.js';
-import path from 'node:path';
-import { stat } from 'node:fs/promises';
+import path,{resolve} from 'node:path';
+import { stat,unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { Job } from 'bullmq';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
 import { AgentService } from '../agent/agent.service.js';
+import { NotFoundError } from 'rxjs';
+import { cwd } from 'node:process';
 
 @Injectable()
 export class SubtitleService {
@@ -545,5 +547,69 @@ export class SubtitleService {
         return path.isAbsolute(storedPath)
             ? storedPath
             : path.resolve(root, storedPath);
+    }
+
+
+    async deleteSubtitleById(subtitleId: string) {
+        const sub = await this.prisma.subtitle.findUnique({
+            where: {
+                id: subtitleId,
+            },
+        });
+
+        if (!sub) {
+            throw new NotFoundException('The subtitle not found');
+        }
+
+        const deletedFile = await this.deleteFilesFromStorage(sub.path, sub.videoId);
+        const result = await this.prisma.subtitle.delete({
+            where: {
+                id: sub.id,
+            },
+        });
+
+        return { result, deletedFile };
+    }
+
+    private async deleteFilesFromStorage(filePath: string, videoId?: string) {
+        const absolutePath = this.resolveStoredPath(filePath);
+        const pathsToDelete = new Set<string>();
+
+        pathsToDelete.add(absolutePath);
+
+        const extension = path.extname(absolutePath);
+        const baseName = path.basename(absolutePath, extension);
+        const directory = path.dirname(absolutePath);
+
+        if (extension) {
+            pathsToDelete.add(path.join(directory, `${baseName}.wts`));
+        } else {
+            pathsToDelete.add(`${absolutePath}.wts`);
+        }
+
+        if (videoId) {
+            pathsToDelete.add(path.join(directory, `${videoId}.wts`));
+        }
+
+        const deletedFiles: string[] = [];
+
+        for (const candidatePath of pathsToDelete) {
+            try {
+                await unlink(candidatePath);
+                deletedFiles.push(candidatePath);
+            } catch (error) {
+                const err = error as NodeJS.ErrnoException;
+                if (err.code === 'ENOENT') {
+                    continue;
+                }
+
+                throw new InternalServerErrorException(
+                    `Failed to delete subtitle file: ${candidatePath}`,
+                    { cause: err },
+                );
+            }
+        }
+
+        return deletedFiles;
     }
 }

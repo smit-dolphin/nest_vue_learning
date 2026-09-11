@@ -4,6 +4,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { JobProcessor } from './job.processor.js';
 import { JobController } from './job.controller.js';
 import { SubtitleModule } from '../subtitle/subtitle.module.js';
+import { jobGateway } from './job.gateway.js';
+import { JobEvents } from './job.event.js';
 
 @Module({
 
@@ -16,7 +18,12 @@ import { SubtitleModule } from '../subtitle/subtitle.module.js';
     }),
     SubtitleModule
   ],
-  providers: [JobService,JobProcessor],
+   providers: [
+  JobService,
+  JobProcessor,
+  jobGateway,
+  JobEvents,
+],
   controllers: [JobController],
   exports: [JobService]
 })

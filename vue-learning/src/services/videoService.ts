@@ -19,6 +19,18 @@ export interface VideoDto {
   updatedAt: string
 }
 
+export interface AudioFile {
+  id: string
+  filename: string
+  path: string
+  mimetype: string
+  size: number
+  duration: number | null
+  videoId: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface SubtitleSettings {
   leng: string
   formate: string
@@ -97,6 +109,31 @@ export const getUserVideos = async (userId: string): Promise<VideoDto[]> => {
   const response = await baseApi.get<VideoDto[]>(`/videos/user/${userId}`)
 
   return response as unknown as VideoDto[]
+}
+
+export const getAudioByVideoId = async (videoId: string): Promise<AudioFile> => {
+  const response = await baseApi.get<AudioFile>(`/videos/${videoId}/audio`)
+  return response as unknown as AudioFile
+}
+
+export const downloadAudioFile = async (videoId: string, audioId: string, filename: string): Promise<void> => {
+  const blob = await baseApi.get<Blob>(`/videos/${videoId}/audio/${audioId}/download`, {
+    responseType: 'blob',
+  }) as unknown as Blob
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+export const deleteAudioFile = async (audioId: string): Promise<AudioFile> => {
+  const response = await baseApi.delete<AudioFile>(`/videos/audio/${audioId}`)
+  return response as unknown as AudioFile
 }
 
 export const deleteVideo = async (videoId: string): Promise<VideoDto> => {
