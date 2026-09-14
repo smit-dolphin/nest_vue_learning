@@ -87,7 +87,7 @@ export class AuthService {
 
     const accessToken = await this.jwtService.signAsync(
       { sub: user.id, email: user.email },
-      { expiresIn: '15m' },
+      { expiresIn: '5m' },
     );
     const refreshToken = await this.createRefreshToken(user.id, user.email);
 
@@ -134,7 +134,7 @@ export class AuthService {
             email: newUser.email,
           },
           {
-            expiresIn: '15m',
+            expiresIn: '5m',
           },
         );
 
@@ -168,7 +168,7 @@ export class AuthService {
         email: user.email,
       },
       {
-        expiresIn: '15m',
+        expiresIn: '5m',
       },
     );
 
@@ -235,7 +235,7 @@ export class AuthService {
           email: user.email,
         },
         {
-          expiresIn: '15m',
+          expiresIn: '5m',
         },
       );
 
@@ -303,7 +303,7 @@ export class AuthService {
           email: user.email,
         },
         {
-          expiresIn: '15m',
+          expiresIn: '5m',
         },
       );
 
@@ -389,7 +389,7 @@ export class AuthService {
           email: user.email,
         },
         {
-          expiresIn: '15m',
+          expiresIn: '5m',
         },
       );
 

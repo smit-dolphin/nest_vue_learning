@@ -23,6 +23,7 @@ model User {
 
   videos Video[]
   googleAuthCodes GoogleAuthCode[]
+  notifications Notification[]
 }
 
 model GoogleAuthCode {
@@ -34,6 +35,24 @@ model GoogleAuthCode {
 
   @@index([expiresAt])
   @@index([userId])
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type    String
+  title   String
+  message String
+  data    Json?
+  readAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, readAt, createdAt])
 }
 
 enum UserRole {

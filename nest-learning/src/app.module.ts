@@ -15,6 +15,7 @@ import { JobModule } from './job/job.module.js';
 import { AgentModule } from './agent/agent.module.js';
 import { StorageService } from './storage/storage.service.js';
 import { StorageModule } from './storage/storage.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 @Module({
     imports: [
@@ -35,7 +36,7 @@ import { StorageModule } from './storage/storage.module.js';
         signOptions: { expiresIn: '5h' },
         
 
-    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, AuthModule, FfmpegModule, TranscriptionModule, JobModule, AgentModule, StorageModule ],
+    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, AuthModule, FfmpegModule, TranscriptionModule, JobModule, AgentModule, StorageModule, NotificationsModule ],
     controllers: [AppController],
     providers: [AppService],
 })

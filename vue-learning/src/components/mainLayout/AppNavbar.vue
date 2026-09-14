@@ -4,11 +4,11 @@ import { useRoute } from 'vue-router'
 
 import {
   Search,
-  Bell,
   Sparkles,
 } from 'lucide-vue-next'
 
 import ProfileTab from '../mainLayout/navbar/ProfileTab.vue'
+import NotificationPopover from '../mainLayout/navbar/NotificationPopover.vue'
 import { getMyProfile } from '@/services/authService.ts';
 import { useAuthStore } from '@/stores/authStore.ts';
 
@@ -19,7 +19,6 @@ const props = defineProps<{
 const route = useRoute()
 
 const searchQuery = ref('')
-const notifCount = ref(3)
 const authStore = useAuthStore()  
 
 const pageTitle = computed(() => {
@@ -145,21 +144,7 @@ const breadcrumbs = computed(() => {
 
 
       <!-- Notifications -->
-      <button
-        class="navbar__icon-btn"
-        title="Notifications"
-      >
-
-        <Bell :size="18" />
-
-        <span
-          v-if="notifCount"
-          class="navbar__notif-badge"
-        >
-          {{ notifCount }}
-        </span>
-
-      </button>
+      <NotificationPopover />
 
 
       <!-- Profile -->

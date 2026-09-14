@@ -212,8 +212,7 @@ export class FfmpegService {
       videoPath,
 
       '-vf',
-      `subtitles='${subtitleFilterPath}'`,
-
+      `subtitles='${subtitleFilterPath}':force_style='BackColour=&H000000&,BorderStyle=4'`,
       outputPath,
     ]);
 
