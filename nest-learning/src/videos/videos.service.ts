@@ -8,6 +8,7 @@ import { spawn } from 'child_process';
 import { unlink } from 'fs/promises';
 import { stat } from 'fs/promises';
 import { basename, dirname, isAbsolute, join, resolve } from 'path';
+import { StorageService } from '../storage/storage.service.js';
 
 
 
@@ -27,6 +28,7 @@ export class VideosService {
     constructor(private readonly prisma: PrismaService,
         private readonly jobService: JobService,
         private readonly ffmpegService: FfmpegService,
+        private readonly storageService:StorageService
     ) { }
 
     async saveVideo(file: Express.Multer.File, userId: string, options: SubtitleOptions) {
@@ -292,7 +294,8 @@ export class VideosService {
         const absolutePath = this.resolveStoredPath(filePath);
 
         try {
-            await unlink(absolutePath);
+            // await unlink(absolutePath);
+            await this.storageService.delete(absolutePath)
             console.log(`${fileType} file deleted: ${absolutePath}`);
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;

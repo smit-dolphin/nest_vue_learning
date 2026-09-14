@@ -13,6 +13,8 @@ import { AuthMiddleware } from './auth/auth/auth.middleware.js';
 import { BullModule } from '@nestjs/bullmq';
 import { JobModule } from './job/job.module.js';
 import { AgentModule } from './agent/agent.module.js';
+import { StorageService } from './storage/storage.service.js';
+import { StorageModule } from './storage/storage.module.js';
 
 @Module({
     imports: [
@@ -31,8 +33,9 @@ import { AgentModule } from './agent/agent.module.js';
         global:true,
         secret:process.env.JWT_SECRET,
         signOptions: { expiresIn: '5h' },
+        
 
-    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, AuthModule, FfmpegModule, TranscriptionModule, JobModule, AgentModule],
+    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, AuthModule, FfmpegModule, TranscriptionModule, JobModule, AgentModule, StorageModule ],
     controllers: [AppController],
     providers: [AppService],
 })
