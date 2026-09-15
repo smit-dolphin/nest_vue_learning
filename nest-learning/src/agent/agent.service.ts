@@ -76,6 +76,7 @@ export class AgentService {
         6.genrated charecter of words must not be random and must be presise
         7.given lenguage code must be follow and translated to that lenguage 
         8.the charecter of target lenguage must be correct and not random
+        9.in lenguages like hindi and other , do not use pure lenguage , keep lenguage modest
 
         files:-
         Target_Language: ${lenguageCode}

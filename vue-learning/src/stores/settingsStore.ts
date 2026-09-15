@@ -10,6 +10,15 @@ const DEFAULT_SETTINGS: SubtitleSettings = {
   burnVideo: false,
   punctuation: true,
   wordLevel: false,
+  subtitleStyle: {
+    fontSize: 24,
+    fontColor: 'white',
+    background: true,
+    backgroundColor: 'black',
+    backgroundOpacity: 0.8,
+    position: 'bottom',
+    outline: 2,
+  },
 }
 
 export const useSettingsStore = defineStore('settings', {

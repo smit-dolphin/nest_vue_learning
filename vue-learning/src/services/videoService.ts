@@ -40,6 +40,14 @@ export interface SubtitleSettings {
   autoPunctuation: boolean
   wordLevelTiming: boolean
   burnVideo: boolean
+  // Burn-in subtitle style — only sent when burnVideo is true
+  fontSize?: number
+  fontColor?: string
+  background?: boolean
+  backgroundColor?: string
+  backgroundOpacity?: number
+  position?: string
+  outline?: number
 }
 
 export interface UploadResult {
@@ -74,6 +82,17 @@ export const uploadVideo = async (
       autoPunctuation: params.autoPunctuation,
       wordLevelTiming: params.wordLevelTiming,
       burnVideo: params.burnVideo,
+      ...(params.burnVideo
+        ? {
+            fontSize: params.fontSize,
+            fontColor: params.fontColor,
+            background: params.background,
+            backgroundColor: params.backgroundColor,
+            backgroundOpacity: params.backgroundOpacity,
+            position: params.position,
+            outline: params.outline,
+          }
+        : {}),
     },
   })
 
@@ -99,6 +118,17 @@ export const generateSubtitleForVideo = async (
       autoPunctuation: params.autoPunctuation,
       wordLevelTiming: params.wordLevelTiming,
       burnVideo: params.burnVideo,
+      ...(params.burnVideo
+        ? {
+            fontSize: params.fontSize,
+            fontColor: params.fontColor,
+            background: params.background,
+            backgroundColor: params.backgroundColor,
+            backgroundOpacity: params.backgroundOpacity,
+            position: params.position,
+            outline: params.outline,
+          }
+        : {}),
     },
   })
 
@@ -144,6 +174,13 @@ export const deleteVideo = async (videoId: string): Promise<VideoDto> => {
 
 export const getVideoStreamUrl = (videoId: string): string => {
   return `${baseApi.defaults.baseURL}/videos/stream/${videoId}`
+}
+
+export async function fetchVideoBlobUrl(videoId: string): Promise<string> {
+  const blob = await baseApi.get<Blob>(`/videos/stream/${videoId}`, {
+    responseType: 'blob',
+  }) as unknown as Blob
+  return URL.createObjectURL(blob)
 }
 
 export const downloadVideoFile = async (videoId: string, filename: string): Promise<void> => {

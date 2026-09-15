@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { AlertCircle, Loader2, Sparkles } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
-import { downloadVideoFile, generateSubtitleForVideo, getVideoStreamUrl, uploadVideo } from '../services/videoService.ts'
+import { downloadVideoFile, generateSubtitleForVideo, uploadVideo } from '../services/videoService.ts'
 import { downloadSubtitleFile, getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
 import { useCurrentJobStore } from '../stores/currentJobStore.ts'
 import { useSettingsStore } from '../stores/settingsStore.ts'
@@ -36,16 +36,32 @@ const { settings: subtitleSettings } = storeToRefs(settingsStore)
 const jobStore = useCurrentJobStore()
 const { isProcessing, isDone, isFailed, progress, error: jobError } = storeToRefs(jobStore)
 
-const params = computed(() => ({
-  leng: subtitleSettings.value.language,
-  formate: subtitleSettings.value.format,
-  timestamps: subtitleSettings.value.timestamps,
-  lables: subtitleSettings.value.speakerLabels,
-  autoTranslate: subtitleSettings.value.autoTranslate,
-  autoPunctuation: subtitleSettings.value.punctuation,
-  wordLevelTiming: subtitleSettings.value.wordLevel,
-  burnVideo: subtitleSettings.value.burnVideo,
-}))
+const params = computed(() => {
+  const baseParams = {
+    leng: subtitleSettings.value.language,
+    formate: subtitleSettings.value.format,
+    timestamps: subtitleSettings.value.timestamps,
+    lables: subtitleSettings.value.speakerLabels,
+    autoTranslate: subtitleSettings.value.autoTranslate,
+    autoPunctuation: subtitleSettings.value.punctuation,
+    wordLevelTiming: subtitleSettings.value.wordLevel,
+    burnVideo: subtitleSettings.value.burnVideo,
+  }
+
+  // Burn-in subtitle style options are only included when the video will be burned.
+  if (!subtitleSettings.value.burnVideo) return baseParams
+
+  return {
+    ...baseParams,
+    fontSize: subtitleSettings.value.subtitleStyle.fontSize,
+    fontColor: subtitleSettings.value.subtitleStyle.fontColor,
+    background: subtitleSettings.value.subtitleStyle.background,
+    backgroundColor: subtitleSettings.value.subtitleStyle.backgroundColor,
+    backgroundOpacity: subtitleSettings.value.subtitleStyle.backgroundOpacity,
+    position: subtitleSettings.value.subtitleStyle.position,
+    outline: subtitleSettings.value.subtitleStyle.outline,
+  }
+})
 
 /* ─── Methods ─── */
 const loadGeneratedVideo = async () => {
@@ -174,7 +190,7 @@ function handleSettings(settings: SubtitleSettings) {
           <GeneratedVideoCard
             v-if="isDone && generatedVideo"
             :title="generatedVideo.title"
-            :stream-url="getVideoStreamUrl(generatedVideo.id)"
+            :video-id="generatedVideo.id"
             :subtitle="generatedSubtitle"
             @download-video="downloadGeneratedVideo"
             @download-subtitle="downloadGeneratedSubtitle"

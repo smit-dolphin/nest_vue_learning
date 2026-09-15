@@ -1,3 +1,13 @@
+export interface SubtitleStyleSettings {
+  fontSize: number
+  fontColor: string
+  background: boolean
+  backgroundColor: string
+  backgroundOpacity: number
+  position: 'bottom' | 'top' | 'middle'
+  outline: number
+}
+
 export interface SubtitleSettings {
   language: string
   format: string
@@ -7,4 +17,5 @@ export interface SubtitleSettings {
   burnVideo: boolean
   punctuation: boolean
   wordLevel: boolean
+  subtitleStyle: SubtitleStyleSettings
 }

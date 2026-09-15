@@ -1,8 +1,9 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { JobService } from './job.service.js';
 import { jobGateway } from './job.gateway.js';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @Controller('job')
 export class JobController {
@@ -13,21 +14,25 @@ export class JobController {
     ) { }
 
     @Get('add-job')
+    @UseGuards(JwtAuthGuard)
     async addJob() {
         return this.jobService.addJobToQueue({ message: 'Hello, this is a test job!' });
     }
 
     @Get('test-progress')
+    @UseGuards(JwtAuthGuard)
     testProgress() {
         return this.gateway.sendTestProgress();
     }
 
     @Get('/:userId/list')
+    @UseGuards(JwtAuthGuard)
     async getJobsByUserId(@Param('userId') userId: string) {
         return await this.jobService.getJobByUserId(userId)
     }
 
     @Get('/:userId/list/:jobId')
+    @UseGuards(JwtAuthGuard)
     async getJobById(
         @Param('userId') userId: string, 
         @Param('jobId') jobId: string
@@ -36,6 +41,7 @@ export class JobController {
     }
 
     @Get(':jobId')
+    @UseGuards(JwtAuthGuard)
     async getJobStatus(@Param('jobId') jobId: string) {
         const job = await this.queue.getJob(jobId);
         if (!job) {

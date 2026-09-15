@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { FileVideo, Loader2, UploadCloud, X } from 'lucide-vue-next'
 import PageHeader from '../components/VideoLibrary/PageHeader.vue'
 import SearchToolbar from '../components/VideoLibrary/SearchToolbar.vue'
@@ -7,7 +7,7 @@ import VideoCard from '../components/VideoLibrary/VideoCard.vue'
 import VideoListRow from '../components/VideoLibrary/VideoListRow.vue'
 import EmptyState from '../components/VideoLibrary/EmptyState.vue'
 import PopupModal from '../components/Containers/PopupModal.vue'
-import { downloadVideoFile, getVideoStreamUrl, uploadVideoOnly } from '../services/videoService'
+import { downloadVideoFile, fetchVideoBlobUrl, uploadVideoOnly } from '../services/videoService'
 import type { LibraryFilter, ViewMode } from '../components/VideoLibrary/types'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
 import { useAuthStore } from '../stores/authStore'
@@ -22,6 +22,8 @@ const viewMode = ref<ViewMode>('grid')
 const sortBy = ref('newest')
 const deleteCandidate = ref<{ id: string; title: string } | null>(null)
 const selectedVideo = ref<{ id: string; title: string; mimetype: string } | null>(null)
+const previewUrl = ref<string | null>(null)
+const previewLoading = ref(false)
 const downloadError = ref<string | null>(null)
 const isUploadModalOpen = ref(false)
 const uploadInput = ref<HTMLInputElement | null>(null)
@@ -48,6 +50,10 @@ const hasError = computed(() => videoStore.error !== null)
 
 onMounted(() => {
   videoStore.fetchVideos()
+})
+
+onBeforeUnmount(() => {
+  closePreview()
 })
 
 const onUpload = () => {
@@ -129,8 +135,24 @@ const requestDelete = (videoId: string, title: string) => {
   deleteCandidate.value = { id: videoId, title }
 }
 
-const openVideo = (video: { id: string; title: string; mimetype: string }) => {
+const openVideo = async (video: { id: string; title: string; mimetype: string }) => {
   selectedVideo.value = video
+  previewLoading.value = true
+  try {
+    previewUrl.value = await fetchVideoBlobUrl(video.id)
+  } catch {
+    previewUrl.value = null
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+const closePreview = () => {
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = null
+  }
+  selectedVideo.value = null
 }
 
 const downloadVideo = async (video: { id: string; title: string }) => {
@@ -284,18 +306,22 @@ const confirmDelete = async () => {
     <PopupModal
       :model-value="selectedVideo !== null"
       :title="selectedVideo?.title ?? 'Video preview'"
-      @update:model-value="value => !value && (selectedVideo = null)"
+      @update:model-value="value => !value && closePreview()"
     >
+      <div v-if="previewLoading" class="preview-loading">
+        <Loader2 :size="28" class="spin" />
+        <p>Loading preview...</p>
+      </div>
       <video
-        v-if="selectedVideo"
+        v-else-if="previewUrl"
         class="video-player"
         controls
         autoplay
-        :src="getVideoStreamUrl(selectedVideo.id)"
-        :type="selectedVideo.mimetype"
+        :src="previewUrl"
       >
         Your browser does not support video playback.
       </video>
+      <p v-else class="preview-error">Could not load video preview.</p>
     </PopupModal>
 
     <PopupModal
@@ -361,6 +387,8 @@ const confirmDelete = async () => {
 .delete-confirmation { margin: 0; line-height: 1.5; }
 .delete-confirmation strong { color: var(--text-primary); }
 .video-player { display: block; width: 100%; max-height: 65vh; border-radius: 8px; background: #000; }
+.preview-loading, .preview-error { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; padding: 3rem; color: var(--text-muted); text-align: center; }
+.preview-loading p, .preview-error p { margin: 0; font-size: 0.85rem; }
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

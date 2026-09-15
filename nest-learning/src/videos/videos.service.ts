@@ -12,14 +12,33 @@ import { StorageService } from '../storage/storage.service.js';
 
 
 
+export interface SubtitleStyle {
+    fontSize: number;
+    fontColor: string;
+    background: boolean;
+    backgroundColor: string;
+    backgroundOpacity: number;
+    position: 'bottom' | 'top' | 'middle';
+    outline: number;
+}
+
 export interface SubtitleOptions {
     leng: string;
     formate: string;
-    lables: boolean;
-    autoTranslate: boolean;
-    autoPunctuation: boolean;
-    wordLevelTiming: boolean;
-    burnVideo: boolean;
+    lables: boolean | string;
+    autoTranslate: boolean | string;
+    autoPunctuation: boolean | string;
+    wordLevelTiming: boolean | string;
+    burnVideo: boolean | string;
+    // Raw burn-in subtitle style query params (only present when burnVideo=true).
+    fontSize?: number | string;
+    fontColor?: string;
+    background?: boolean | string;
+    backgroundColor?: string;
+    backgroundOpacity?: number | string;
+    position?: string;
+    outline?: number | string;
+    subtitleStyle?: SubtitleStyle;
 }
 
 @Injectable()
@@ -58,6 +77,7 @@ export class VideosService {
                 autoPunctuation: options.autoPunctuation,
                 wordLevelTiming: options.wordLevelTiming,
                 burnVideo: options.burnVideo,
+                subtitleStyle: this.buildSubtitleStyle(options),
             }
         });
         return { result, jobId: vidoeJob.jobId, options }; // Return the saved video information along with the job ID and options
@@ -105,10 +125,47 @@ export class VideosService {
                 autoPunctuation: options.autoPunctuation,
                 wordLevelTiming: options.wordLevelTiming,
                 burnVideo: options.burnVideo,
+                subtitleStyle: this.buildSubtitleStyle(options),
             }
         });
 
         return { result, jobId: vidoeJob.jobId, options }
+    }
+
+    // Normalises the burn-in subtitle style coming from query params.
+    // Query params arrive as strings, so validate/coerce each value and only
+    // build the style object when the video will actually be burned.
+    private buildSubtitleStyle(options: SubtitleOptions): SubtitleStyle | undefined {
+        if (options.burnVideo !== true && options.burnVideo !== 'true') {
+            return undefined;
+        }
+
+        const toBool = (value: unknown): boolean | undefined => {
+            if (value === undefined || value === null || value === '') return undefined;
+            return value === true || value === 'true';
+        };
+
+        const toNumber = (value: unknown): number | undefined => {
+            if (value === undefined || value === null || value === '') return undefined;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : undefined;
+        };
+
+        const position = String(options.position ?? '')
+            .toLowerCase()
+            .trim();
+        const validPosition: SubtitleStyle['position'] =
+            position === 'top' || position === 'middle' ? position : 'bottom';
+
+        return {
+            fontSize: toNumber(options.fontSize) ?? 24,
+            fontColor: String(options.fontColor || 'white'),
+            background: toBool(options.background) ?? true,
+            backgroundColor: String(options.backgroundColor || 'black'),
+            backgroundOpacity: toNumber(options.backgroundOpacity) ?? 0.8,
+            position: validPosition,
+            outline: toNumber(options.outline) ?? 2,
+        };
     }
 
     async getVideos() {

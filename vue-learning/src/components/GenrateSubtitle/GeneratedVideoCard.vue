@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { Download, Film } from 'lucide-vue-next'
+import { onBeforeUnmount, ref, watch } from 'vue'
+import { Download, Film, Loader2 } from 'lucide-vue-next'
 import type { SubtitleFile } from '../../services/subtitleService'
+import { fetchVideoBlobUrl } from '../../services/videoService'
 
 const props = defineProps<{
   title: string
-  streamUrl: string
+  videoId: string
   subtitle: SubtitleFile | null
 }>()
 
@@ -12,6 +14,31 @@ const emit = defineEmits<{
   (event: 'download-video'): void
   (event: 'download-subtitle'): void
 }>()
+
+const streamUrl = ref<string | null>(null)
+const isLoading = ref(false)
+
+async function loadStreamUrl(videoId: string) {
+  if (streamUrl.value) URL.revokeObjectURL(streamUrl.value)
+  streamUrl.value = null
+
+  if (!videoId) return
+
+  isLoading.value = true
+  try {
+    streamUrl.value = await fetchVideoBlobUrl(videoId)
+  } catch {
+    streamUrl.value = null
+  } finally {
+    isLoading.value = false
+  }
+}
+
+watch(() => props.videoId, (id) => void loadStreamUrl(id), { immediate: true })
+
+onBeforeUnmount(() => {
+  if (streamUrl.value) URL.revokeObjectURL(streamUrl.value)
+})
 </script>
 
 <template>
@@ -42,9 +69,14 @@ const emit = defineEmits<{
       </div>
     </div>
 
-    <video class="generated-card__video" controls :src="streamUrl">
+    <div v-if="isLoading" class="generated-card__state">
+      <Loader2 :size="24" class="spin" />
+      <p>Loading generated video...</p>
+    </div>
+    <video v-else-if="streamUrl" class="generated-card__video" controls :src="streamUrl">
       Your browser does not support video playback.
     </video>
+    <p v-else class="generated-card__state generated-card__state--error">Could not load the generated video preview.</p>
   </section>
 </template>
 
@@ -139,6 +171,25 @@ const emit = defineEmits<{
   border-radius: 10px;
   background: #000;
 }
+
+.generated-card__state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 1.25rem 1.25rem;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted);
+  background: #000;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.generated-card__state p { margin: 0; font-size: 0.8rem; }
+.generated-card__state--error { color: #ef4444; }
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 640px) {
   .generated-card__header { align-items: flex-start; flex-direction: column; }

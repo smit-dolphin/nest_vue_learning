@@ -5,6 +5,16 @@ import * as fs from 'fs/promises';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 
+interface SubtitleBurnStyle {
+  fontSize?: number;
+  fontColor?: string;
+  background?: boolean;
+  backgroundColor?: string;
+  backgroundOpacity?: number;
+  position?: 'bottom' | 'top' | 'middle';
+  outline?: number;
+}
+
 @Injectable()
 export class FfmpegService {
   constructor(private readonly prisma: PrismaService) { }
@@ -194,7 +204,11 @@ export class FfmpegService {
 
   }
 
-  async burnSubtitleInVideo(videoPath: string, subtitlePath: string) {
+  async burnSubtitleInVideo(
+    videoPath: string,
+    subtitlePath: string,
+    subtitleStyle?: SubtitleBurnStyle,
+  ) {
     const root = process.cwd();
 
     const outputPath = path.join(
@@ -205,14 +219,16 @@ export class FfmpegService {
     );
 
     const subtitleFilterPath = this.escapeSubtitlePath(subtitlePath);
+    const forceStyle = this.buildSubtitleForceStyle(subtitleStyle);
     console.log("path of burned video srt",subtitleFilterPath)
+    console.log("force_style of burned video",forceStyle)
 
     const ffmpeg = spawn('ffmpeg', [
       '-i',
       videoPath,
 
       '-vf',
-      `subtitles='${subtitleFilterPath}':force_style='BackColour=&H000000&,BorderStyle=4'`,
+      `subtitles='${subtitleFilterPath}':force_style='${forceStyle}'`,
       outputPath,
     ]);
 
@@ -243,9 +259,111 @@ export class FfmpegService {
 .replace(/:/g, '\\:')
 }
 
+  // Builds an ffmpeg "force_style" (ASS style) string from the burn-in
+  // subtitle style settings coming from the frontend query params.
+  private buildSubtitleForceStyle(style?: SubtitleBurnStyle): string {
+    const {
+      fontSize = 24,
+      fontColor = 'white',
+      background = true,
+      backgroundColor = 'black',
+      backgroundOpacity = 0.8,
+      position = 'bottom',
+      outline = 2,
+    } = style || {};
 
+    const parts: string[] = [
+      `FontSize=${Math.max(4, Math.round(fontSize))}`,
+      `PrimaryColour=${this.cssColorToAss(fontColor, 0)}`,
+    ];
 
+    if (background) {
+      // Alpha byte: 00 = fully opaque, FF = fully transparent.
+      // backgroundOpacity 0..1 -> transparency 1 - backgroundOpacity.
+      const alpha = Math.round(
+        255 * Math.min(1, Math.max(0, 1 - backgroundOpacity)),
+      );
 
+      parts.push('BorderStyle=4');
+      parts.push(`BackColour=${this.cssColorToAss(backgroundColor, alpha)}`);
+      // BorderStyle 4 renders an opaque box sized by the outline value.
+      parts.push(`Outline=${Math.max(2, Math.round(outline))}`);
+    } else {
+      parts.push('BorderStyle=1');
+      parts.push(`Outline=${Math.max(0, Math.round(outline))}`);
+      parts.push('BackColour=&H80000000&');
+      parts.push('Shadow=1');
+    }
+
+    parts.push(`Alignment=${this.positionToAssAlignment(position)}`);
+
+    return parts.join(',');
+  }
+
+  // Converts a CSS color (#rgb / #rrggbb or common color names) into an
+  // ASS colour code: &HAABBGGRR& (alpha, blue, green, red).
+  private cssColorToAss(color: string, alpha: number): string {
+    const rgb = this.parseCssColor(color);
+    const alphaByte = Math.min(255, Math.max(0, alpha))
+      .toString(16)
+      .padStart(2, '0')
+      .toUpperCase();
+
+    const bgr =
+      rgb.b.toString(16).padStart(2, '0').toUpperCase() +
+      rgb.g.toString(16).padStart(2, '0').toUpperCase() +
+      rgb.r.toString(16).padStart(2, '0').toUpperCase();
+
+    return `&H${alphaByte}${bgr}&`;
+  }
+
+  private parseCssColor(color: string): { r: number; g: number; b: number } {
+    const named: Record<string, string> = {
+      white: '#ffffff',
+      black: '#000000',
+      red: '#ff0000',
+      green: '#008000',
+      blue: '#0000ff',
+      yellow: '#ffff00',
+      cyan: '#00ffff',
+      magenta: '#ff00ff',
+      orange: '#ffa500',
+      purple: '#800080',
+      gray: '#808080',
+      grey: '#808080',
+    };
+
+    const trimmed = (color || '').trim();
+    let hex = (named[trimmed.toLowerCase()] ?? trimmed)
+      .replace(/^#/, '')
+      .toLowerCase();
+
+    if (/^[0-9a-f]{3}$/.test(hex)) {
+      hex = hex.split('').map((char) => char + char).join('');
+    }
+
+    if (!/^[0-9a-f]{6}$/.test(hex)) {
+      hex = 'ffffff';
+    }
+
+    return {
+      r: parseInt(hex.slice(0, 2), 16),
+      g: parseInt(hex.slice(2, 4), 16),
+      b: parseInt(hex.slice(4, 6), 16),
+    };
+  }
+
+  private positionToAssAlignment(position?: string): number {
+    switch (position) {
+      case 'top':
+        return 8;
+      case 'middle':
+        return 5;
+      case 'bottom':
+      default:
+        return 2;
+    }
+  }
 }
 
 

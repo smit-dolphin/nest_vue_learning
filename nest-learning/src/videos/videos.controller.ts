@@ -27,6 +27,7 @@ export class VideosController {
     // ─────────────────────────────────────────
 
     @Post('upload/:userId')
+    @UseGuards(JwtAuthGuard)
     @UseInterceptors(FileInterceptor('video', {
         storage: diskStorage({
             destination: './uploads',
@@ -109,6 +110,14 @@ export class VideosController {
         @Query('autoPunctuation') autoPunctuation: boolean,
         @Query('wordLevelTiming') wordLevelTiming: boolean,
         @Query('burnVideo') burnVideo: boolean,
+        // Burn-in subtitle style (only forwarded when burnVideo=true)
+        @Query('fontSize') fontSize: number,
+        @Query('fontColor') fontColor: string,
+        @Query('background') background: boolean,
+        @Query('backgroundColor') backgroundColor: string,
+        @Query('backgroundOpacity') backgroundOpacity: number,
+        @Query('position') position: string,
+        @Query('outline') outline: number,
     ) {
         if (!file) {
             throw new BadRequestException('No file uploaded');
@@ -122,6 +131,13 @@ export class VideosController {
             autoPunctuation,
             wordLevelTiming,
             burnVideo,
+            fontSize,
+            fontColor,
+            background,
+            backgroundColor,
+            backgroundOpacity,
+            position,
+            outline,
         };
 
         return this.videosService.saveVideo(
@@ -133,6 +149,7 @@ export class VideosController {
 
     //genrate subtitle from video id ,existing upload video
     @Post('generate-subtitle/:videoId')
+    @UseGuards(JwtAuthGuard)
      genrateSubtitleFromVideo(
         @Param('videoId') videoId: string,
 
@@ -143,6 +160,14 @@ export class VideosController {
         @Query('autoPunctuation') autoPunctuation: boolean,
         @Query('wordLevelTiming') wordLevelTiming: boolean,
         @Query('burnVideo') burnVideo: boolean,
+        // Burn-in subtitle style (only forwarded when burnVideo=true)
+        @Query('fontSize') fontSize: number,
+        @Query('fontColor') fontColor: string,
+        @Query('background') background: boolean,
+        @Query('backgroundColor') backgroundColor: string,
+        @Query('backgroundOpacity') backgroundOpacity: number,
+        @Query('position') position: string,
+        @Query('outline') outline: number,
     ){
         return this.videosService.getSubtitleVideoById(videoId, {
             leng,
@@ -152,10 +177,18 @@ export class VideosController {
             autoPunctuation,
             wordLevelTiming,
             burnVideo,
+            fontSize,
+            fontColor,
+            background,
+            backgroundColor,
+            backgroundOpacity,
+            position,
+            outline,
         });
     }
 
     @Post(':videoId/burn-subtitle')
+    @UseGuards(JwtAuthGuard)
     burnExistingSubtitle(
         @Param('videoId') videoId: string,
         @Body() body: { subtitleId: string },
@@ -169,6 +202,7 @@ export class VideosController {
 
     // GET all videos
     @Get()
+    @UseGuards(JwtAuthGuard)
     getVideos() {
         return this.videosService.getVideos();
     }
@@ -176,6 +210,7 @@ export class VideosController {
 
     // GET videos of specific user
     @Get('user/:userId')
+    @UseGuards(JwtAuthGuard)
     getUserVideos(
         @Param('userId') userId: string,
     ) {
@@ -184,6 +219,7 @@ export class VideosController {
 
     //delete video by id
     @Get('delete/:videoId')
+    @UseGuards(JwtAuthGuard)
     deleteVideo(
         @Param('videoId') videoId: string,
     ) {
@@ -191,6 +227,7 @@ export class VideosController {
     }
 
     @Get('stream/:videoId')
+    @UseGuards(JwtAuthGuard)
     async streamVideo(
         @Param('videoId') videoId: string,
     ) {
@@ -203,6 +240,7 @@ export class VideosController {
     }
 
     @Get('download/:videoId')
+    @UseGuards(JwtAuthGuard)
     async downloadVideo(
         @Param('videoId') videoId: string,
     ) {
@@ -215,11 +253,13 @@ export class VideosController {
     }
 
     @Get(':videoId/audio')
+    @UseGuards(JwtAuthGuard)
     getAudioByVideoId(@Param('videoId') videoId: string) {
         return this.videosService.getAudioByVideoId(videoId);
     }
 
     @Get(':videoId/audio/:audioId/download')
+    @UseGuards(JwtAuthGuard)
     async downloadAudio(
         @Param('videoId') videoId: string,
         @Param('audioId') audioId: string,
@@ -233,6 +273,7 @@ export class VideosController {
     }
 
     @Delete('audio/:audioId')
+    @UseGuards(JwtAuthGuard)
     deleteAudio(@Param('audioId') audioId: string) {
         return this.videosService.deleteAudio(audioId);
     }

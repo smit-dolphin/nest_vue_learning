@@ -1,6 +1,7 @@
-import { Controller, Post, Param, Get, StreamableFile, Delete } from '@nestjs/common';
+import { Controller, Post, Param, Get, StreamableFile, Delete, UseGuards } from '@nestjs/common';
 import { createReadStream } from 'node:fs';
 import { SubtitleService } from './subtitle.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 
 @Controller('subtitle')
@@ -15,6 +16,7 @@ export class SubtitleController {
     // }
     
     @Get('download/:id')
+    @UseGuards(JwtAuthGuard)
     async downloadSubtitle(@Param('id') id: string) {
         const subtitle = await this.subtitleService.downloadSubtitle(id);
 
@@ -25,11 +27,13 @@ export class SubtitleController {
     }
 
     @Get(':videoId')
+    @UseGuards(JwtAuthGuard)
     getSubtitle(@Param('videoId') videoId:string){
         return this.subtitleService.getSubtitleFiles(videoId)
     }
 
     @Delete(':subtitleId')
+    @UseGuards(JwtAuthGuard)
     deleteSubtitleById(@Param('subtitleId') subtitleId:string){
         return  this.subtitleService.deleteSubtitleById(subtitleId)
           

@@ -144,7 +144,8 @@ export class SubtitleService {
             const burnedVideo =
                 await this.ffmpegService.burnSubtitleInVideo(
                     videoResult.path,
-                    this.resolveStoredPath(resultGenratedSubtitle.path)
+                    this.resolveStoredPath(resultGenratedSubtitle.path),
+                    options?.subtitleStyle,
                 );
 
             const burnedVideoStats = await stat(burnedVideo.path);

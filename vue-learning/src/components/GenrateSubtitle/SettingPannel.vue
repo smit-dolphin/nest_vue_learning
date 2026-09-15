@@ -9,6 +9,7 @@ import {
 import type { SubtitleSettings } from './types'
 import { useSettingsStore } from '../../stores/settingsStore'
 import DropdownSelect from '../Common/DropdownSelect.vue'
+import SubtitleStylePanel from './SubtitleStylePanel.vue'
 
 
 /* ─── Emit ─── */
@@ -189,6 +190,7 @@ function sendSettings() {
     burnVideo: settingsStore.settings.burnVideo,
     punctuation: subtitleOptions.value.punctuation,
     wordLevel: subtitleOptions.value.wordLevel,
+    subtitleStyle: settingsStore.settings.subtitleStyle,
   }
 
   settingsStore.updateSettings(settings)
@@ -377,6 +379,9 @@ sendSettings()
       </div>
 
     </div>
+
+    <!-- Subtitle Style (only when burn video is enabled) -->
+    <SubtitleStylePanel v-if="isBurnVideoEnabled" @style-change="sendSettings" />
 
   </div>
 
