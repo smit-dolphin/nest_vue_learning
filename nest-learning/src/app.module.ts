@@ -16,6 +16,10 @@ import { AgentModule } from './agent/agent.module.js';
 import { StorageService } from './storage/storage.service.js';
 import { StorageModule } from './storage/storage.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
+
+import { ServeStaticModule} from '@nestjs/serve-static'
+import { join } from 'path';
 
 @Module({
     imports: [
@@ -30,13 +34,17 @@ import { NotificationsModule } from './notifications/notifications.module.js';
             }
         ),
         
+            ServeStaticModule.forRoot({
+                rootPath:join(process.cwd(),'../vue-learning/dist')
+            }),
+        
         JwtModule.register({
         global:true,
         secret:process.env.JWT_SECRET,
         signOptions: { expiresIn: '5h' },
         
 
-    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, AuthModule, FfmpegModule, TranscriptionModule, JobModule, AgentModule, StorageModule, NotificationsModule ],
+    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, AuthModule, FfmpegModule, TranscriptionModule, JobModule, AgentModule, StorageModule, NotificationsModule, DashboardModule ],
     controllers: [AppController],
     providers: [AppService],
 })

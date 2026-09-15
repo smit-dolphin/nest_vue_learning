@@ -15,6 +15,8 @@ async function bootstrap() {
     })
   )
 
+  app.setGlobalPrefix('api')
+
   app.enableCors({
     origin: 'http://localhost:5173', // Adjust this if your frontend runs on a different port
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -22,6 +24,7 @@ async function bootstrap() {
   });
 
   app.use(cookieParser())
+
 
   await app.listen(process.env.PORT ?? 3000);
 }

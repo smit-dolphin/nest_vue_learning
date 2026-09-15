@@ -216,6 +216,7 @@ export class AuthController {
         @Body('code') code: string,
         @Res({ passthrough: true }) res: Response,
     ) {
+
         const result = await this.authService.exchangeGoogleAuthCode(code);
 
         res.cookie('refreshToken', result.refreshToken, {

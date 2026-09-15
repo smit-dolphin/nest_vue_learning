@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted, type Component } from 'vue'
 import {
   Captions,
   TrendingUp,
   Clock,
   CheckCircle2,
   ArrowUpRight,
+  ArrowDownRight,
   Play,
   MoreHorizontal,
   Sparkles,
@@ -13,69 +14,102 @@ import {
   FileVideo,
 } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/authStore'
+import { getDashboard, type DashboardResponse } from '@/services/dashboardService'
 
-const authstore=useAuthStore()
+const authstore = useAuthStore()
 
-const stats = [
-  {
-    label: 'Total Subtitles',
-    value: '1,284',
-    change: '+12.5%',
-    trend: 'up',
+const dashboard = ref<DashboardResponse | null>(null)
+const isLoading = ref(true)
+
+const statMeta: Record<string, { icon: Component; color: string; bg: string }> = {
+  totalSubtitles: {
     icon: Captions,
     color: '#8b5cf6',
     bg: 'rgba(139, 92, 246, 0.12)',
   },
-  {
-    label: 'Hours Processed',
-    value: '348h',
-    change: '+8.2%',
-    trend: 'up',
+  hoursProcessed: {
     icon: Clock,
     color: '#06b6d4',
     bg: 'rgba(6, 182, 212, 0.12)',
   },
-  {
-    label: 'Accuracy Rate',
-    value: '98.4%',
-    change: '+0.3%',
-    trend: 'up',
+  accuracyRate: {
     icon: TrendingUp,
     color: '#10b981',
     bg: 'rgba(16, 185, 129, 0.12)',
   },
-  {
-    label: 'Completed Today',
-    value: '24',
-    change: '+4',
-    trend: 'up',
+  completedToday: {
     icon: CheckCircle2,
     color: '#f59e0b',
     bg: 'rgba(245, 158, 11, 0.12)',
   },
-]
+}
 
-const recentJobs = [
-  { title: 'Product Demo Q3.mp4', lang: 'English', duration: '4:32', status: 'done', time: '2 min ago' },
-  { title: 'CEO Interview Final.mov', lang: 'Spanish', duration: '12:18', status: 'done', time: '1 hr ago' },
-  { title: 'Tutorial Episode 7.mp4', lang: 'French', duration: '8:45', status: 'processing', time: 'In progress' },
-  { title: 'Marketing Reel.mp4', lang: 'German', duration: '1:20', status: 'done', time: '3 hr ago' },
-  { title: 'Webinar Recording.mkv', lang: 'Japanese', duration: '58:02', status: 'queued', time: 'Queued' },
-]
+const statCards = computed(() =>
+  (dashboard.value?.stats ?? []).map((stat) => ({
+    ...stat,
+    ...(statMeta[stat.key] ??
+      statMeta.totalSubtitles),
+  })),
+)
 
-const languages = [
-  { name: 'English', pct: 44, color: '#8b5cf6' },
-  { name: 'Spanish', pct: 22, color: '#06b6d4' },
-  { name: 'French', pct: 18, color: '#10b981' },
-  { name: 'German', pct: 10, color: '#f59e0b' },
-  { name: 'Other', pct: 6, color: '#6b7280' },
-]
+const recentJobs = computed(() => dashboard.value?.recentJobs ?? [])
 
-const statusClass = (s: string) => ({
-  'done': 'badge--success',
-  'processing': 'badge--info',
-  'queued': 'badge--warning',
-}[s] ?? '')
+const languagesPalette = ['#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#6b7280']
+
+const languages = computed(() =>
+  (dashboard.value?.languages ?? []).map((lang, index) => ({
+    ...lang,
+    color: languagesPalette[index % languagesPalette.length],
+  })),
+)
+
+const totalSubtitles = computed(
+  () => dashboard.value?.stats?.find((s) => s.key === 'totalSubtitles')?.value ?? 0,
+)
+
+const DONUT_RADIUS = 38
+const DONUT_CIRCUMFERENCE = 2 * Math.PI * DONUT_RADIUS
+
+const donutSegments = computed(() => {
+  let cumulative = 0
+  return languages.value.map((lang) => {
+    const length = (lang.pct / 100) * DONUT_CIRCUMFERENCE
+    const segment = {
+      color: lang.color,
+      dash: length,
+      offset: -cumulative,
+    }
+    cumulative += length
+    return segment
+  })
+})
+
+const formatStatValue = (stat: (typeof statCards.value)[number]) => {
+  if (stat.key === 'hoursProcessed') return `${stat.value}h`
+  if (stat.key === 'accuracyRate') return `${stat.value}%`
+  return stat.value.toLocaleString()
+}
+
+const statusClass = (s: string) =>
+  ({
+    done: 'badge--success',
+    processing: 'badge--info',
+    queued: 'badge--warning',
+    failed: 'badge--danger',
+  })[s] ?? ''
+
+const loadDashboard = async () => {
+  isLoading.value = true
+  try {
+    dashboard.value = await getDashboard()
+  } catch {
+    dashboard.value = null
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadDashboard)
 </script>
 
 <template>
@@ -113,19 +147,24 @@ const statusClass = (s: string) => ({
 
     <!-- Stats Grid -->
     <div class="dashboard__stats">
-      <div v-for="stat in stats" :key="stat.label" class="stat-card">
+      <div v-for="stat in statCards" :key="stat.key" class="stat-card">
         <div class="stat-card__header">
           <div class="stat-card__icon" :style="{ background: stat.bg, color: stat.color }">
             <component :is="stat.icon" :size="18" />
           </div>
-          <span class="stat-card__change" :class="stat.trend === 'up' ? 'stat-card__change--up' : ''">
-            <ArrowUpRight :size="13" /> {{ stat.change }}
+          <span
+            class="stat-card__change"
+            :class="stat.trend === 'up' ? 'stat-card__change--up' : 'stat-card__change--down'"
+          >
+            <ArrowUpRight v-if="stat.trend === 'up'" :size="13" />
+            <ArrowDownRight v-else :size="13" />
+            {{ stat.change }}
           </span>
         </div>
-        <p class="stat-card__value">{{ stat.value }}</p>
+        <p class="stat-card__value">{{ formatStatValue(stat) }}</p>
         <p class="stat-card__label">{{ stat.label }}</p>
         <div class="stat-card__bar">
-          <div class="stat-card__bar-fill" :style="{ background: stat.color, width: '65%' }"></div>
+          <div class="stat-card__bar-fill" :style="{ background: stat.color }"></div>
         </div>
       </div>
     </div>
@@ -150,7 +189,7 @@ const statusClass = (s: string) => ({
             <span>Time</span>
             <span></span>
           </div>
-          <div v-for="job in recentJobs" :key="job.title" class="jobs-table__row">
+          <div v-for="job in recentJobs" :key="job.id" class="jobs-table__row">
             <div class="jobs-table__file">
               <div class="jobs-table__file-icon"><Play :size="11" /></div>
               <span class="jobs-table__filename">{{ job.title }}</span>
@@ -192,15 +231,20 @@ const statusClass = (s: string) => ({
         <div class="donut-wrap">
           <svg class="donut" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="38" fill="none" stroke="var(--card-color)" stroke-width="14"/>
-            <circle cx="50" cy="50" r="38" fill="none" stroke="#8b5cf6" stroke-width="14"
-              stroke-dasharray="106 133" stroke-dashoffset="0" stroke-linecap="round"/>
-            <circle cx="50" cy="50" r="38" fill="none" stroke="#06b6d4" stroke-width="14"
-              stroke-dasharray="53 186" stroke-dashoffset="-106" stroke-linecap="round"/>
-            <circle cx="50" cy="50" r="38" fill="none" stroke="#10b981" stroke-width="14"
-              stroke-dasharray="43 196" stroke-dashoffset="-159" stroke-linecap="round"/>
-            <circle cx="50" cy="50" r="38" fill="none" stroke="#f59e0b" stroke-width="14"
-              stroke-dasharray="24 215" stroke-dashoffset="-202" stroke-linecap="round"/>
-            <text x="50" y="53" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">1,284</text>
+            <circle
+              v-for="(segment, index) in donutSegments"
+              :key="index"
+              cx="50"
+              cy="50"
+              r="38"
+              fill="none"
+              :stroke="segment.color"
+              stroke-width="14"
+              :stroke-dasharray="`${segment.dash} ${DONUT_CIRCUMFERENCE}`"
+              :stroke-dashoffset="segment.offset"
+              stroke-linecap="round"
+            />
+            <text x="50" y="53" text-anchor="middle" fill="#f3f4f6" font-size="13" font-weight="700">{{ totalSubtitles.toLocaleString() }}</text>
             <text x="50" y="63" text-anchor="middle" fill="#6b7280" font-size="6">total</text>
           </svg>
         </div>
@@ -389,6 +433,7 @@ const statusClass = (s: string) => ({
 }
 
 .stat-card__change--up { color: var(--success-color); }
+.stat-card__change--down { color: #ef4444; }
 
 .stat-card__value {
   font-size: 1.6rem;
@@ -545,6 +590,7 @@ const statusClass = (s: string) => ({
 .badge--success { background: rgba(16,185,129,0.12); color: #10b981; }
 .badge--info { background: rgba(6,182,212,0.12); color: #06b6d4; }
 .badge--warning { background: rgba(245,158,11,0.12); color: #f59e0b; }
+.badge--danger { background: rgba(239,68,68,0.12); color: #ef4444; }
 
 /* Language List */
 .lang-list {

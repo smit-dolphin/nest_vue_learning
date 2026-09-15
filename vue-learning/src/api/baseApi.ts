@@ -3,8 +3,11 @@ import axios from 'axios'
 import router from '@/router'
 import { toast } from 'vue-sonner'
 
+
+const baseurl='/api'
+// http://localhost:3000
 export const baseApi = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: baseurl,
   withCredentials: true,
 })
 
@@ -30,7 +33,7 @@ baseApi.interceptors.response.use(
       try {
         const authStore = useAuthStore()
         const response = await axios.post(
-          'http://localhost:3000/auth/refresh',
+          `${baseurl}/auth/refresh`,
           {},
           {
             withCredentials: true,
