@@ -4,10 +4,13 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
 import * as fs from 'fs/promises';
+import { StorageService } from '../storage/storage.service.js';
 
 @Injectable()
 export class TranscriptionService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService,
+    private readonly storageService:StorageService
+  ) { }
 
 
 
@@ -51,6 +54,13 @@ export class TranscriptionService {
       }
     }
 
+
+    //  so here we are goint to start support the changes 
+    // we need to download the file from key
+    const localSubtitleFile=await this.storageService.downloadToLocal(audioPath)
+    //now local file will be given to processing 
+
+
     // creating output path for file (no extension — whisper-cli appends it automatically)
     const absoultePath = path.join(root, 'uploads', 'subtitle', `${videoId}`);
     const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli');
@@ -69,7 +79,7 @@ export class TranscriptionService {
       "-m",
       absoluteModelPath,
       "-f",
-      audioPath,
+      localSubtitleFile,
       subtitleFormat.flag,       // resolved flag e.g. '-osrt'
       "-of",
       absoultePath,

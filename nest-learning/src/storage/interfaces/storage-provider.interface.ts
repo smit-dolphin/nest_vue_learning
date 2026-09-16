@@ -4,4 +4,8 @@ export interface StorageProvider {
   delete(storageKey: string): Promise<void>;
 
   exists(storageKey: string): Promise<boolean>;
+
+  getLocalPath(storageKey:string) : Promise<string>
+
+   downloadToLocal(storageKey: string): Promise<string>;
 }

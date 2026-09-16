@@ -17,6 +17,7 @@ import { StorageService } from './storage/storage.service.js';
 import { StorageModule } from './storage/storage.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { CloudinaryModule } from './cloudinary/cloudinary.module.js';
 
 import { ServeStaticModule} from '@nestjs/serve-static'
 import { join } from 'path';
@@ -44,7 +45,7 @@ import { join } from 'path';
         signOptions: { expiresIn: '5h' },
         
 
-    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, AuthModule, FfmpegModule, TranscriptionModule, JobModule, AgentModule, StorageModule, NotificationsModule, DashboardModule ],
+    }), PrismaModule, UsersModule, VideosModule, SubtitleModule, AuthModule, FfmpegModule, TranscriptionModule, JobModule, AgentModule, StorageModule, NotificationsModule, DashboardModule, CloudinaryModule ],
     controllers: [AppController],
     providers: [AppService],
 })

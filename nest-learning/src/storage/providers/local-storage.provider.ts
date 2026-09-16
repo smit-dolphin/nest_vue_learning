@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { access, copyFile } from 'fs/promises';
 import { StorageProvider } from '../interfaces/storage-provider.interface.js';
 import { unlink } from 'fs/promises';
+import path from 'path';
 
 @Injectable()
 export class LocalStorageProvider implements StorageProvider {
@@ -26,6 +27,16 @@ export class LocalStorageProvider implements StorageProvider {
       } catch (error) {
         return false
       }
+  }
+
+
+  async getLocalPath(storageKey: string): Promise<string> {
+    return path.resolve(process.cwd(),'uploads',storageKey);
+  }
+
+
+  async downloadToLocal(storageKey: string): Promise<string> {
+    return path.resolve(process.cwd(),'uploads',storageKey);
   }
 
 }

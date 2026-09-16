@@ -20,4 +20,12 @@ export class StorageService {
   exists(storageKey: string) {
     return this.provider.exists(storageKey);
   }
+
+  getLocalPath(storageKey: string){
+    return this.provider.getLocalPath(storageKey)
+  }
+
+  downloadToLocal(storageKey: string){
+    return this.provider.downloadToLocal(storageKey)
+  }
 }
