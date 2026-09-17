@@ -235,7 +235,7 @@ export class AuthService {
           email: user.email,
         },
         {
-          expiresIn: '5m',
+          expiresIn: '50m',
         },
       );
 

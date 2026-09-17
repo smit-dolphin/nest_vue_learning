@@ -1,5 +1,5 @@
 
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { TranscriptionService } from '../transcription/transcription.service.js';
@@ -416,6 +416,7 @@ export class SubtitleService {
         videoId: string,
         subtitleId: string,
         job: Job,
+        options:any,
         subtitleJobId: string,
     ) {
         const video = await this.prisma.video.findUnique({
@@ -452,12 +453,14 @@ export class SubtitleService {
             const burnedVideo = await this.ffmpegService.burnSubtitleInVideo(
                 this.resolveStoredPath(video.path),
                 this.resolveStoredPath(subtitle.path),
+                options?.subtitleStyle,
             );
 
             await job.updateProgress(80);
 
             const burnedVideoStats = await stat(burnedVideo.path);
             const burnedVideoDuration = await this.getVideoDuration(burnedVideo.path);
+            
 
             const result = await this.prisma.video.create({
                 data: {
@@ -471,6 +474,8 @@ export class SubtitleService {
                     parentVideoId: video.id,
                 },
             });
+
+            
 
             await this.prisma.subtitleJob.update({
                 where: { id: subtitleJobId },
@@ -498,7 +503,19 @@ export class SubtitleService {
 
 
     ///_____Get_Subtitle_Files_________________________
-    async getSubtitleFiles(videoId: string) {
+    async getSubtitleFiles(videoId: string, userId: string) {
+        const video = await this.prisma.video.findUnique({
+            where: { id: videoId },
+        });
+
+        if (!video) {
+            throw new NotFoundException('Video not found');
+        }
+
+        if (video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to access subtitles for this video');
+        }
+
         const subtitleFiles = await this.prisma.subtitle.findMany({
             where: {
                 videoId: videoId,
@@ -512,13 +529,18 @@ export class SubtitleService {
         return subtitleFiles;
     }
 
-    async downloadSubtitle(id: string) {
+    async downloadSubtitle(id: string, userId: string) {
         const subtitle = await this.prisma.subtitle.findUnique({
             where: { id },
+            include: { video: true },
         });
 
         if (!subtitle) {
             throw new NotFoundException('Subtitle not found');
+        }
+
+        if (subtitle.video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to download this subtitle');
         }
 
         const filePath = this.resolveStoredPath(subtitle.path);
@@ -551,15 +573,20 @@ export class SubtitleService {
     }
 
 
-    async deleteSubtitleById(subtitleId: string) {
+    async deleteSubtitleById(subtitleId: string, userId: string) {
         const sub = await this.prisma.subtitle.findUnique({
             where: {
                 id: subtitleId,
             },
+            include: { video: true },
         });
 
         if (!sub) {
             throw new NotFoundException('The subtitle not found');
+        }
+
+        if (sub.video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to delete this subtitle');
         }
 
         const deletedFile = await this.deleteFilesFromStorage(sub.path, sub.videoId);

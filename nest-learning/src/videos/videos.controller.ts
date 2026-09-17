@@ -7,6 +7,7 @@ import { VideosService } from './videos.service.js';
 import { SubtitleService } from '../subtitle/subtitle.service.js'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { JobService } from '../job/job.service.js';
+import { uploadAndGenrateVideoDto } from './dto/video.dto.js';
 
 
 
@@ -19,14 +20,11 @@ export class VideosController {
         private readonly videosService: VideosService,
         private readonly subtitleService: SubtitleService,
         private readonly jobService: JobService
-    ) {}
+    ) { }
 
 
-    // ─────────────────────────────────────────
-    // VIDEO ROUTES
-    // ─────────────────────────────────────────
-
-    @Post('upload/:userId')
+    // upload video only 
+    @Post()
     @UseGuards(JwtAuthGuard)
     @UseInterceptors(FileInterceptor('video', {
         storage: diskStorage({
@@ -59,16 +57,21 @@ export class VideosController {
     }))
     uploadVideoOnly(
         @UploadedFile() file: Express.Multer.File,
-        @Param('userId') userId: string,
+        @Req() req: any
     ) {
         if (!file) {
             throw new BadRequestException('No file uploaded');
         }
 
+        const userId = req.user?.sub
+
         return this.videosService.saveUploadedVideo(file, userId);
     }
 
-    @Post('/')
+
+    // ____________________________________________________________________________________________________________________
+
+    @Post('subtitle-jobs')
     @UseGuards(JwtAuthGuard)
     @UseInterceptors(FileInterceptor('video', {
         storage: diskStorage({
@@ -103,99 +106,50 @@ export class VideosController {
         @UploadedFile() file: Express.Multer.File,
         @Req() req: any,
 
-        @Query('leng') leng: string,
-        @Query('formate') formate: string,
-        @Query('lables') lables: boolean,
-        @Query('autoTranslate') autoTranslate: boolean,
-        @Query('autoPunctuation') autoPunctuation: boolean,
-        @Query('wordLevelTiming') wordLevelTiming: boolean,
-        @Query('burnVideo') burnVideo: boolean,
-        // Burn-in subtitle style (only forwarded when burnVideo=true)
-        @Query('fontSize') fontSize: number,
-        @Query('fontColor') fontColor: string,
-        @Query('background') background: boolean,
-        @Query('backgroundColor') backgroundColor: string,
-        @Query('backgroundOpacity') backgroundOpacity: number,
-        @Query('position') position: string,
-        @Query('outline') outline: number,
+        @Query() options: uploadAndGenrateVideoDto,
     ) {
         if (!file) {
             throw new BadRequestException('No file uploaded');
         }
 
-        const option = {
-            leng,
-            formate,
-            lables,
-            autoTranslate,
-            autoPunctuation,
-            wordLevelTiming,
-            burnVideo,
-            fontSize,
-            fontColor,
-            background,
-            backgroundColor,
-            backgroundOpacity,
-            position,
-            outline,
-        };
 
         return this.videosService.saveVideo(
             file,
             req.user.sub,
-            option,
+            options,
         );
     }
 
     //genrate subtitle from video id ,existing upload video
-    @Post('generate-subtitle/:videoId')
+    @Post(':videoId/subtitle-jobs')
     @UseGuards(JwtAuthGuard)
-     genrateSubtitleFromVideo(
+    genrateSubtitleFromVideo(
         @Param('videoId') videoId: string,
 
-        @Query('leng') leng: string,
-        @Query('formate') formate: string,
-        @Query('lables') lables: boolean,
-        @Query('autoTranslate') autoTranslate: boolean,
-        @Query('autoPunctuation') autoPunctuation: boolean,
-        @Query('wordLevelTiming') wordLevelTiming: boolean,
-        @Query('burnVideo') burnVideo: boolean,
-        // Burn-in subtitle style (only forwarded when burnVideo=true)
-        @Query('fontSize') fontSize: number,
-        @Query('fontColor') fontColor: string,
-        @Query('background') background: boolean,
-        @Query('backgroundColor') backgroundColor: string,
-        @Query('backgroundOpacity') backgroundOpacity: number,
-        @Query('position') position: string,
-        @Query('outline') outline: number,
-    ){
-        return this.videosService.getSubtitleVideoById(videoId, {
-            leng,
-            formate,
-            lables,
-            autoTranslate,
-            autoPunctuation,
-            wordLevelTiming,
-            burnVideo,
-            fontSize,
-            fontColor,
-            background,
-            backgroundColor,
-            backgroundOpacity,
-            position,
-            outline,
-        });
+        @Query() options: uploadAndGenrateVideoDto,
+    ) {
+        return this.videosService.getSubtitleVideoById(videoId, options);
     }
 
-    @Post(':videoId/burn-subtitle')
+
+    
+
+    @Post(':videoId/burn-jobs')
     @UseGuards(JwtAuthGuard)
     burnExistingSubtitle(
         @Param('videoId') videoId: string,
         @Body() body: { subtitleId: string },
+        @Query() options:uploadAndGenrateVideoDto
     ) {
+
+        console.log("______________burn job__________________")
         return this.jobService.addBurnSubtitleJob({
             videoId,
             subtitleId: body.subtitleId,
+            options: {
+                ...options,
+                subtitleStyle: this.videosService.buildBurnSubtitleStyle(options),
+            }
         });
     }
 
@@ -203,48 +157,51 @@ export class VideosController {
     // GET all videos
     @Get()
     @UseGuards(JwtAuthGuard)
-    getVideos() {
-        return this.videosService.getVideos();
+    getVideos(@Req() req: any) {
+        return this.videosService.getVideos(req.user.sub);
     }
 
 
     // GET videos of specific user
-    @Get('user/:userId')
-    @UseGuards(JwtAuthGuard)
-    getUserVideos(
-        @Param('userId') userId: string,
-    ) {
-        return this.videosService.getUserVideos(userId);
-    }
+    // @Get('user/:userId')
+    // @UseGuards(JwtAuthGuard)
+    // getUserVideos(
+    //     @Param('userId') userId: string,
+    // ) {
+    //     return this.videosService.getUserVideos(userId);
+    // }
 
     //delete video by id
-    @Get('delete/:videoId')
+    @Delete(':videoId')
     @UseGuards(JwtAuthGuard)
     deleteVideo(
         @Param('videoId') videoId: string,
+        @Req() req: any,
     ) {
-        return this.videosService.deleteVideo(videoId);
+        return this.videosService.deleteVideo(videoId, req.user.sub);
     }
 
-    @Get('stream/:videoId')
-    @UseGuards(JwtAuthGuard)
-    async streamVideo(
-        @Param('videoId') videoId: string,
-    ) {
-        const video = await this.videosService.streamVideo(videoId);
 
-        return new StreamableFile(createReadStream(video.filePath), {
-            type: video.mimetype,
-            disposition: `inline; filename="${video.filename}"`,
-        });
-    }
+    // @Get('stream/:videoId')
+    // @UseGuards(JwtAuthGuard)
+    // async streamVideo(
+    //     @Param('videoId') videoId: string,
+    // ) {
+    //     const video = await this.videosService.streamVideo(videoId);
 
-    @Get('download/:videoId')
+    //     return new StreamableFile(createReadStream(video.filePath), {
+    //         type: video.mimetype,
+    //         disposition: `inline; filename="${video.filename}"`,
+    //     });
+    // }
+
+    @Get(':videoId/download')
     @UseGuards(JwtAuthGuard)
     async downloadVideo(
         @Param('videoId') videoId: string,
+        @Req() req: any,
     ) {
-        const video = await this.videosService.downloadVideo(videoId);
+        const video = await this.videosService.downloadVideo(videoId, req.user.sub);
 
         return new StreamableFile(createReadStream(video.filePath), {
             type: video.mimetype,
@@ -252,31 +209,32 @@ export class VideosController {
         });
     }
 
-    @Get(':videoId/audio')
-    @UseGuards(JwtAuthGuard)
-    getAudioByVideoId(@Param('videoId') videoId: string) {
-        return this.videosService.getAudioByVideoId(videoId);
-    }
-
-    @Get(':videoId/audio/:audioId/download')
-    @UseGuards(JwtAuthGuard)
-    async downloadAudio(
-        @Param('videoId') videoId: string,
-        @Param('audioId') audioId: string,
-    ) {
-        const audio = await this.videosService.downloadAudio(videoId, audioId);
-
-        return new StreamableFile(createReadStream(audio.filePath), {
-            type: audio.mimetype,
-            disposition: `attachment; filename="${audio.filename}"`,
-        });
-    }
-
-    @Delete('audio/:audioId')
-    @UseGuards(JwtAuthGuard)
-    deleteAudio(@Param('audioId') audioId: string) {
-        return this.videosService.deleteAudio(audioId);
-    }
-
     
+    // @Get(':videoId/audio')
+    // @UseGuards(JwtAuthGuard)
+    // getAudioByVideoId(@Param('videoId') videoId: string) {
+    //     return this.videosService.getAudioByVideoId(videoId);
+    // }
+
+    // @Get(':videoId/audio/:audioId/download')
+    // @UseGuards(JwtAuthGuard)
+    // async downloadAudio(
+    //     @Param('videoId') videoId: string,
+    //     @Param('audioId') audioId: string,
+    // ) {
+    //     const audio = await this.videosService.downloadAudio(videoId, audioId);
+
+    //     return new StreamableFile(createReadStream(audio.filePath), {
+    //         type: audio.mimetype,
+    //         disposition: `attachment; filename="${audio.filename}"`,
+    //     });
+    // }
+
+    // @Delete('audio/:audioId')
+    // @UseGuards(JwtAuthGuard)
+    // deleteAudio(@Param('audioId') audioId: string) {
+    //     return this.videosService.deleteAudio(audioId);
+    // }
+
+
 }
