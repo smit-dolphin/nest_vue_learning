@@ -4,124 +4,65 @@ import * as fs from 'fs/promises';
 import path from 'node:path';
 import { GoogleGenAI } from '@google/genai';
 import { getLanguageByCode } from './agent.constants.js';
+import { StorageService } from '../storage/storage.service.js';
 
 @Injectable()
 export class AgentService {
 
     constructor(
-        private readonly prisma: PrismaService
+        private readonly prisma: PrismaService,
+        private readonly storageService: StorageService
     ) { }
 
-    async TranslateTranscribtionFile(FileId: string, targetLanguage: string) {
-        //fetch the transcription file and get it from db
-        const transcriptionFile = await this.prisma.subtitle.findUnique({
-            where: {
-                id: FileId
-            }
-        });
+    async TranslateTranscribtionFile(
+    subtitleLocalPath: string,
+    targetLanguage: string,
+    workDir: string,
+): Promise<{
+    localPath: string;
+    filename: string;
+}> {
+    const filedata = await fs.readFile(subtitleLocalPath, 'utf-8');
 
-        if (!transcriptionFile) {
-            throw new Error(`Transcription file with ID ${FileId} not found.`);
-        }
+    const languageCode = getLanguageByCode(targetLanguage || 'en');
 
-        const existingTranslationRecords = await this.prisma.subtitle.findMany({
-            where: {
-                videoId: transcriptionFile.videoId,
-                languageCode: targetLanguage || 'en',
-                mimeType: transcriptionFile.mimeType,
-                subtitleFormat: transcriptionFile.subtitleFormat,
-                id: { not: transcriptionFile.id },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+    const prompt = `
+    Translate current given "Target_FileData" data , analys that data , and translate it into the "Target_Language" language.
 
-        for (const existingTranslation of existingTranslationRecords) {
-            const transcriptionExtension = path.extname(
-                transcriptionFile.filename || transcriptionFile.path,
-            ).toLowerCase();
-            const existingExtension = path.extname(
-                existingTranslation.filename || existingTranslation.path,
-            ).toLowerCase();
+    Rule:-
+    1.the timing of data should match to original data 
+    2.give output fomrate striclty followed as input formate
+    3.do not change the timing of data
+    4.translation must be meaning full and not rendom
+    5.maintain tone as original formate given
+    6.genrated charecter of words must not be random and must be presise
+    7.given lenguage code must be follow and translated to that lenguage 
+    8.the charecter of target lenguage must be correct and not random
+    9.in lenguages like hindi and other , do not use pure lenguage , keep lenguage modest
 
-            if (existingExtension !== transcriptionExtension) {
-                continue;
-            }
+    files:-
+    Target_Language: ${languageCode}
+    Target_FileData: ${filedata}`;
 
-            try {
-                await fs.access(this.resolveStoredPath(existingTranslation.path));
-                return existingTranslation;
-            } catch {
-                await this.prisma.subtitle.delete({ where: { id: existingTranslation.id } });
-            }
-        }
+    const TranslationResult = await this.AgentEngine(prompt);
 
-        //read file and create the prompt for translation       
-        const filePath = this.resolveStoredPath(transcriptionFile.path);
-        const filedata = await fs.readFile(filePath, 'utf-8');
-
-
-        console.log(filedata)
-
-        const lenguageCode=getLanguageByCode(targetLanguage || 'en');
-
-        const prompt = `
-        Translate current given "Target_FileData" data , analys that data , and translate it into the "Target_Language" language.
-
-        Rule:-
-        1.the timing of data should match to original data 
-        2.give output fomrate striclty followed as input formate
-        3.do not change the timing of data
-        4.translation must be meaning full and not rendom
-        5.maintain tone as original formate given
-        6.genrated charecter of words must not be random and must be presise
-        7.given lenguage code must be follow and translated to that lenguage 
-        8.the charecter of target lenguage must be correct and not random
-        9.in lenguages like hindi and other , do not use pure lenguage , keep lenguage modest
-
-        files:-
-        Target_Language: ${lenguageCode}
-        Target_FileData: ${filedata}`;
-
-
-        const TranslationResult = await this.AgentEngine(prompt);
-        console.log("TranslationResult",TranslationResult)
-        if (!TranslationResult) {
-            throw new Error('Agent did not return any translation.');
-        }
-
-        console.log("lenguageCode", lenguageCode)
-
-        const extension = path.extname(transcriptionFile.filename || filePath) || '.srt';
-        const baseName = path.basename(
-            transcriptionFile.filename || filePath,
-            extension,
-        );
-        const languageSuffix = (targetLanguage || 'en').replace(/[^a-zA-Z0-9-_]/g, '-');
-        const translatedFilename = `${baseName}-${languageSuffix}-${Date.now()}${extension}`;
-        const translatedPath = path.join(path.dirname(filePath), translatedFilename);
-        const root = process.cwd();
-
-        await fs.writeFile(
-            translatedPath,
-            TranslationResult,
-            'utf-8'
-        );
-
-        const translatedStats = await fs.stat(translatedPath);
-
-        return this.prisma.subtitle.create({
-            data: {
-                filename: translatedFilename,
-                mimeType: transcriptionFile.mimeType,
-                path: path.relative(root, translatedPath),
-                size: translatedStats.size,
-                duration: transcriptionFile.duration,
-                languageCode: targetLanguage || 'en',
-                subtitleFormat: transcriptionFile.subtitleFormat,
-                videoId: transcriptionFile.videoId,
-            },
-        });
+    if (!TranslationResult) {
+        throw new Error('Agent did not return any translation.');
     }
+
+    const extension = path.extname(subtitleLocalPath) || '.srt';
+    const baseName = path.basename(subtitleLocalPath, extension);
+    const languageSuffix = (targetLanguage || 'en').replace(/[^a-zA-Z0-9-_]/g, '-');
+    const translatedFilename = `${baseName}-${languageSuffix}-${Date.now()}${extension}`;
+    const translatedPath = path.join(workDir, translatedFilename);
+
+    await fs.writeFile(translatedPath, TranslationResult, 'utf-8');
+
+    return {
+        localPath: translatedPath,
+        filename: translatedFilename,
+    };
+}
 
     private resolveStoredPath(storedPath: string): string {
         const root = process.cwd();
@@ -143,7 +84,7 @@ export class AgentService {
         })
 
         try {
-            
+
             const result = await ai.interactions.create({
                 model: 'gemini-3.5-flash-lite',
                 input: input

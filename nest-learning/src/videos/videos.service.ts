@@ -47,16 +47,23 @@ export class VideosService {
     constructor(private readonly prisma: PrismaService,
         private readonly jobService: JobService,
         private readonly ffmpegService: FfmpegService,
-        private readonly storageService:StorageService
+        private readonly storageService: StorageService
     ) { }
 
     async saveVideo(file: Express.Multer.File, userId: string, options: SubtitleOptions) {
         const duration = await this.getVideoDuration(file.path);
 
+        const videoKey = await this.storageService.upload(
+            file.path,
+            `/uploads/videos/${Date.now()}-${file.filename}`,
+        );
+
+        await unlink(file.path).catch(() => {});
+
         const result = await this.prisma.video.create({
             data: {
                 filename: file.filename,
-                path: file.path,
+                path: videoKey,
                 mimetype: file.mimetype,
                 size: file.size,
                 duration: duration ?? null,
@@ -86,10 +93,16 @@ export class VideosService {
     async saveUploadedVideo(file: Express.Multer.File, userId: string) {
         const duration = await this.getVideoDuration(file.path);
 
+        const videoKey = await this.storageService.upload(
+            file.path,
+            `/uploads/videos/${Date.now()}-${file.filename}`,
+        );
+
+        await unlink(file.path).catch(() => {});
         const result = await this.prisma.video.create({
             data: {
                 filename: file.filename,
-                path: file.path,
+                path: videoKey,
                 mimetype: file.mimetype,
                 size: file.size,
                 duration: duration ?? null,
@@ -104,7 +117,7 @@ export class VideosService {
         return result;
     }
 
-    async getSubtitleVideoById(videoId: string,options: SubtitleOptions) {
+    async getSubtitleVideoById(videoId: string, options: SubtitleOptions) {
 
         const result = await this.prisma.video.findUnique({
             where: {
@@ -117,7 +130,7 @@ export class VideosService {
         }
 
         const vidoeJob = await this.jobService.addVideoProcessingJob({
-            videoId:result.id, options: {
+            videoId: result.id, options: {
                 formate: options.formate,
                 leng: options.leng,
                 lables: options.lables,
@@ -310,17 +323,17 @@ export class VideosService {
         return this.streamVideo(videoId, userId);
     }
 
-    async getAudioByVideoId(videoId: string) {
-        const video = await this.prisma.video.findUnique({
-            where: { id: videoId },
-        });
+    // async getAudioByVideoId(videoId: string) {
+    //     const video = await this.prisma.video.findUnique({
+    //         where: { id: videoId },
+    //     });
 
-        if (!video) {
-            throw new NotFoundException('Video not found');
-        }
+    //     if (!video) {
+    //         throw new NotFoundException('Video not found');
+    //     }
 
-        return this.ffmpegService.videoToAudio(video.path, video.id);
-    }
+    //     return this.ffmpegService.videoToAudio(video.path, video.id);
+    // }
 
     async downloadAudio(videoId: string, audioId: string) {
         const audio = await this.prisma.audio.findFirst({

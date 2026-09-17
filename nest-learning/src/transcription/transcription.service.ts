@@ -4,132 +4,83 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
 import * as fs from 'fs/promises';
+import { StorageService } from '../storage/storage.service.js';
 
 @Injectable()
 export class TranscriptionService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService,
+    private readonly storageService: StorageService
+  ) { }
 
 
 
 
   // adding the output path for genrated audio 
-  async transcriptAudio(audioPath: string, videoId: string, options: any) {
-
-    // using process.cwd() to always resolve from project root (works in CommonJS)
-    const root = process.cwd();
-
+  async transcriptAudio(audioPath: string, videoId: string, options: any, workDir: string): Promise<{
+    localPath: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    duration: number;
+    subtitleFormat: string; // extension, e.g. '.srt'
+    languageCode: string;
+}> {
     const subtitleFormat = getWhisperOutputFormat(options.formate);
     const languageCode = options.leng || 'en';
-    const subtitleFormatEnum = this.mapSubtitleFormat(subtitleFormat.extension);
 
-    const existingSubtitleRecords = await this.prisma.subtitle.findMany({
-      where: {
-        videoId,
-        languageCode,
-        mimeType: subtitleFormat.mimeType,
-        subtitleFormat: subtitleFormatEnum,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const absoluteWisperPath = path.join(process.cwd(), 'Release', 'whisper-cli');
+    const absoluteModelPath = path.join(process.cwd(), 'Release', 'models', 'ggml-base.bin');
 
-    for (const existingSubtitle of existingSubtitleRecords) {
-      const existingExtension = path.extname(
-        existingSubtitle.filename || existingSubtitle.path,
-      ).toLowerCase();
+    // output path now lives in workDir, no extension — whisper-cli appends it
+    const outputBasePath = path.join(workDir, videoId);
 
-      if (existingExtension !== subtitleFormat.extension) {
-        continue;
-      }
-
-      const existingSubtitlePath = this.resolveStoredPath(existingSubtitle.path);
-
-      try {
-        await fs.access(existingSubtitlePath);
-        return existingSubtitle;
-      } catch {
-        await this.prisma.subtitle.delete({ where: { id: existingSubtitle.id } });
-      }
-    }
-
-    // creating output path for file (no extension — whisper-cli appends it automatically)
-    const absoultePath = path.join(root, 'uploads', 'subtitle', `${videoId}`);
-    const absoluteWisperPath = path.join(root, 'Release', 'whisper-cli');
-    const absoluteModelPath = path.join(root, 'Release', 'models', 'ggml-base.bin');
-
-    // ensure subtitle output directory exists
-    await fs.mkdir(path.join(root, 'uploads', 'subtitle'), { recursive: true });
-
-    // resolve format safely from options (handles missing / wrong-case values)
-    // word level timing check — query params arrive as strings, handle both boolean and 'true'
     const isWordLevel = options.wordLevelTiming === true || options.wordLevelTiming === 'true';
     const wordLevelTiming = isWordLevel ? ['-owts', '-wt', '0.01'] : [];
 
-    // create spawn process and create the wisper.cpp process
     const wisper = spawn(absoluteWisperPath, [
-      "-m",
-      absoluteModelPath,
-      "-f",
-      audioPath,
-      subtitleFormat.flag,       // resolved flag e.g. '-osrt'
-      "-of",
-      absoultePath,
-      "-l",
-      "auto",
-      ...wordLevelTiming
-    ])
-
-    // `${options.leng || 'en'}`
+        "-m", absoluteModelPath,
+        "-f", audioPath,
+        subtitleFormat.flag,
+        "-of", outputBasePath,
+        "-l", "auto",
+        ...wordLevelTiming
+    ]);
 
     wisper.stdout?.on("data", (data) => {
-      console.log(`Whisper stdout: ${data.toString()}`);
+        console.log(`Whisper stdout: ${data.toString()}`);
     });
 
     wisper.stderr?.on("data", (data) => {
-      console.error(`Whisper stderr: ${data.toString()}`);
+        console.error(`Whisper stderr: ${data.toString()}`);
     });
 
     await new Promise((resolve, reject) => {
+        wisper.on("error", (err) => {
+            reject(new Error(`failed to run wisper : ${err.message}`));
+        });
+        wisper.on('close', (code) => {
+            if (code === 0) {
+                resolve("transcription genrated successfully");
+            } else {
+                reject(new Error(`failed to genrate transcription : ${code}`));
+            }
+        });
+    });
 
-      wisper.on("error", (err) => {
-        reject(new Error(`failed to run wisper : ${err.message}`))
-      })
-
-      wisper.on('close', (code) => {
-        if (code === 0) {
-          console.log('[Whisper] process exited successfully (code 0)');
-          resolve("transcription genrated successfully ")
-        }
-        else {
-          reject(new Error(`"failed to genrate transcription : ${code}`))
-        }
-      })
-
-    })
-
-    // whisper-cli appends the extension itself, so the actual file on disk is:
-    //   absoultePath + subtitleFormat.extension  (e.g. "…/videoId.srt")
-    const fullSubtitlePath = `${absoultePath}${subtitleFormat.extension}`;
-    const storedSubtitlePath = path.relative(root, fullSubtitlePath);
-    console.log('[Whisper] expected subtitle file path:', fullSubtitlePath);
+    const fullSubtitlePath = `${outputBasePath}${subtitleFormat.extension}`;
     const filename = path.basename(fullSubtitlePath);
-    const filesize = await fs.stat(fullSubtitlePath);
+    const fileStats = await fs.stat(fullSubtitlePath);
 
-    const subtitleObject = {
-      filename: filename,
-      mimeType: subtitleFormat.mimeType,
-      path: storedSubtitlePath,
-      size: filesize.size,
-      duration: 0.0,
-      subtitleFormat: subtitleFormat.extension,
-      videoId: videoId,
-      languageCode,
-    }
-
-    const result = await this.transcriptionAudioDbEntry(subtitleObject)
-
-    return result
-
-  }
+    return {
+        localPath: fullSubtitlePath,
+        filename,
+        mimeType: subtitleFormat.mimeType,
+        size: fileStats.size,
+        duration: 0.0,
+        subtitleFormat: subtitleFormat.extension,
+        languageCode,
+    };
+}
 
 
   async transcriptionAudioDbEntry(file: {
