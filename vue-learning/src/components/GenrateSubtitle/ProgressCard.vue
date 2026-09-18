@@ -1,63 +1,67 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Loader2, Check, Clock } from 'lucide-vue-next'
+import { Check, CheckCircle2, Clock, Loader2 } from 'lucide-vue-next'
 
 const props = defineProps<{
   progress: number
 }>()
 
-const isProcessing = computed(() => props.progress < 100)
-const isDone = computed(() => props.progress === 100)
+const clampedProgress = computed(() => Math.max(0, Math.min(100, props.progress)))
+const isProcessing = computed(() => clampedProgress.value < 100)
+const isDone = computed(() => clampedProgress.value === 100)
 
 const progressLabel = computed(() => {
-  if (props.progress < 30) return 'Uploading media...'
-  if (props.progress < 60) return 'Transcribing audio...'
-  if (props.progress < 85) return 'burning subtitles...'
-  if (props.progress < 100) return 'Formatting output...'
+  if (clampedProgress.value < 30) return 'Uploading media…'
+  if (clampedProgress.value < 60) return 'Transcribing audio…'
+  if (clampedProgress.value < 85) return 'Burning subtitles…'
+  if (clampedProgress.value < 100) return 'Formatting output…'
   return 'Complete!'
 })
 
-const steps = ['Upload', 'Transcribe', 'Burning', 'Format'] as const
+const steps: { label: string; threshold: number }[] = [
+  { label: 'Upload', threshold: 30 },
+  { label: 'Transcribe', threshold: 60 },
+  { label: 'Burning', threshold: 85 },
+  { label: 'Format', threshold: 100 },
+]
 
-function stepDone(step: string) {
-  if (step === 'Upload') return props.progress >= 30
-  if (step === 'Transcribe') return props.progress >= 60
-  if (step === 'Burning') return props.progress >= 85
-  if (step === 'Format') return props.progress >= 100
-  return false
-}
-
-function stepIcon(step: string) {
-  return stepDone(step) ? Check : Clock
-}
+const activeStepIndex = computed(() =>
+  steps.findIndex((step) => clampedProgress.value < step.threshold),
+)
 </script>
 
 <template>
-  <div class="progress-card">
+  <div class="progress-card" role="status" aria-live="polite">
     <div class="progress-card__header">
       <div class="progress-card__title-wrap">
         <Loader2 v-if="isProcessing" :size="15" class="spin text-purple" />
-        <Check v-else :size="15" class="text-green" />
+        <CheckCircle2 v-else :size="15" class="text-green" />
         <span class="progress-card__title">{{ progressLabel }}</span>
       </div>
-      <span class="progress-card__pct">{{ progress }}%</span>
+      <span class="progress-card__pct">{{ clampedProgress }}%</span>
     </div>
+
     <div class="progress-track">
       <div
         class="progress-fill"
-        :style="{ width: progress + '%' }"
         :class="{ 'progress-fill--done': isDone }"
+        :style="{ width: clampedProgress + '%' }"
       ></div>
     </div>
+
     <div class="progress-steps">
       <div
-        v-for="step in steps"
-        :key="step"
+        v-for="(step, index) in steps"
+        :key="step.label"
         class="progress-step"
-        :class="{ 'progress-step--done': stepDone(step) }"
+        :class="{
+          'progress-step--done': clampedProgress >= step.threshold,
+          'progress-step--active': isProcessing && index === activeStepIndex,
+        }"
       >
-        <component :is="stepIcon(step)" :size="10" />
-        {{ step }}
+        <Check v-if="clampedProgress >= step.threshold" :size="10" />
+        <Clock v-else :size="10" />
+        {{ step.label }}
       </div>
     </div>
   </div>
@@ -126,13 +130,8 @@ function stepIcon(step: string) {
 }
 
 @keyframes shimmer {
-  0% {
-    left: -100%;
-  }
-
-  100% {
-    left: 100%;
-  }
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
 .progress-fill--done::after {
@@ -142,6 +141,7 @@ function stepIcon(step: string) {
 .progress-steps {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .progress-step {
@@ -163,14 +163,17 @@ function stepIcon(step: string) {
   color: var(--success-color);
 }
 
+.progress-step--active {
+  border-color: rgba(139, 92, 246, 0.4);
+  color: var(--primary-color);
+}
+
 .spin {
   animation: spin 1s linear infinite;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
 .text-purple {

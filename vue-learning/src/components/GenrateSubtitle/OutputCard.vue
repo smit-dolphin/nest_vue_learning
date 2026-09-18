@@ -1,22 +1,79 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Copy, Check, Download, Clock } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { Check, Clock, Copy, Download, FileText } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
 
 const props = defineProps<{
-  subtitleOutput: string
   format: string
   language: string
+  content: string
+  filename?: string
+}>()
+
+const emit = defineEmits<{
+  export: []
 }>()
 
 const copied = ref(false)
 
-const blocks = computed(() => props.subtitleOutput.trim().split('\n\n'))
-const segmentCount = computed(() => blocks.value.length)
+interface Segment {
+  time: string
+  text: string
+}
 
-const copyOutput = async () => {
-  await navigator.clipboard.writeText(props.subtitleOutput)
-  copied.value = true
-  setTimeout(() => (copied.value = false), 2000)
+const segments = computed<Segment[]>(() => parseSegments(props.content))
+
+function parseSegments(content: string): Segment[] {
+  const trimmed = content.trim()
+  if (!trimmed) return []
+
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+    try {
+      const data: unknown = JSON.parse(trimmed)
+      const entries = Array.isArray(data) ? data : ((data as { segments?: unknown[] }).segments ?? [])
+      return entries.map((entry) => {
+        const item = entry as { timestamp?: string; start?: string; text?: string; content?: string }
+        return {
+          time: item.timestamp ?? item.start ?? '',
+          text: String(item.text ?? item.content ?? ''),
+        }
+      })
+    } catch {
+      return []
+    }
+  }
+
+  return trimmed
+    .split(/\n\s*\n/)
+    .filter((block) => block.trim())
+    .map((block) => {
+      const lines = block.split('\n').filter((line) => line.trim())
+      const timeLine = lines.find((line) => line.includes('-->')) ?? ''
+      const textLines = lines.filter(
+        (line) =>
+          line.trim() !== 'WEBVTT' &&
+          !line.includes('-->') &&
+          !/^\d+$/.test(line.trim()),
+      )
+      return {
+        time: timeLine.replace(/\s{2,}/g, ' ').trim(),
+        text: textLines.join(' ').trim(),
+      }
+    })
+    .filter((segment) => segment.time || segment.text)
+}
+
+const exportLabel = computed(() => props.format.toLowerCase().replace('.', ''))
+
+async function copyOutput() {
+  try {
+    await navigator.clipboard.writeText(props.content)
+    copied.value = true
+    toast.success('Subtitle output copied to clipboard.')
+    window.setTimeout(() => (copied.value = false), 2000)
+  } catch {
+    toast.error('Could not copy the subtitle output.')
+  }
 }
 </script>
 
@@ -25,35 +82,41 @@ const copyOutput = async () => {
     <div class="output-card__header">
       <div>
         <h3 class="output-card__title">Subtitle Output</h3>
-        <p class="output-card__sub">{{ format }} · {{ language }} · {{ segmentCount }} segments</p>
+        <p class="output-card__sub">{{ format }} · {{ language }} · {{ segments.length }} segment{{ segments.length === 1 ? '' : 's' }}</p>
       </div>
       <div class="output-card__actions">
-        <button class="btn btn--sm btn--ghost" @click="copyOutput">
-          <component :is="copied ? Check : Copy" :size="14" />
+        <button class="btn btn--sm btn--ghost" type="button" @click="copyOutput">
+          <Check v-if="copied" :size="14" />
+          <Copy v-else :size="14" />
           {{ copied ? 'Copied!' : 'Copy' }}
         </button>
-        <button class="btn btn--sm btn--primary">
+        <button class="btn btn--sm btn--primary" type="button" title="Download subtitle file" @click="emit('export')">
           <Download :size="14" />
-          Export .{{ format.toLowerCase().split('/')[0] }}
+          Export .{{ exportLabel }}
         </button>
       </div>
     </div>
-    <div class="output-card__content">
-      <pre class="output-card__pre">{{ subtitleOutput }}</pre>
+
+    <div v-if="content" class="output-card__content">
+      <pre class="output-card__pre">{{ content }}</pre>
+    </div>
+    <div v-else class="output-card__empty">
+      <FileText :size="22" />
+      <p>Subtitle content is not available yet.</p>
     </div>
 
-    <div class="subtitle-blocks">
+    <div v-if="segments.length" class="subtitle-blocks">
       <h4 class="subtitle-blocks__title">Preview</h4>
       <div class="subtitle-block-list">
-        <div v-for="(block, i) in blocks" :key="i" class="subtitle-block">
+        <div v-for="(segment, index) in segments" :key="index" class="subtitle-block">
           <div class="subtitle-block__meta">
-            <span class="subtitle-block__num">#{{ i + 1 }}</span>
-            <span class="subtitle-block__time">
+            <span class="subtitle-block__num">#{{ index + 1 }}</span>
+            <span v-if="segment.time" class="subtitle-block__time">
               <Clock :size="11" />
-              {{ block.split('\n')[1] }}
+              {{ segment.time }}
             </span>
           </div>
-          <p class="subtitle-block__text">{{ block.split('\n').slice(2).join(' ') }}</p>
+          <p class="subtitle-block__text">{{ segment.text }}</p>
         </div>
       </div>
     </div>
@@ -72,6 +135,7 @@ const copyOutput = async () => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  gap: 1rem;
   padding: 1.25rem 1.25rem 0;
   margin-bottom: 1rem;
 }
@@ -113,6 +177,25 @@ const copyOutput = async () => {
   white-space: pre-wrap;
   max-height: 200px;
   overflow-y: auto;
+}
+
+.output-card__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 1.25rem;
+  padding: 2rem 1rem;
+  color: var(--text-muted);
+  background: var(--tertiary-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.output-card__empty p {
+  margin: 0;
 }
 
 .subtitle-blocks {

@@ -114,13 +114,13 @@ const formatUploadSize = (bytes: number) => {
 const uploadSelectedVideo = async () => {
   const file = selectedUpload.value
 
-  if (!file || !authStore.user?.id) return
+  if (!file) return
 
   isUploading.value = true
   uploadError.value = null
 
   try {
-    await uploadVideoOnly(file, authStore.user.id)
+    await uploadVideoOnly(file)
     await videoStore.fetchVideos()
     toast.success(`${file.name} uploaded successfully.`)
   } catch {

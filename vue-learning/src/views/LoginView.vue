@@ -2,10 +2,8 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Sparkles, Mail, Lock, ArrowRight } from 'lucide-vue-next'
-import baseApi from '@/api/baseApi' // Assuming you have baseApi configured
-import axios from 'axios'
-import {useAuthStore} from "../stores/authStore.ts"
-import { getMyProfile, startGoogleAuth } from '../services/authService.ts'
+import { useAuthStore } from '../stores/authStore.ts'
+import { getMyProfile, loginUser, startGoogleAuth } from '../services/authService.ts'
 import { toast } from 'vue-sonner'
 
 const router = useRouter()
@@ -14,16 +12,8 @@ const password = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
 
+const authStore = useAuthStore()
 
-const authStore=useAuthStore()
-
-const fetchMyProfile=async()=>{
-
-  const response =await getMyProfile()
-  return response
-}
-
-//handle login method
 const handleLogin = async () => {
   if (!email.value || !password.value) {
     errorMessage.value = 'Please enter both email and password.'
@@ -34,19 +24,18 @@ const handleLogin = async () => {
   errorMessage.value = ''
 
   try {
-    const result = await axios.post("http://localhost:3000/auth/login", {email: email.value, password: password.value}, { withCredentials: true })
+    const result = await loginUser(email.value, password.value)
+    authStore.setAccessToken(result.accessToken)
+    if (result.user) {
+      authStore.setUser(result.user)
+    } else {
+      const user = await getMyProfile().catch(() => null)
+      if (user) authStore.setUser(user)
+    }
 
-    // after i get data i have to store it in store 
-
-    authStore.setAccessToken(result.data.accessToken)
-    // const userdata=await fetchMyProfile()
-    // console.log(userdata)
-    // authStore.setUser(userdata)
-
-  toast.success('Signed in successfully.')
+    toast.success('Signed in successfully.')
     router.push('/')
   } catch (error: any) {
-    console.log(error)
     errorMessage.value = error?.response?.data?.message || 'Login failed. Please check your credentials.'
   } finally {
     isLoading.value = false
@@ -148,7 +137,7 @@ const handleGoogleLogin = () => {
         </button>
 
         <div class="login-footer">
-          <p>Don't have an account? <a href="#" class="signup-link">Create one</a></p>
+          <p>Don't have an account? <router-link to="/register" class="signup-link">Create one</router-link></p>
         </div>
       </div>
     </div>

@@ -85,7 +85,7 @@ export const useJobStore = defineStore('jobs', () => {
     isLoading.value = true
     error.value = null
     try {
-      const data = await jobService.getJobForVideo(authStore.user.id)
+      const data = await jobService.getJobForVideo()
       jobs.value = data
       videos.value = data.map(jobToVideoItem)
     } catch (err: unknown) {

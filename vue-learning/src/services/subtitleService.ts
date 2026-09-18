@@ -42,7 +42,7 @@ export async function getSubtitleFiles(videoId: string): Promise<SubtitleFile[]>
 }
 
 export async function burnSubtitleFile(videoId: string, subtitleId: string): Promise<BurnSubtitleJob> {
-  const response = await baseApi.post<BurnSubtitleJob>(`/videos/${videoId}/burn-subtitle`, {
+  const response = await baseApi.post<BurnSubtitleJob>(`/videos/${videoId}/burn-jobs`, {
     subtitleId,
   })
   return response as unknown as BurnSubtitleJob
@@ -61,6 +61,13 @@ export async function downloadSubtitleFile(subtitleId: string, filename: string)
   link.click()
   link.remove()
   URL.revokeObjectURL(url)
+}
+
+export async function getSubtitleFileContent(subtitleId: string): Promise<string> {
+  const blob = await baseApi.get<Blob>(`/subtitle/download/${subtitleId}`, {
+    responseType: 'blob',
+  }) as unknown as Blob
+  return blob.text()
 }
 
 export async function deleteSubtitleFile(subtitleId: string): Promise<{ result: SubtitleFile; deletedFile: string[] }> {
@@ -148,7 +155,7 @@ export const subtitleService = {
   },
 
   // Trigger subtitle generation on backend
-  async generateSubtitleFromApi(videoId: string): Promise<any> {
+  async generateSubtitleFromApi(videoId: string): Promise<unknown> {
     const response = await baseApi.post(`/subtitle/${videoId}`)
     return response.data
   },

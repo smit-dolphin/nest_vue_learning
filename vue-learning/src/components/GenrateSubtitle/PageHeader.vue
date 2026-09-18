@@ -29,12 +29,14 @@ import { Captions, Sparkles } from 'lucide-vue-next'
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
 }
 
 .gen-page__header-left {
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-width: 0;
 }
 
 .gen-page__icon-wrap {
@@ -74,5 +76,13 @@ import { Captions, Sparkles } from 'lucide-vue-next'
   font-size: 0.75rem;
   font-weight: 600;
   color: #a78bfa;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .gen-page__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
 </style>

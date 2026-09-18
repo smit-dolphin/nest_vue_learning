@@ -30,13 +30,13 @@ export interface JobStatusDto {
 }
 
 export const jobService = {
-  async getJobForVideo(userId: string): Promise<JobDto[]> {
-    const result = await baseApi.get<JobDto[]>(`/job/${userId}/list`)
+  async getJobForVideo(): Promise<JobDto[]> {
+    const result = await baseApi.get<JobDto[]>(`/jobs`)
     return result as unknown as JobDto[]
   },
 
   async getJobStatus(jobId: string): Promise<JobStatusDto> {
-    const result = await baseApi.get<JobStatusDto>(`/job/${jobId}`)
+    const result = await baseApi.get<JobStatusDto>(`/jobs/${jobId}`)
     return result as unknown as JobStatusDto
   },
 }

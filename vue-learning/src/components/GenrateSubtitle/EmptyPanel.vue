@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Languages, Check } from 'lucide-vue-next'
+import { Check, Languages } from 'lucide-vue-next'
 
 const features = ['98% accuracy', '50+ languages', 'Word-level timing', 'Instant export']
 </script>
@@ -12,9 +12,9 @@ const features = ['98% accuracy', '50+ languages', 'Word-level timing', 'Instant
     <p class="empty-panel__title">Your subtitles will appear here</p>
     <p class="empty-panel__hint">Upload a file and click Generate to start</p>
     <div class="empty-panel__features">
-      <div v-for="feat in features" :key="feat" class="empty-panel__feat">
+      <div v-for="feature in features" :key="feature" class="empty-panel__feat">
         <Check :size="12" />
-        <span>{{ feat }}</span>
+        <span>{{ feature }}</span>
       </div>
     </div>
   </div>

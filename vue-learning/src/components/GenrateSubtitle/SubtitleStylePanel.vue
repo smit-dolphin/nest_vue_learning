@@ -1,25 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
-  Type,
-  Paintbrush2,
-  RectangleHorizontal,
-  Palette,
-  Droplets,
   AlignVerticalJustifyCenter,
+  Droplets,
+  Paintbrush,
+  Palette,
   PenLine,
+  RectangleHorizontal,
+  Type,
 } from 'lucide-vue-next'
-import type { SubtitleStyleSettings } from './types'
 import { useSettingsStore } from '../../stores/settingsStore'
 import DropdownSelect from '../Common/DropdownSelect.vue'
 
 const settingsStore = useSettingsStore()
-
-const emit = defineEmits<{
-  styleChange: [style: SubtitleStyleSettings]
-}>()
-
 const style = computed(() => settingsStore.settings.subtitleStyle)
+
+const FONT_SIZE_MIN = 12
+const FONT_SIZE_MAX = 64
+const OUTLINE_MIN = 0
+const OUTLINE_MAX = 8
 
 const positionOptions = [
   { label: 'Bottom', value: 'bottom' },
@@ -29,20 +28,13 @@ const positionOptions = [
 
 const selectedPosition = computed({
   get: () => style.value.position,
-  set: (position: string) => updateStyle({ position: position as SubtitleStyleSettings['position'] }),
+  set: (position: string) => updateStyle({ position: position as 'bottom' | 'top' | 'middle' }),
 })
 
-const FONT_SIZE_MIN = 12
-const FONT_SIZE_MAX = 64
-const OUTLINE_MIN = 0
-const OUTLINE_MAX = 8
-
-function updateStyle(patch: Partial<SubtitleStyleSettings>) {
+function updateStyle(patch: Partial<typeof style.value>) {
   settingsStore.updateSettings({
-    ...settingsStore.settings,
     subtitleStyle: { ...style.value, ...patch },
   })
-  emit('styleChange', { ...style.value, ...patch })
 }
 
 function changeFontSize(delta: number) {
@@ -68,7 +60,7 @@ function setBackgroundOpacity(event: Event) {
 <template>
   <div class="style-card">
     <div class="style-card__header">
-      <AlignVerticalJustifyCenter :size="16" />
+      <Palette :size="16" />
       <span>Subtitle Style</span>
     </div>
 
@@ -87,7 +79,7 @@ function setBackgroundOpacity(event: Event) {
 
       <div class="style-field">
         <label class="style-label">
-          <Paintbrush2 :size="13" />
+          <Paintbrush :size="13" />
           Font Color
         </label>
         <div class="color-input">
@@ -215,11 +207,6 @@ function setBackgroundOpacity(event: Event) {
 
 .style-field {
   position: relative;
-}
-
-.style-field--disabled {
-  opacity: 0.5;
-  pointer-events: none;
 }
 
 .style-label {
