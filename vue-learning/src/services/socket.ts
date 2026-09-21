@@ -1,6 +1,6 @@
 import { io } from 'socket.io-client';
 
-const backendUrl = `http://${window.location.hostname}:3000`;
+const backendUrl = window.location.origin
 
 export const socket = io(backendUrl, {
   withCredentials: true,

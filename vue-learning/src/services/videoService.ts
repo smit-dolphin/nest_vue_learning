@@ -172,7 +172,7 @@ export const getVideoPreviewUrl = (videoId: string): string => {
 }
 
 export const downloadVideoFile = async (videoId: string, filename: string): Promise<void> => {
-  const blob = await baseApi.get<Blob>(`/videos/download/${videoId}`, {
+  const blob = await baseApi.get<Blob>(`/videos/${videoId}/download`, {
     responseType: 'blob',
   }) as unknown as Blob
   const url = URL.createObjectURL(blob)

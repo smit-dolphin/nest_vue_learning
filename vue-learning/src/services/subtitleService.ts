@@ -49,7 +49,7 @@ export async function burnSubtitleFile(videoId: string, subtitleId: string): Pro
 }
 
 export async function downloadSubtitleFile(subtitleId: string, filename: string): Promise<void> {
-  const blob = await baseApi.get<Blob>(`/subtitle/download/${subtitleId}`, {
+  const blob = await baseApi.get<Blob>(`/subtitle/${subtitleId}/download`, {
     responseType: 'blob',
   }) as unknown as Blob
   const url = URL.createObjectURL(blob)
