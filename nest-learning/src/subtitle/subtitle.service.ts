@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { TranscriptionService } from '../transcription/transcription.service.js';
 import path, { resolve } from 'node:path';
-import { stat, unlink } from 'node:fs/promises';
+import { readdir, rm, stat, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { Job } from 'bullmq';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
@@ -13,6 +13,7 @@ import { NotFoundError } from 'rxjs';
 import { cwd } from 'node:process';
 import { StorageService } from '../storage/storage.service.js';
 import { createWorkDir, cleanupWorkDir } from '../storage/tmp-workspace.js';
+import { Result } from 'pg';
 
 @Injectable()
 export class SubtitleService {
@@ -80,9 +81,9 @@ export class SubtitleService {
 
             await job.updateProgress(30);
 
-            
 
-            const subtitleResult =await this.agentService.transcriptAudioGemini(audioResult.localPath,videoResult.id,{ ...options, leng:targetLanguage },workDir,)
+
+            const subtitleResult = await this.agentService.transcriptAudioGemini(audioResult.localPath, videoResult.id, { ...options, leng: targetLanguage }, workDir,)
             let finalSubtitleLocalPath = subtitleResult.localPath;
             let finalSubtitleFilename = subtitleResult.filename;
 
@@ -222,7 +223,7 @@ export class SubtitleService {
         });
     }
 
- 
+
 
     async burnExistingSubtitle(
         videoId: string,
@@ -327,7 +328,7 @@ export class SubtitleService {
             await cleanupWorkDir(String(job.id));
         }
     }
- 
+
     async getSubtitleFiles(videoId: string, userId: string) {
         const video = await this.prisma.video.findUnique({
             where: { id: videoId },
@@ -385,29 +386,47 @@ export class SubtitleService {
 
 
     async deleteSubtitleById(subtitleId: string, userId: string) {
-    const sub = await this.prisma.subtitle.findUnique({
-        where: { id: subtitleId },
-        include: { video: true },
-    });
+        const sub = await this.prisma.subtitle.findUnique({
+            where: { id: subtitleId },
+            include: { video: true },
+        });
 
-    if (!sub) {
-        throw new NotFoundException('The subtitle not found');
+        if (!sub) {
+            throw new NotFoundException('The subtitle not found');
+        }
+
+        if (sub.video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to delete this subtitle');
+        }
+
+        // sub.path is the storage key, e.g. "/uploads/subtitle/abc123-171234.srt"
+        // sub.videoId is the video this subtitle belongs to
+        const deletedFile = await this.deleteFilesFromStorage(sub.path, sub.videoId);
+
+        const result = await this.prisma.subtitle.delete({
+            where: { id: sub.id },
+        });
+
+        return { result, deletedFile };
     }
 
-    if (sub.video.userId !== userId) {
-        throw new ForbiddenException('You do not have permission to delete this subtitle');
+
+    async cleanupLocalFiles() {
+        const jobDirectory = path.resolve(process.cwd(), 'temp', 'job');
+
+        const entries = await readdir(jobDirectory);
+
+        await Promise.all(
+            entries.map((entry) =>
+                 rm(path.join(jobDirectory, entry), {
+                    recursive: true,
+                    force: true,
+                }),
+            ),
+        );
     }
 
-    // sub.path is the storage key, e.g. "/uploads/subtitle/abc123-171234.srt"
-    // sub.videoId is the video this subtitle belongs to
-    const deletedFile = await this.deleteFilesFromStorage(sub.path, sub.videoId);
 
-    const result = await this.prisma.subtitle.delete({
-        where: { id: sub.id },
-    });
-
-    return { result, deletedFile };
-}
     private async deleteFilesFromStorage(storageKey: string, videoId?: string): Promise<string[]> {
         const keysToDelete = new Set<string>();
         keysToDelete.add(storageKey);
