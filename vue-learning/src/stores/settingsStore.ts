@@ -7,6 +7,8 @@ const createDefaultSettings = (): SubtitleSettings => ({
   format: DEFAULT_FORMAT,
   autoTranslate: false,
   wordLevel: false,
+  autoPunctuation: false,
+  speakerLabels: false,
   burnVideo: false,
   subtitleStyle: {
     fontSize: 24,
@@ -40,5 +42,18 @@ export const useSettingsStore = defineStore('settings', {
   persist: {
     storage: localStorage,
     pick: ['settings'],
+    // Backfill any settings added after a user's state was persisted so the
+    // panel always has a complete, correctly-typed settings object.
+    afterHydrate: (context) => {
+      const store = context.store as unknown as { settings: SubtitleSettings }
+      const defaults = createDefaultSettings()
+      const persisted = (store.settings ?? {}) as Partial<SubtitleSettings>
+
+      store.settings = {
+        ...defaults,
+        ...persisted,
+        subtitleStyle: { ...defaults.subtitleStyle, ...persisted.subtitleStyle },
+      }
+    },
   },
 })

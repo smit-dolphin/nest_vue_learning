@@ -9,14 +9,18 @@ export interface SubtitleStyleSettings {
 }
 
 export interface SubtitleSettings {
-  /** Target / translation language code (e.g. "en"). Only used as the AI translation target. */
+  /** Target / translation language code (e.g. "en"). Sent to the backend as `leng`. */
   language: string
-  /** Output subtitle format. Must be one of SRT | WebVTT | JSON | Plain Text. */
+  /** Output subtitle format. Sent to the backend as `formate`. */
   format: string
   /** Transcribe in the source language first, then translate to `language` via the AI agent. */
   autoTranslate: boolean
-  /** Emit word-level timing data (whisper .wts sidecar). */
+  /** Emit word-level timing data (whisper .wts sidecar). Sent as `wordLevelTiming`. */
   wordLevel: boolean
+  /** Restore punctuation in the generated transcript. Sent as `autoPunctuation`. */
+  autoPunctuation: boolean
+  /** Detect speakers and prefix each segment with a speaker label. Sent as `lables`. */
+  speakerLabels: boolean
   /** Render subtitles directly into the video. Requires SRT or WebVTT format. */
   burnVideo: boolean
   /** Burn-in subtitle styling — only sent to the backend when burnVideo is enabled. */

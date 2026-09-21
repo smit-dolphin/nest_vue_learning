@@ -48,7 +48,9 @@ export const useGenerateSubtitleStore = defineStore('generate-subtitle', () => {
       leng: normalizeLanguage(settings.language),
       formate: settings.format,
       autoTranslate: settings.autoTranslate,
+      autoPunctuation: settings.autoPunctuation,
       wordLevelTiming: settings.wordLevel,
+      lables: settings.speakerLabels,
       burnVideo: settings.burnVideo,
     }
 

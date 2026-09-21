@@ -36,7 +36,10 @@ export interface SubtitleSettings {
   leng: string
   formate: string
   autoTranslate: boolean
+  autoPunctuation: boolean
   wordLevelTiming: boolean
+  /** Detect speakers and prefix segments with speaker labels. */
+  lables: boolean
   burnVideo: boolean
   // Burn-in subtitle style — only sent when burnVideo is true
   fontSize?: number
@@ -76,7 +79,9 @@ export const uploadVideo = async (
       leng: params.leng,
       formate: params.formate,
       autoTranslate: params.autoTranslate,
+      autoPunctuation: params.autoPunctuation,
       wordLevelTiming: params.wordLevelTiming,
+      lables: params.lables,
       burnVideo: params.burnVideo,
       ...(params.burnVideo
         ? {
@@ -104,7 +109,9 @@ export const generateSubtitleForVideo = async (
       leng: params.leng,
       formate: params.formate,
       autoTranslate: params.autoTranslate,
+      autoPunctuation: params.autoPunctuation,
       wordLevelTiming: params.wordLevelTiming,
+      lables: params.lables,
       burnVideo: params.burnVideo,
       ...(params.burnVideo
         ? {

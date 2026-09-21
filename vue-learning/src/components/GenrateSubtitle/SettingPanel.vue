@@ -40,13 +40,10 @@ const selectedFormat = computed({
 })
 
 /* ─── Actions ─── */
-function toggle(key: 'autoTranslate' | 'wordLevel') {
-  settingsStore.updateSettings({ [key]: !settings.value[key] })
-}
+type ToggleKey = 'autoTranslate' | 'wordLevel' | 'autoPunctuation' | 'speakerLabels'
 
-function toggleAutoTranslate() {
-  const next = !settings.value.autoTranslate
-  settingsStore.updateSettings({ autoTranslate: next })
+function toggle(key: ToggleKey) {
+  settingsStore.updateSettings({ [key]: !settings.value[key] })
 }
 
 function setBurnVideo(shouldBurn: boolean) {
@@ -97,7 +94,7 @@ const isBurnEnabled = computed(() => settings.value.burnVideo)
             :class="{ 'switch--on': settings.autoTranslate }"
             type="button"
             aria-label="Auto-translate"
-            @click="toggleAutoTranslate"
+            @click="toggle('autoTranslate')"
           >
             <span class="switch__thumb"></span>
           </button>
@@ -156,22 +153,59 @@ const isBurnEnabled = computed(() => settings.value.burnVideo)
           <span class="settings-section__dot"><Zap :size="13" /></span>
           <div>
             <p class="settings-section__label">Processing</p>
-            <p class="settings-section__hint">Extras baked into the output</p>
+            <p class="settings-section__hint">Extras applied while generating</p>
           </div>
-          <button
-            class="switch"
-            :class="{ 'switch--on': settings.wordLevel }"
-            type="button"
-            aria-label="Word-level timing"
-            @click="toggle('wordLevel')"
-          >
-            <span class="switch__thumb"></span>
-          </button>
         </div>
 
-        <p v-if="settings.wordLevel" class="settings-row__hint settings-row__hint--inline">
-          Precise per-word timing data (.wts) will be generated.
-        </p>
+        <div class="toggle-list">
+          <div class="toggle-row">
+            <div class="toggle-row__info">
+              <p class="toggle-row__label">Word-level timing</p>
+              <p class="toggle-row__desc">Emit precise per-word timing data (.wts sidecar)</p>
+            </div>
+            <button
+              class="switch"
+              :class="{ 'switch--on': settings.wordLevel }"
+              type="button"
+              aria-label="Word-level timing"
+              @click="toggle('wordLevel')"
+            >
+              <span class="switch__thumb"></span>
+            </button>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-row__info">
+              <p class="toggle-row__label">Auto punctuation</p>
+              <p class="toggle-row__desc">Restore punctuation and casing in the transcript</p>
+            </div>
+            <button
+              class="switch"
+              :class="{ 'switch--on': settings.autoPunctuation }"
+              type="button"
+              aria-label="Auto punctuation"
+              @click="toggle('autoPunctuation')"
+            >
+              <span class="switch__thumb"></span>
+            </button>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-row__info">
+              <p class="toggle-row__label">Speaker labels</p>
+              <p class="toggle-row__desc">Identify speakers and prefix each segment with a label</p>
+            </div>
+            <button
+              class="switch"
+              :class="{ 'switch--on': settings.speakerLabels }"
+              type="button"
+              aria-label="Speaker labels"
+              @click="toggle('speakerLabels')"
+            >
+              <span class="switch__thumb"></span>
+            </button>
+          </div>
+        </div>
       </section>
 
       <!-- Output type -->
@@ -220,7 +254,6 @@ const isBurnEnabled = computed(() => settings.value.burnVideo)
   border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 1.1rem;
-  margin-top: 1rem;
   box-shadow: var(--shadow-sm);
 }
 
@@ -374,6 +407,49 @@ const isBurnEnabled = computed(() => settings.value.burnVideo)
   background: var(--card-color);
   border-radius: 8px;
   border: 1px solid var(--border-color);
+}
+
+/* Toggle rows */
+.toggle-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+  padding-left: calc(26px + 0.55rem);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  transition: border-color 0.2s;
+}
+
+.toggle-row:hover {
+  border-color: var(--border-light);
+}
+
+.toggle-row__info {
+  min-width: 0;
+}
+
+.toggle-row__label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.toggle-row__desc {
+  margin: 2px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--text-muted);
 }
 
 /* Switch */
