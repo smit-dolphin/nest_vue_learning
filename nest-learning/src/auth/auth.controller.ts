@@ -141,7 +141,7 @@ export class AuthController {
     // REFRESH
     // =========================
 
-    @Post('refresh') 
+    @Post('refresh')
     async refreshAccessToken(
         @Req() request: Request,
         @Res({ passthrough: true })
@@ -205,9 +205,11 @@ export class AuthController {
         );
 
         const code = await this.authService.createGoogleAuthCode(result.user.id);
-        const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+
+        const origin = `${req.protocol}://${req.get('host')}`;
+
         return res.redirect(
-            `${frontendUrl}/auth/google/callback?code=${encodeURIComponent(code)}`,
+            `${origin}/auth/google/callback?code=${encodeURIComponent(code)}`,
         );
     }
 
