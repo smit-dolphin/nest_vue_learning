@@ -15,9 +15,10 @@ export class JobEvents implements OnModuleInit, OnModuleDestroy {
 
     this.queueEvents = new QueueEvents('video-processing', {
       connection: {
-        host: process.env.REDIS_HOST,
-        port: Number(process.env.REDIS_PORT),
-        password: process.env.REDIS_PASSWORD,
+        // host: process.env.REDIS_HOST,
+        // port: Number(process.env.REDIS_PORT),
+        // password: process.env.REDIS_PASSWORD,
+        url:process.env.REDIS_URL
       },
     });
 

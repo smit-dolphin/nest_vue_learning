@@ -27,15 +27,16 @@ import { join } from 'path';
             {
 
               connection: {
-                    host: process.env.REDIS_HOST,
-                    port: process.env.REDIS_PORT,
-                    password: process.env.REDIS_PASSWORD,
+                    // host: process.env.REDIS_HOST,
+                    // port: process.env.REDIS_PORT,
+                    // password: process.env.REDIS_PASSWORD,
+                    url:process.env.REDIS_URL
                 }
             }
         ),
         
             ServeStaticModule.forRoot({
-                rootPath:join(process.cwd(),'../vue-learning/dist')
+                rootPath:join(process.cwd(),'../vue-learning','dist')
             }),
         
         JwtModule.register({
