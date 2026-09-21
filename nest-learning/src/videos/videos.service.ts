@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JobService } from '../job/job.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
@@ -23,13 +23,13 @@ export interface SubtitleStyle {
 }
 
 export interface SubtitleOptions {
-    leng: string;
-    formate: string;
-    lables: boolean | string;
-    autoTranslate: boolean | string;
-    autoPunctuation: boolean | string;
-    wordLevelTiming: boolean | string;
-    burnVideo: boolean | string;
+    leng?: string;
+    formate?: string;
+    lables?: boolean | string;
+    autoTranslate?: boolean | string;
+    autoPunctuation?: boolean | string;
+    wordLevelTiming?: boolean | string;
+    burnVideo?: boolean | string;
     // Raw burn-in subtitle style query params (only present when burnVideo=true).
     fontSize?: number | string;
     fontColor?: string;
@@ -47,16 +47,23 @@ export class VideosService {
     constructor(private readonly prisma: PrismaService,
         private readonly jobService: JobService,
         private readonly ffmpegService: FfmpegService,
-        private readonly storageService:StorageService
+        private readonly storageService: StorageService
     ) { }
 
     async saveVideo(file: Express.Multer.File, userId: string, options: SubtitleOptions) {
         const duration = await this.getVideoDuration(file.path);
 
+        const videoKey = await this.storageService.upload(
+            file.path,
+            `/uploads/videos/${Date.now()}-${file.filename}`,
+        );
+
+        await unlink(file.path).catch(() => {});
+
         const result = await this.prisma.video.create({
             data: {
                 filename: file.filename,
-                path: file.path,
+                path: videoKey,
                 mimetype: file.mimetype,
                 size: file.size,
                 duration: duration ?? null,
@@ -86,10 +93,16 @@ export class VideosService {
     async saveUploadedVideo(file: Express.Multer.File, userId: string) {
         const duration = await this.getVideoDuration(file.path);
 
+        const videoKey = await this.storageService.upload(
+            file.path,
+            `/uploads/videos/${Date.now()}-${file.filename}`,
+        );
+
+        await unlink(file.path).catch(() => {});
         const result = await this.prisma.video.create({
             data: {
                 filename: file.filename,
-                path: file.path,
+                path: videoKey,
                 mimetype: file.mimetype,
                 size: file.size,
                 duration: duration ?? null,
@@ -104,7 +117,7 @@ export class VideosService {
         return result;
     }
 
-    async getSubtitleVideoById(videoId: string,options: SubtitleOptions) {
+    async getSubtitleVideoById(videoId: string, options: SubtitleOptions) {
 
         const result = await this.prisma.video.findUnique({
             where: {
@@ -117,7 +130,7 @@ export class VideosService {
         }
 
         const vidoeJob = await this.jobService.addVideoProcessingJob({
-            videoId:result.id, options: {
+            videoId: result.id, options: {
                 formate: options.formate,
                 leng: options.leng,
                 lables: options.lables,
@@ -168,8 +181,21 @@ export class VideosService {
         };
     }
 
-    async getVideos() {
-        return await this.prisma.video.findMany({ include: { user: { select: { email: true } } } });
+    // Builds the burn-in subtitle style for a burn-only job. The options
+    // arrive from the request query/body, so values may already be typed,
+    // but they are still coerced to be safe against string inputs.
+    public buildBurnSubtitleStyle(options: SubtitleOptions): SubtitleStyle {
+        return this.buildSubtitleStyle({
+            ...options,
+            burnVideo: true,
+        }) as SubtitleStyle;
+    }
+
+    async getVideos(userId: string) {
+        return await this.prisma.video.findMany({
+            where: { userId },
+            include: { user: { select: { email: true } } },
+        });
     }
 
     async getUserVideos(userId: string) {
@@ -207,13 +233,17 @@ export class VideosService {
     }
 
 
-    async deleteVideo(videoId: string) {
+    async deleteVideo(videoId: string, userId: string) {
         const video = await this.prisma.video.findUnique({
             where: { id: videoId },
         });
 
         if (!video) {
-            throw new Error('Video not found');
+            throw new NotFoundException('Video not found');
+        }
+
+        if (video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to delete this video');
         }
 
         const allVideos = await this.prisma.video.findMany({
@@ -259,7 +289,7 @@ export class VideosService {
         });
     }
 
-    async streamVideo(videoId: string) {
+    async streamVideo(videoId: string, userId: string) {
         const video = await this.prisma.video.findUnique({
             where: { id: videoId },
         });
@@ -268,38 +298,32 @@ export class VideosService {
             throw new NotFoundException('Video not found');
         }
 
-        const filePath = isAbsolute(video.path)
-            ? video.path
-            : resolve(process.cwd(), video.path.replace(/^[/\\]+/, ''));
-
-        try {
-            await stat(filePath);
-        } catch {
-            throw new NotFoundException('Video file not found');
+        if (video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to access this video');
         }
 
         return {
-            filePath,
+            storageKey: video.path,
             filename: basename(video.filename),
             mimetype: video.mimetype,
         };
     }
 
-    async downloadVideo(videoId: string) {
-        return this.streamVideo(videoId);
+    async downloadVideo(videoId: string, userId: string) {
+        return this.streamVideo(videoId, userId);
     }
 
-    async getAudioByVideoId(videoId: string) {
-        const video = await this.prisma.video.findUnique({
-            where: { id: videoId },
-        });
+    // async getAudioByVideoId(videoId: string) {
+    //     const video = await this.prisma.video.findUnique({
+    //         where: { id: videoId },
+    //     });
 
-        if (!video) {
-            throw new NotFoundException('Video not found');
-        }
+    //     if (!video) {
+    //         throw new NotFoundException('Video not found');
+    //     }
 
-        return this.ffmpegService.videoToAudio(video.path, video.id);
-    }
+    //     return this.ffmpegService.videoToAudio(video.path, video.id);
+    // }
 
     async downloadAudio(videoId: string, audioId: string) {
         const audio = await this.prisma.audio.findFirst({

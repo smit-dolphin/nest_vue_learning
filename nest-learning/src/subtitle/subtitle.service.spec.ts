@@ -51,6 +51,10 @@ describe('SubtitleService', () => {
       path: storedPath,
       videoId: 'video-1',
       mimeType: 'application/x-subrip',
+      video: {
+        id: 'video-1',
+        userId: 'user-1',
+      },
     });
 
     prisma.subtitle.delete.mockResolvedValue({
@@ -58,9 +62,13 @@ describe('SubtitleService', () => {
       path: storedPath,
       videoId: 'video-1',
       mimeType: 'application/x-subrip',
+      video: {
+        id: 'video-1',
+        userId: 'user-1',
+      },
     });
 
-    const result = await service.deleteSubtitleById('subtitle-1');
+    const result = await service.deleteSubtitleById('subtitle-1', 'user-1');
 
     expect(result.result.id).toBe('subtitle-1');
     await expect(fs.access(subtitlePath)).rejects.toThrow();

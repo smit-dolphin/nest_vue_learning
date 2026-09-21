@@ -13,11 +13,19 @@ export class StorageService {
     return this.provider.upload(filePath, storageKey);
   }
 
+  getLocalCopy(storageKey: string) {
+    return this.provider.getLocalCopy(storageKey);
+  }
+
   delete(storageKey: string) {
     return this.provider.delete(storageKey);
   }
 
   exists(storageKey: string) {
     return this.provider.exists(storageKey);
+  }
+
+  getPublicUrl(storageKey: string) {
+    return this.provider.getPublicUrl(storageKey);
   }
 }

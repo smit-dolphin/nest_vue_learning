@@ -105,8 +105,9 @@ const waitForBurnJob = async (jobId: string) => {
   for (let attempt = 0; attempt < 120; attempt++) {
     const job = await jobService.getJobStatus(jobId)
 
-    if (job.status === 'completed') return
-    if (job.status === 'failed') throw new Error('Burn job failed')
+    const normalizedStatus = (job.status || '').toLowerCase()
+    if (normalizedStatus === 'completed') return
+    if (normalizedStatus === 'failed') throw new Error('Burn job failed')
 
     await new Promise(resolve => window.setTimeout(resolve, 1000))
   }

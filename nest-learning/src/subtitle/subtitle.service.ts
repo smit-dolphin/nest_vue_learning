@@ -1,16 +1,18 @@
 
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { TranscriptionService } from '../transcription/transcription.service.js';
-import path,{resolve} from 'node:path';
-import { stat,unlink } from 'node:fs/promises';
+import path, { resolve } from 'node:path';
+import { stat, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { Job } from 'bullmq';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
 import { AgentService } from '../agent/agent.service.js';
 import { NotFoundError } from 'rxjs';
 import { cwd } from 'node:process';
+import { StorageService } from '../storage/storage.service.js';
+import { createWorkDir, cleanupWorkDir } from '../storage/tmp-workspace.js';
 
 @Injectable()
 export class SubtitleService {
@@ -19,8 +21,10 @@ export class SubtitleService {
         private readonly prisma: PrismaService,
         private readonly ffmpegService: FfmpegService,
         private readonly transcriptionService: TranscriptionService,
-        private readonly agentService: AgentService
+        private readonly agentService: AgentService,
+        private readonly storageService: StorageService
     ) { }
+
 
     async genrateSubtitle(
         id: string,
@@ -28,22 +32,17 @@ export class SubtitleService {
         job: Job
     ) {
 
-        const root = process.cwd();
-
         //___Find_Video_____________________________
 
         const videoResult = await this.prisma.video.findUnique({
-            where: {
-                id: id
-            }
+            where: { id }
         });
 
         await job.updateProgress(10);
 
-        if (videoResult === undefined || videoResult === null) {
+        if (!videoResult) {
             throw new NotFoundException("video not found");
         }
-
 
         //___Create_Subtitle_Job_DB_Entry____________
 
@@ -59,103 +58,97 @@ export class SubtitleService {
             }
         });
 
+        // ── ONE workDir for the whole job ──
+        const workDir = await createWorkDir(String(job.id));
+
+        // ── ONE checkout for the source video ──
+        const { localPath: videoLocalPath, cleanup: cleanupVideo } =
+            await this.storageService.getLocalCopy(videoResult.path);
 
         try {
             const shouldTranslate =
-                options.autoTranslate === true ||
-                options.autoTranslate === 'true';
+                options.autoTranslate === true || options.autoTranslate === 'true';
             const targetLanguage = options.targetLanguage || options.leng || 'en';
 
             //___Video_to_Audio__Service_____________
 
-            const resultGenrate =
-                await this.ffmpegService.videoToAudio(
-                    videoResult.path,
-                    videoResult.id
-                );
+            const audioResult = await this.ffmpegService.videoToAudio(
+                videoLocalPath,
+                videoResult.id,
+                workDir,
+            );
 
             await job.updateProgress(30);
 
+            
 
-            //___Audio_to_Subtitle__Service__________
+            const subtitleResult =await this.agentService.transcriptAudioGemini(audioResult.localPath,videoResult.id,{ ...options, leng:targetLanguage },workDir,)
+            let finalSubtitleLocalPath = subtitleResult.localPath;
+            let finalSubtitleFilename = subtitleResult.filename;
 
-            const absoluteAudioPath =
-                path.join(root, resultGenrate.path);
 
-            let resultGenratedSubtitle =
-                await this.transcriptionService.transcriptAudio(
-                    absoluteAudioPath,
-                    videoResult.id,
-                    {
-                        ...options,
-                        leng: shouldTranslate ? 'auto' : targetLanguage,
-                    }
-                );
 
-            await job.updateProgress(60);
+            // ── Persist the subtitle now that we know the pipeline got this far ──
+            const subtitleKey = await this.storageService.upload(
+                finalSubtitleLocalPath,
+                `/uploads/subtitle/${videoResult.id}-${Date.now()}${subtitleResult.subtitleFormat}`,
+            );
 
-            //___AI_Agent_based_Translation__________
-            if (shouldTranslate) {
-                resultGenratedSubtitle = await this.agentService.TranslateTranscribtionFile(
-                    resultGenratedSubtitle.id,
-                    targetLanguage
-                );
-            }
-
+            const subtitleRecord = await this.prisma.subtitle.create({
+                data: {
+                    filename: finalSubtitleFilename,
+                    mimeType: subtitleResult.mimeType,
+                    path: subtitleKey,
+                    size: subtitleResult.size,
+                    duration: subtitleResult.duration,
+                    videoId: videoResult.id,
+                    languageCode: shouldTranslate ? targetLanguage : subtitleResult.languageCode,
+                    subtitleFormat: this.transcriptionService.mapSubtitleFormat(subtitleResult.subtitleFormat),
+                },
+            });
 
             //___Valid_Output_Format__Check__________
 
-            const selectedFormat =
-                getWhisperOutputFormat(options.formate);
-
-            const shouldBurn =
-                options.burnVideo === true ||
-                options.burnVideo === 'true';
-
+            const selectedFormat = getWhisperOutputFormat(options.formate);
+            const shouldBurn = options.burnVideo === true || options.burnVideo === 'true';
             const isBurnableFormat =
-                selectedFormat.extension === '.srt' ||
-                selectedFormat.extension === '.vtt';
-
+                selectedFormat.extension === '.srt' || selectedFormat.extension === '.vtt';
 
             //___No_Burn____________________________
 
             if (!shouldBurn || !isBurnableFormat) {
-
                 await job.updateProgress(100);
 
-                // Mark DB job as completed
                 await this.prisma.subtitleJob.update({
-                    where: {
-                        id: jobEntry.id
-                    },
-                    data: {
-                        status: 'COMPLETED',
-                        completedAt: new Date(),
-                        errorMessage: null
-                    }
+                    where: { id: jobEntry.id },
+                    data: { status: 'COMPLETED', completedAt: new Date(), errorMessage: null },
                 });
 
-                return resultGenratedSubtitle;
+                return subtitleRecord;
             }
-
 
             //___Burn_Subtitle_in_Video_____________
 
-            const burnedVideo =
-                await this.ffmpegService.burnSubtitleInVideo(
-                    videoResult.path,
-                    this.resolveStoredPath(resultGenratedSubtitle.path),
-                    options?.subtitleStyle,
-                );
+            const burnedVideo = await this.ffmpegService.burnSubtitleInVideo(
+                videoLocalPath,
+                finalSubtitleLocalPath,   // still local, no re-download needed — same workDir
+                workDir,
+                options?.subtitleStyle,
+            );
 
-            const burnedVideoStats = await stat(burnedVideo.path);
-            const burnedVideoDuration =
-                await this.getVideoDuration(burnedVideo.path);
+            const burnedVideoStats = await stat(burnedVideo.localPath);
+            const burnedVideoDuration = await this.getVideoDuration(burnedVideo.localPath);
 
-            await this.prisma.video.create({
+            // ── Persist the burned video ──
+            const burnedKey = await this.storageService.upload(
+                burnedVideo.localPath,
+                `/uploads/output/${videoResult.id}-burned-${Date.now()}.mp4`,
+            );
+
+            const burnedVideoRecord = await this.prisma.video.create({
                 data: {
-                    filename: path.basename(burnedVideo.path),
-                    path: burnedVideo.path,
+                    filename: burnedVideo.filename,
+                    path: burnedKey,
                     mimetype: 'video/mp4',
                     size: burnedVideoStats.size,
                     duration: burnedVideoDuration,
@@ -167,47 +160,35 @@ export class SubtitleService {
 
             await job.updateProgress(100);
 
-
             //___Mark_Job_Completed_________________
 
             await this.prisma.subtitleJob.update({
-                where: {
-                    id: jobEntry.id
-                },
-                data: {
-                    status: 'COMPLETED',
-                    completedAt: new Date(),
-                    errorMessage: null
-                }
+                where: { id: jobEntry.id },
+                data: { status: 'COMPLETED', completedAt: new Date(), errorMessage: null },
             });
-
 
             //___Return_Burned_Video________________
 
-            return burnedVideo;
+            return burnedVideoRecord;
 
         } catch (error) {
 
             //___Mark_Job_Failed___________________
 
             await this.prisma.subtitleJob.update({
-                where: {
-                    id: jobEntry.id
-                },
+                where: { id: jobEntry.id },
                 data: {
                     status: 'FAILED',
-                    errorMessage:
-                        error instanceof Error
-                            ? error.message
-                            : 'Unknown error',
-                }
+                    errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                },
             });
 
-            // IMPORTANT:
-            // Re-throw the error so BullMQ
-            // also marks its job as FAILED.
-
             throw error;
+
+        } finally {
+            // ── ONE cleanup for everything: checked-out video + entire workDir ──
+            await cleanupVideo();
+            await cleanupWorkDir(String(job.id));
         }
     }
 
@@ -241,189 +222,17 @@ export class SubtitleService {
         });
     }
 
-
-
-    // i should create services which genrate only subtitles files and limited formates 
-    // and also create a service which only burn video subtitle by allowed formates 
-    
-    //_____Genrate_Subtitle_File_________________________
-    async generateSubtitleFile(
-        id: string,
-        options: any,
-        job: Job
-    ) {
-        const root = process.cwd();
-
-        // ─────────────────────────────────────────────
-        // 1. Find Video
-        // ─────────────────────────────────────────────
-
-        const videoResult = await this.prisma.video.findUnique({
-            where: {
-                id,
-            },
-        });
-
-        await job.updateProgress(10);
-
-        if (!videoResult) {
-            throw new NotFoundException('Video not found');
-        }
-
-        // ─────────────────────────────────────────────
-        // 2. Create Subtitle Job DB Entry
-        // ─────────────────────────────────────────────
-
-        const jobEntry = await this.prisma.subtitleJob.create({
-            data: {
-                videoId: videoResult.id,
-                queueJobId: job.id,
-                languageCode: options?.leng || 'en',
-                status: 'PROCESSING',
-                startedAt: new Date(),
-                completedAt: null,
-                errorMessage: null,
-            },
-        });
-
-        try {
-            // ─────────────────────────────────────────
-            // 3. Translation Options
-            // ─────────────────────────────────────────
-
-            const shouldTranslate =
-                options?.autoTranslate === true ||
-                options?.autoTranslate === 'true';
-
-            const targetLanguage =
-                options?.targetLanguage ||
-                options?.leng ||
-                'en';
-
-            // ─────────────────────────────────────────
-            // 4. Video → Audio
-            // ─────────────────────────────────────────
-
-            const generatedAudio =
-                await this.ffmpegService.videoToAudio(
-                    videoResult.path,
-                    videoResult.id,
-                );
-
-            await job.updateProgress(30);
-
-            // ─────────────────────────────────────────
-            // 5. Audio → Subtitle using Whisper
-            // ─────────────────────────────────────────
-
-            const absoluteAudioPath =
-                path.join(root, generatedAudio.path);
-
-            let generatedSubtitle =
-                await this.transcriptionService.transcriptAudio(
-                    absoluteAudioPath,
-                    videoResult.id,
-                    {
-                        ...options,
-
-                        // Whisper detects the source language,
-                        // then Gemini translates it to the target language.
-                        //
-                        // Otherwise Whisper directly generates
-                        // the requested language.
-                        leng: shouldTranslate
-                            ? 'auto'
-                            : targetLanguage,
-                    },
-                );
-
-            await job.updateProgress(60);
-
-            // ─────────────────────────────────────────
-            // 6. Optional AI Translation
-            // ─────────────────────────────────────────
-
-            if (shouldTranslate) {
-                generatedSubtitle = await this.agentService.TranslateTranscribtionFile(
-                    generatedSubtitle.id,
-                    targetLanguage,
-                );
-            }
-
-            await job.updateProgress(80);
-
-            // ─────────────────────────────────────────
-            // 7. Mark Job Completed
-            // ─────────────────────────────────────────
-
-            await this.prisma.subtitleJob.update({
-                where: {
-                    id: jobEntry.id,
-                },
-                data: {
-                    status: 'COMPLETED',
-                    completedAt: new Date(),
-                    errorMessage: null,
-                },
-            });
-
-            await job.updateProgress(100);
-
-            // ─────────────────────────────────────────
-            // 8. Return Generated Subtitle
-            // ─────────────────────────────────────────
-
-            return generatedSubtitle;
-
-        } catch (error) {
-
-            // ─────────────────────────────────────────
-            // Job Failed
-            // ─────────────────────────────────────────
-
-            await this.prisma.subtitleJob.update({
-                where: {
-                    id: jobEntry.id,
-                },
-                data: {
-                    status: 'FAILED',
-                    errorMessage:
-                        error instanceof Error
-                            ? error.message
-                            : 'Unknown error',
-                },
-            });
-
-            // Very important:
-            // Let BullMQ know that the job failed.
-            throw error;
-        }
-    }
-
-
-    //_____Burn_Subtitle_in_Video_________________________
-    async burnSubtitleInVideo(
-        videoPath: string,
-        subtitlePath: string,
-    ) {
-        return this.ffmpegService.burnSubtitleInVideo(
-            videoPath,
-            this.resolveStoredPath(subtitlePath),
-        );
-    }
+ 
 
     async burnExistingSubtitle(
         videoId: string,
         subtitleId: string,
         job: Job,
+        options: any,
         subtitleJobId: string,
     ) {
-        const video = await this.prisma.video.findUnique({
-            where: { id: videoId },
-        });
-        const subtitle = await this.prisma.subtitle.findUnique({
-            where: { id: subtitleId },
-        });
+        const video = await this.prisma.video.findUnique({ where: { id: videoId } });
+        const subtitle = await this.prisma.subtitle.findUnique({ where: { id: subtitleId } });
 
         if (!video) {
             throw new NotFoundException('Video not found');
@@ -448,21 +257,38 @@ export class SubtitleService {
 
         await job.updateProgress(20);
 
+        // ── ONE workDir for this job ──
+        const workDir = await createWorkDir(String(job.id));
+
+        // ── Checkout both inputs — this IS a separate job, so real checkout applies ──
+        const { localPath: videoLocalPath, cleanup: cleanupVideo } =
+            await this.storageService.getLocalCopy(video.path);
+        const { localPath: subtitleLocalPath, cleanup: cleanupSubtitle } =
+            await this.storageService.getLocalCopy(subtitle.path);
+
         try {
             const burnedVideo = await this.ffmpegService.burnSubtitleInVideo(
-                this.resolveStoredPath(video.path),
-                this.resolveStoredPath(subtitle.path),
+                videoLocalPath,
+                subtitleLocalPath,
+                workDir,
+                options?.subtitleStyle,
             );
 
             await job.updateProgress(80);
 
-            const burnedVideoStats = await stat(burnedVideo.path);
-            const burnedVideoDuration = await this.getVideoDuration(burnedVideo.path);
+            const burnedVideoStats = await stat(burnedVideo.localPath);
+            const burnedVideoDuration = await this.getVideoDuration(burnedVideo.localPath);
+
+            // ── Persist the burned video now that ffmpeg succeeded ──
+            const burnedKey = await this.storageService.upload(
+                burnedVideo.localPath,
+                `/uploads/output/${videoId}-burned-${Date.now()}.mp4`,
+            );
 
             const result = await this.prisma.video.create({
                 data: {
-                    filename: path.basename(burnedVideo.path),
-                    path: burnedVideo.path,
+                    filename: burnedVideo.filename,
+                    path: burnedKey,
                     mimetype: 'video/mp4',
                     size: burnedVideoStats.size,
                     duration: burnedVideoDuration,
@@ -483,6 +309,7 @@ export class SubtitleService {
 
             await job.updateProgress(100);
             return result;
+
         } catch (error) {
             await this.prisma.subtitleJob.update({
                 where: { id: subtitleJobId },
@@ -493,12 +320,27 @@ export class SubtitleService {
             });
 
             throw error;
+
+        } finally {
+            await cleanupVideo();
+            await cleanupSubtitle();
+            await cleanupWorkDir(String(job.id));
         }
     }
+ 
+    async getSubtitleFiles(videoId: string, userId: string) {
+        const video = await this.prisma.video.findUnique({
+            where: { id: videoId },
+        });
 
+        if (!video) {
+            throw new NotFoundException('Video not found');
+        }
 
-    ///_____Get_Subtitle_Files_________________________
-    async getSubtitleFiles(videoId: string) {
+        if (video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to access subtitles for this video');
+        }
+
         const subtitleFiles = await this.prisma.subtitle.findMany({
             where: {
                 videoId: videoId,
@@ -512,25 +354,29 @@ export class SubtitleService {
         return subtitleFiles;
     }
 
-    async downloadSubtitle(id: string) {
+    async downloadSubtitle(id: string, userId: string) {
         const subtitle = await this.prisma.subtitle.findUnique({
             where: { id },
+            include: { video: true },
         });
 
         if (!subtitle) {
             throw new NotFoundException('Subtitle not found');
         }
 
-        const filePath = this.resolveStoredPath(subtitle.path);
+        if (subtitle.video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to download this subtitle');
+        }
 
-        try {
-            await stat(filePath);
-        } catch {
+        const exists = await this.storageService.exists(subtitle.path);
+        if (!exists) {
             throw new NotFoundException('Subtitle file not found');
         }
 
+        const { localPath } = await this.storageService.getLocalCopy(subtitle.path);
+
         return {
-            filePath,
+            filePath: localPath,
             filename: subtitle.filename,
             mimeType: subtitle.mimeType,
         };
@@ -538,79 +384,57 @@ export class SubtitleService {
 
 
 
-    private resolveStoredPath(storedPath: string): string {
-        const root = process.cwd();
+    async deleteSubtitleById(subtitleId: string, userId: string) {
+    const sub = await this.prisma.subtitle.findUnique({
+        where: { id: subtitleId },
+        include: { video: true },
+    });
 
-        if (storedPath.startsWith('/uploads/')) {
-            return path.join(root, storedPath.slice(1));
-        }
-
-        return path.isAbsolute(storedPath)
-            ? storedPath
-            : path.resolve(root, storedPath);
+    if (!sub) {
+        throw new NotFoundException('The subtitle not found');
     }
 
-
-    async deleteSubtitleById(subtitleId: string) {
-        const sub = await this.prisma.subtitle.findUnique({
-            where: {
-                id: subtitleId,
-            },
-        });
-
-        if (!sub) {
-            throw new NotFoundException('The subtitle not found');
-        }
-
-        const deletedFile = await this.deleteFilesFromStorage(sub.path, sub.videoId);
-        const result = await this.prisma.subtitle.delete({
-            where: {
-                id: sub.id,
-            },
-        });
-
-        return { result, deletedFile };
+    if (sub.video.userId !== userId) {
+        throw new ForbiddenException('You do not have permission to delete this subtitle');
     }
 
-    private async deleteFilesFromStorage(filePath: string, videoId?: string) {
-        const absolutePath = this.resolveStoredPath(filePath);
-        const pathsToDelete = new Set<string>();
+    // sub.path is the storage key, e.g. "/uploads/subtitle/abc123-171234.srt"
+    // sub.videoId is the video this subtitle belongs to
+    const deletedFile = await this.deleteFilesFromStorage(sub.path, sub.videoId);
 
-        pathsToDelete.add(absolutePath);
+    const result = await this.prisma.subtitle.delete({
+        where: { id: sub.id },
+    });
 
-        const extension = path.extname(absolutePath);
-        const baseName = path.basename(absolutePath, extension);
-        const directory = path.dirname(absolutePath);
+    return { result, deletedFile };
+}
+    private async deleteFilesFromStorage(storageKey: string, videoId?: string): Promise<string[]> {
+        const keysToDelete = new Set<string>();
+        keysToDelete.add(storageKey);
 
-        if (extension) {
-            pathsToDelete.add(path.join(directory, `${baseName}.wts`));
-        } else {
-            pathsToDelete.add(`${absolutePath}.wts`);
-        }
+        const extension = path.extname(storageKey);
+        const baseName = path.basename(storageKey, extension);
+        const directory = path.dirname(storageKey);
+
+        keysToDelete.add(extension
+            ? path.join(directory, `${baseName}.wts`)
+            : `${storageKey}.wts`);
 
         if (videoId) {
-            pathsToDelete.add(path.join(directory, `${videoId}.wts`));
+            keysToDelete.add(path.join(directory, `${videoId}.wts`));
         }
 
         const deletedFiles: string[] = [];
 
-        for (const candidatePath of pathsToDelete) {
-            try {
-                await unlink(candidatePath);
-                deletedFiles.push(candidatePath);
-            } catch (error) {
-                const err = error as NodeJS.ErrnoException;
-                if (err.code === 'ENOENT') {
-                    continue;
-                }
-
-                throw new InternalServerErrorException(
-                    `Failed to delete subtitle file: ${candidatePath}`,
-                    { cause: err },
-                );
+        for (const key of keysToDelete) {
+            const existed = await this.storageService.exists(key);
+            if (existed) {
+                await this.storageService.delete(key);
+                deletedFiles.push(key);
             }
         }
 
         return deletedFiles;
     }
+
 }

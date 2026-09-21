@@ -3,6 +3,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import * as fs from 'fs/promises';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { StorageService } from '../storage/storage.service.js';
 
 
 interface SubtitleBurnStyle {
@@ -17,7 +18,10 @@ interface SubtitleBurnStyle {
 
 @Injectable()
 export class FfmpegService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storagService:StorageService
+  ) { }
 
 
 
@@ -28,7 +32,7 @@ export class FfmpegService {
   //for tables the audio also is file so we have to make thet sapration 
   //like audio also have propretys as files as type and stuff
   //current service just get video from path and save in db and return audio file data 
-  async videoToAudio(videoPath: string, videoId: string) {
+  async videoToAudio(videoPath: string, videoId: string,workDir: string) {
     //get video from path 
     //execute command from it
     //return audio file in output
@@ -40,67 +44,59 @@ export class FfmpegService {
     // const audioOutputPath= `/upload/audio/${unique}.wav`
 
 
-    const existingAudioRecords = await this.prisma.audio.findMany({
-      where: { videoId },
-      orderBy: { createdAt: 'desc' },
-    });
+    // const existingAudioRecords = await this.prisma.audio.findMany({
+    //   where: { videoId },
+    //   orderBy: { createdAt: 'desc' },
+    // });
 
-    for (const existingAudio of existingAudioRecords) {
-      const existingAudioPath = existingAudio.path.startsWith('/uploads/')
-        ? path.resolve(existingAudio.path.slice(1))
-        : path.resolve(existingAudio.path);
+    // for (const existingAudio of existingAudioRecords) {
+    //   const stillexist=await this.storagService.exists(existingAudio.path);
 
-      try {
-        await fs.access(existingAudioPath);
-        return existingAudio;
-      } catch {
-        await this.prisma.audio.delete({ where: { id: existingAudio.id } });
-      }
-    }
+    //   if (stillexist){
+    //     return existingAudio
+    //   }
+      
+    //   await this.prisma.audio.delete({ where: { id: existingAudio.id } });
+      
+    // }
 
     const unique =
       Date.now() + '-' + Math.round(Math.random() * 1e9);
 
     // Physical directory on your computer
-    const audioDirectory = path.resolve(
-      'uploads',
-      'audio'
-    );
+    // const audioDirectory = path.resolve(
+    //   'uploads',
+    //   'audio'
+    // );
 
     // Make sure directory exists
-    await fs.mkdir(audioDirectory, {
-      recursive: true
-    });
+    // await fs.mkdir(audioDirectory, {
+    //   recursive: true
+    // });
 
     // Physical filesystem path
-    const audioOutputPath = path.join(
-      audioDirectory,
-      `${unique}.wav`
-    );
+    // const audioOutputPath = path.join(
+    //   audioDirectory,
+    //   `${unique}.wav`
+    // );
 
     // Path that you store in DB
-    const audioOutputRelativePath =
-      `/uploads/audio/${unique}.wav`;
+    // const audioOutputRelativePath =
+    //   `/uploads/audio/${unique}.wav`;
     // const audioOutputRelativePath=`/upload/audio/${unique}.wav`
     //upload/audio is exist aleady
 
-    const audio = await this.createAudio(videoPath, audioOutputPath)
+     const audioOutputPath = path.join(workDir, `${unique}.mp3`);
 
-    const audioObject = {
-      filename: path.basename(audioOutputPath),
-      path: audioOutputRelativePath,
-      mimetype: audio.format.format_name,
-      size: Number(audio.format.size),
-      duration: Number(audio.format.duration),
-      videoId: videoId
-    }
-    //sotre audio in db 
-    const result = await this.createAudioDbEntry(audioObject)
+    const audio = await this.createAudio(videoPath, audioOutputPath); 
 
-    console.log(result)
-
-    //now return the reult bcs audio entry is created
-    return result
+    return {
+        localPath: audioOutputPath,
+        filename: path.basename(audioOutputPath),
+        mimetype: audio.format.format_name,
+        size: Number(audio.format.size),
+        duration: Number(audio.format.duration),
+    };
 
 
 
@@ -108,12 +104,24 @@ export class FfmpegService {
 
   async createAudio(videoPath: string, outputPath: string) {
 
+    // const ffmpeg = spawn("ffmpeg", [
+    //   "-i",
+    //   videoPath,
+    //   "-vn",
+    //   outputPath
+    // ])
     const ffmpeg = spawn("ffmpeg", [
-      "-i",
-      videoPath,
-      "-vn",
-      outputPath
-    ])
+  "-i",
+  videoPath,
+  "-vn",
+  "-ac",
+  "1",
+  "-ar",
+  "16000",
+  "-b:a",
+  "64k",
+  outputPath,
+]);
 
     ffmpeg.stderr.on("data", (chunk) => {
       console.log("FFmpeg:", chunk.toString());
@@ -207,51 +215,43 @@ export class FfmpegService {
   async burnSubtitleInVideo(
     videoPath: string,
     subtitlePath: string,
+    workDir: string,
     subtitleStyle?: SubtitleBurnStyle,
-  ) {
-    const root = process.cwd();
-
+) {
     const outputPath = path.join(
-      root,
-      'uploads',
-      'output',
-      `burned-${Date.now()}.mp4`
+        workDir,
+        `burned-${Date.now()}.mp4`
     );
 
     const subtitleFilterPath = this.escapeSubtitlePath(subtitlePath);
     const forceStyle = this.buildSubtitleForceStyle(subtitleStyle);
-    console.log("path of burned video srt",subtitleFilterPath)
-    console.log("force_style of burned video",forceStyle)
 
     const ffmpeg = spawn('ffmpeg', [
-      '-i',
-      videoPath,
-
-      '-vf',
-      `subtitles='${subtitleFilterPath}':force_style='${forceStyle}'`,
-      outputPath,
+        '-i', videoPath,
+        '-vf', `subtitles='${subtitleFilterPath}':force_style='${forceStyle}'`,
+        outputPath,
     ]);
 
     ffmpeg.stderr.on('data', (data) => {
-      console.log('ffmpeg:', data.toString());
+        console.log('ffmpeg:', data.toString());
     });
 
     await new Promise((resolve, reject) => {
-      ffmpeg.on('error', reject);
-
-      ffmpeg.on('close', (code) => {
-        if (code === 0) {
-          resolve('done');
-        } else {
-          reject(new Error(`failed to burn subtitle ${code}`));
-        }
-      });
+        ffmpeg.on('error', reject);
+        ffmpeg.on('close', (code) => {
+            if (code === 0) {
+                resolve('done');
+            } else {
+                reject(new Error(`failed to burn subtitle ${code}`));
+            }
+        });
     });
 
     return {
-      path: outputPath,
+        localPath: outputPath,       // renamed from `path` for consistency with the other 3 services' return shapes
+        filename: path.basename(outputPath),
     };
-  }
+}
 
   escapeSubtitlePath(filePath: string) {
   return filePath

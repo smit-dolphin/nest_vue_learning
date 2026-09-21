@@ -29,6 +29,7 @@ export class JobProcessor extends WorkerHost{
                     job.data.videoId,
                     job.data.subtitleId,
                     job,
+                    job.data.options,
                     job.data.subtitleJobId,
                 );
             default:

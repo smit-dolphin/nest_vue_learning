@@ -34,6 +34,16 @@ export async function exchangeGoogleCode(code: string): Promise<AuthResult> {
   return result as unknown as AuthResult
 }
 
+export async function loginUser(email: string, password: string): Promise<AuthResult> {
+  const result = await baseApi.post<AuthResult>('/auth/login', { email, password })
+  return result as unknown as AuthResult
+}
+
+export async function registerUser(username: string, email: string, password: string): Promise<AuthResult> {
+  const result = await baseApi.post<AuthResult>('/auth/register', { username, email, password })
+  return result as unknown as AuthResult
+}
+
 export async function logoutMe(): Promise<msg> {
   const result = await baseApi.post<msg>('/auth/logout')
   return result as unknown as msg

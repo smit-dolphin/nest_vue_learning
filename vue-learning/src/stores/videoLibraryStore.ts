@@ -87,7 +87,7 @@ export const useVideoLibraryStore = defineStore('video-library', () => {
     error.value = null
 
     try {
-      const data = await getUserVideos(authStore.user.id)
+      const data = await getUserVideos()
       videos.value = data.map(toLibraryVideo)
     } catch (err: unknown) {
       error.value = isAxiosError(err)

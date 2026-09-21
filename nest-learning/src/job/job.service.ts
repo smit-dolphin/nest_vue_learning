@@ -19,6 +19,7 @@ export class JobService {
 
     async addVideoProcessingJob(data: any) {
         const { videoId, options } = data;
+        
         const job = await this.videoProcessingQueue.add('generate-subtitle', { videoId, options }, {
             removeOnComplete: {
                 count: 1000,
@@ -30,8 +31,8 @@ export class JobService {
         return { jobId: job.id };
     }
 
-    async addBurnSubtitleJob(data: { videoId: string; subtitleId: string }) {
-        const { videoId, subtitleId } = data;
+    async addBurnSubtitleJob(data: { videoId: string; subtitleId: string; options:any}) {
+        const { videoId, subtitleId ,options} = data;
         const subtitle = await this.prisma.subtitle.findFirst({
             where: {
                 id: subtitleId,
@@ -60,6 +61,7 @@ export class JobService {
         const job = await this.videoProcessingQueue.add('burn-subtitle', {
             videoId,
             subtitleId,
+            options,
             subtitleJobId: jobEntry.id,
         }, {
             removeOnComplete: {

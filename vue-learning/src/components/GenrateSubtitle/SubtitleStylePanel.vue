@@ -1,25 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
-  Type,
-  Paintbrush2,
-  RectangleHorizontal,
-  Palette,
-  Droplets,
   AlignVerticalJustifyCenter,
+  Brush,
+  Droplets,
+  Paintbrush,
   PenLine,
+  RectangleHorizontal,
+  Type,
 } from 'lucide-vue-next'
-import type { SubtitleStyleSettings } from './types'
 import { useSettingsStore } from '../../stores/settingsStore'
 import DropdownSelect from '../Common/DropdownSelect.vue'
 
 const settingsStore = useSettingsStore()
-
-const emit = defineEmits<{
-  styleChange: [style: SubtitleStyleSettings]
-}>()
-
 const style = computed(() => settingsStore.settings.subtitleStyle)
+
+const FONT_SIZE_MIN = 12
+const FONT_SIZE_MAX = 72
+const OUTLINE_MIN = 0
+const OUTLINE_MAX = 8
 
 const positionOptions = [
   { label: 'Bottom', value: 'bottom' },
@@ -29,20 +28,13 @@ const positionOptions = [
 
 const selectedPosition = computed({
   get: () => style.value.position,
-  set: (position: string) => updateStyle({ position: position as SubtitleStyleSettings['position'] }),
+  set: (position: string) => updateStyle({ position: position as 'bottom' | 'top' | 'middle' }),
 })
 
-const FONT_SIZE_MIN = 12
-const FONT_SIZE_MAX = 64
-const OUTLINE_MIN = 0
-const OUTLINE_MAX = 8
-
-function updateStyle(patch: Partial<SubtitleStyleSettings>) {
+function updateStyle(patch: Partial<typeof style.value>) {
   settingsStore.updateSettings({
-    ...settingsStore.settings,
     subtitleStyle: { ...style.value, ...patch },
   })
-  emit('styleChange', { ...style.value, ...patch })
 }
 
 function changeFontSize(delta: number) {
@@ -68,30 +60,46 @@ function setBackgroundOpacity(event: Event) {
 <template>
   <div class="style-card">
     <div class="style-card__header">
-      <AlignVerticalJustifyCenter :size="16" />
-      <span>Subtitle Style</span>
+      <span class="style-card__icon"><Brush :size="14" /></span>
+      <div>
+        <p class="style-card__title">Burn-in Subtitle Style</p>
+        <p class="style-card__subtitle">Rendered into the video by the backend</p>
+      </div>
     </div>
 
-    <div class="style-card__body">
+    <div class="style-card__grid">
       <div class="style-field">
         <label class="style-label">
-          <Type :size="13" />
+          <Type :size="12" />
           Font Size
         </label>
         <div class="stepper">
-          <button type="button" class="stepper__btn" :disabled="style.fontSize <= FONT_SIZE_MIN" @click="changeFontSize(-1)">−</button>
+          <button
+            type="button"
+            class="stepper__btn"
+            :disabled="style.fontSize <= FONT_SIZE_MIN"
+            @click="changeFontSize(-1)"
+          >
+            −
+          </button>
           <span class="stepper__value">{{ style.fontSize }}px</span>
-          <button type="button" class="stepper__btn" :disabled="style.fontSize >= FONT_SIZE_MAX" @click="changeFontSize(1)">+</button>
+          <button
+            type="button"
+            class="stepper__btn"
+            :disabled="style.fontSize >= FONT_SIZE_MAX"
+            @click="changeFontSize(1)"
+          >
+            +
+          </button>
         </div>
       </div>
 
       <div class="style-field">
         <label class="style-label">
-          <Paintbrush2 :size="13" />
+          <Paintbrush :size="12" />
           Font Color
         </label>
-        <div class="color-input">
-          <span class="color-swatch" :style="{ background: style.fontColor }"></span>
+        <label class="color-input">
           <input
             class="color-input__picker"
             type="color"
@@ -99,37 +107,41 @@ function setBackgroundOpacity(event: Event) {
             title="Font color"
             @input="updateStyle({ fontColor: ($event.target as HTMLInputElement).value })"
           />
+          <span class="color-input__swatch" :style="{ background: style.fontColor }">
+            <Paintbrush :size="12" />
+          </span>
           <span class="color-input__value">{{ style.fontColor }}</span>
-        </div>
+        </label>
       </div>
 
-      <div class="style-toggle">
-        <div class="toggle-row__info">
-          <p class="toggle-row__label">
-            <RectangleHorizontal :size="13" />
-            Background
-          </p>
-          <p class="toggle-row__desc">Show a backdrop behind the subtitles</p>
+      <div class="style-field style-field--span">
+        <div class="style-toggle">
+          <div class="style-toggle__info">
+            <p class="style-toggle__label">
+              <RectangleHorizontal :size="13" />
+              Background
+            </p>
+            <p class="style-toggle__desc">Show a backdrop behind the subtitles</p>
+          </div>
+          <button
+            class="switch"
+            :class="{ 'switch--on': style.background }"
+            type="button"
+            aria-label="Subtitle background"
+            @click="toggleBackground"
+          >
+            <span class="switch__thumb"></span>
+          </button>
         </div>
-        <button
-          class="style-toggle__btn"
-          :class="{ 'style-toggle__btn--on': style.background }"
-          type="button"
-          aria-label="Subtitle background"
-          @click="toggleBackground"
-        >
-          <span class="style-toggle__thumb"></span>
-        </button>
       </div>
 
       <template v-if="style.background">
         <div class="style-field">
           <label class="style-label">
-            <Palette :size="13" />
+            <Paintbrush :size="12" />
             Background Color
           </label>
-          <div class="color-input">
-            <span class="color-swatch" :style="{ background: style.backgroundColor }"></span>
+          <label class="color-input">
             <input
               class="color-input__picker"
               type="color"
@@ -137,14 +149,17 @@ function setBackgroundOpacity(event: Event) {
               title="Background color"
               @input="updateStyle({ backgroundColor: ($event.target as HTMLInputElement).value })"
             />
+            <span class="color-input__swatch" :style="{ background: style.backgroundColor }">
+              <Paintbrush :size="12" />
+            </span>
             <span class="color-input__value">{{ style.backgroundColor }}</span>
-          </div>
+          </label>
         </div>
 
         <div class="style-field">
           <label class="style-label">
-            <Droplets :size="13" />
-            Background Opacity
+            <Droplets :size="12" />
+            Opacity
           </label>
           <div class="range-row">
             <input
@@ -163,7 +178,7 @@ function setBackgroundOpacity(event: Event) {
 
       <div class="style-field">
         <label class="style-label">
-          <AlignVerticalJustifyCenter :size="13" />
+          <AlignVerticalJustifyCenter :size="12" />
           Position
         </label>
         <DropdownSelect
@@ -175,13 +190,27 @@ function setBackgroundOpacity(event: Event) {
 
       <div class="style-field">
         <label class="style-label">
-          <PenLine :size="13" />
+          <PenLine :size="12" />
           Outline
         </label>
         <div class="stepper">
-          <button type="button" class="stepper__btn" :disabled="style.outline <= OUTLINE_MIN" @click="changeOutline(-1)">−</button>
+          <button
+            type="button"
+            class="stepper__btn"
+            :disabled="style.outline <= OUTLINE_MIN"
+            @click="changeOutline(-1)"
+          >
+            −
+          </button>
           <span class="stepper__value">{{ style.outline }}px</span>
-          <button type="button" class="stepper__btn" :disabled="style.outline >= OUTLINE_MAX" @click="changeOutline(1)">+</button>
+          <button
+            type="button"
+            class="stepper__btn"
+            :disabled="style.outline >= OUTLINE_MAX"
+            @click="changeOutline(1)"
+          >
+            +
+          </button>
         </div>
       </div>
     </div>
@@ -190,63 +219,96 @@ function setBackgroundOpacity(event: Event) {
 
 <style scoped>
 .style-card {
-  background: var(--secondary-color);
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
-  padding: 1.25rem;
-  margin-top: 1rem;
+  position: relative;
+  margin-top: 0.85rem;
+  background: var(--card-color);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.style-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(249, 115, 22, 0.06), rgba(239, 68, 68, 0.04));
 }
 
 .style-card__header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.875rem;
-  font-weight: 700;
+  gap: 0.55rem;
+  margin-bottom: 0.9rem;
+}
+
+.style-card__icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.14);
+  border-radius: 8px;
+}
+
+.style-card__title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 800;
   color: var(--text-primary);
-  margin-bottom: 1rem;
 }
 
-.style-card__body {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+.style-card__subtitle {
+  margin: 1px 0 0;
+  font-size: 0.68rem;
+  color: var(--text-muted);
 }
 
-.style-field {
+.style-card__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
   position: relative;
 }
 
-.style-field--disabled {
-  opacity: 0.5;
-  pointer-events: none;
+.style-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.style-field--span {
+  grid-column: 1 / -1;
 }
 
 .style-label {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
   color: var(--text-muted);
-  margin-bottom: 0.4rem;
 }
 
+/* Steppers */
 .stepper {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--card-color);
+  background: var(--secondary-color);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.35rem;
+  border-radius: 9px;
+  padding: 0.3rem;
 }
 
 .stepper__btn {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   color: var(--text-primary);
@@ -264,27 +326,26 @@ function setBackgroundOpacity(event: Event) {
 }
 
 .stepper__value {
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
+/* Color pickers */
 .color-input {
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  background: var(--card-color);
+  gap: 0.5rem;
+  background: var(--secondary-color);
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 0.45rem 0.75rem;
+  border-radius: 9px;
+  padding: 0.35rem 0.6rem;
+  cursor: pointer;
+  transition: border-color 0.2s;
 }
 
-.color-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: 1px solid var(--border-light);
-  flex-shrink: 0;
+.color-input:hover {
+  border-color: var(--border-focus);
 }
 
 .color-input__picker {
@@ -292,76 +353,96 @@ function setBackgroundOpacity(event: Event) {
   height: 0;
   opacity: 0;
   position: absolute;
+  pointer-events: none;
+}
+
+.color-input__swatch {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 1px solid var(--border-light);
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .color-input__value {
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   color: var(--text-secondary);
   text-transform: capitalize;
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* Toggle */
 .style-toggle {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.65rem 0;
-  border-bottom: 1px solid var(--border-color);
+  padding: 0.45rem 0;
 }
 
-.toggle-row__label {
+.style-toggle__label {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.83rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 700;
   color: var(--text-primary);
   margin: 0 0 2px;
 }
 
-.toggle-row__desc {
-  font-size: 0.72rem;
+.style-toggle__desc {
+  font-size: 0.7rem;
   color: var(--text-muted);
   margin: 0;
 }
 
-.style-toggle__btn {
-  width: 40px;
-  height: 22px;
-  background: var(--card-color);
+.switch {
+  width: 42px;
+  height: 24px;
+  min-width: 42px;
+  background: var(--secondary-color);
   border: 1px solid var(--border-color);
   border-radius: 20px;
   cursor: pointer;
   padding: 2px;
   transition: background 0.25s, border-color 0.25s;
-  flex-shrink: 0;
   position: relative;
 }
 
-.style-toggle__btn--on {
+.switch--on {
   background: var(--primary-color);
   border-color: var(--primary-color);
 }
 
-.style-toggle__thumb {
+.switch__thumb {
   display: block;
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   background: #fff;
   border-radius: 50%;
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
-.style-toggle__btn--on .style-toggle__thumb {
+.switch--on .switch__thumb {
   transform: translateX(18px);
 }
 
+/* Range */
 .range-row {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 0.7rem;
+  background: var(--secondary-color);
+  border: 1px solid var(--border-color);
+  border-radius: 9px;
+  padding: 0.5rem 0.6rem;
 }
 
 .range-row__slider {
@@ -370,10 +451,10 @@ function setBackgroundOpacity(event: Event) {
 }
 
 .range-row__value {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 700;
   color: var(--text-primary);
-  min-width: 42px;
+  min-width: 40px;
   text-align: right;
 }
 </style>

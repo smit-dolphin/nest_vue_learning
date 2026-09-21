@@ -1,15 +1,13 @@
 import { defineStore } from 'pinia'
 import type { SubtitleSettings } from '../components/GenrateSubtitle/types'
+import { DEFAULT_FORMAT, DEFAULT_LANGUAGE, normalizeLanguage } from '../components/GenrateSubtitle/languages'
 
-const DEFAULT_SETTINGS: SubtitleSettings = {
-  language: 'English',
-  format: 'SRT',
-  timestamps: true,
-  speakerLabels: false,
+const createDefaultSettings = (): SubtitleSettings => ({
+  language: DEFAULT_LANGUAGE,
+  format: DEFAULT_FORMAT,
   autoTranslate: false,
-  burnVideo: false,
-  punctuation: true,
   wordLevel: false,
+  burnVideo: false,
   subtitleStyle: {
     fontSize: 24,
     fontColor: 'white',
@@ -19,20 +17,23 @@ const DEFAULT_SETTINGS: SubtitleSettings = {
     position: 'bottom',
     outline: 2,
   },
-}
+})
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
-    settings: { ...DEFAULT_SETTINGS },
+    settings: createDefaultSettings(),
   }),
 
   actions: {
-    updateSettings(settings: SubtitleSettings) {
+    updateSettings(settings: Partial<SubtitleSettings>) {
+      if (settings.language !== undefined) {
+        settings.language = normalizeLanguage(settings.language)
+      }
       Object.assign(this.settings, settings)
     },
 
     resetSettings() {
-      Object.assign(this.settings, DEFAULT_SETTINGS)
+      Object.assign(this.settings, createDefaultSettings())
     },
   },
 

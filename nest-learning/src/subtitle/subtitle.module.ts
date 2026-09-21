@@ -4,10 +4,11 @@ import { SubtitleController } from './subtitle.controller.js';
 import { FfmpegModule } from '../ffmpeg/ffmpeg.module.js';
 import { TranscriptionModule } from '../transcription/transcription.module.js';
 import { AgentModule } from '../agent/agent.module.js';
+import { StorageModule } from '../storage/storage.module.js';
 
 
 @Module({
-  imports:[FfmpegModule,TranscriptionModule,AgentModule],
+  imports:[FfmpegModule,TranscriptionModule,AgentModule,StorageModule],
   providers: [SubtitleService],
   controllers: [SubtitleController],
   exports:[SubtitleService]

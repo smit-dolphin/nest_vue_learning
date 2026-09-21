@@ -7,7 +7,7 @@ import VideoCard from '../components/VideoLibrary/VideoCard.vue'
 import VideoListRow from '../components/VideoLibrary/VideoListRow.vue'
 import EmptyState from '../components/VideoLibrary/EmptyState.vue'
 import PopupModal from '../components/Containers/PopupModal.vue'
-import { downloadVideoFile, fetchVideoBlobUrl, uploadVideoOnly } from '../services/videoService'
+import { downloadVideoFile, uploadVideoOnly, getVideoPreviewUrl } from '../services/videoService'
 import type { LibraryFilter, ViewMode } from '../components/VideoLibrary/types'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
 import { useAuthStore } from '../stores/authStore'
@@ -23,7 +23,6 @@ const sortBy = ref('newest')
 const deleteCandidate = ref<{ id: string; title: string } | null>(null)
 const selectedVideo = ref<{ id: string; title: string; mimetype: string } | null>(null)
 const previewUrl = ref<string | null>(null)
-const previewLoading = ref(false)
 const downloadError = ref<string | null>(null)
 const isUploadModalOpen = ref(false)
 const uploadInput = ref<HTMLInputElement | null>(null)
@@ -114,13 +113,13 @@ const formatUploadSize = (bytes: number) => {
 const uploadSelectedVideo = async () => {
   const file = selectedUpload.value
 
-  if (!file || !authStore.user?.id) return
+  if (!file) return
 
   isUploading.value = true
   uploadError.value = null
 
   try {
-    await uploadVideoOnly(file, authStore.user.id)
+    await uploadVideoOnly(file)
     await videoStore.fetchVideos()
     toast.success(`${file.name} uploaded successfully.`)
   } catch {
@@ -135,23 +134,13 @@ const requestDelete = (videoId: string, title: string) => {
   deleteCandidate.value = { id: videoId, title }
 }
 
-const openVideo = async (video: { id: string; title: string; mimetype: string }) => {
+const openVideo = (video: { id: string; title: string; mimetype: string }) => {
   selectedVideo.value = video
-  previewLoading.value = true
-  try {
-    previewUrl.value = await fetchVideoBlobUrl(video.id)
-  } catch {
-    previewUrl.value = null
-  } finally {
-    previewLoading.value = false
-  }
+  previewUrl.value = getVideoPreviewUrl(video.id)
 }
 
 const closePreview = () => {
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value)
-    previewUrl.value = null
-  }
+  previewUrl.value = null
   selectedVideo.value = null
 }
 
@@ -308,12 +297,8 @@ const confirmDelete = async () => {
       :title="selectedVideo?.title ?? 'Video preview'"
       @update:model-value="value => !value && closePreview()"
     >
-      <div v-if="previewLoading" class="preview-loading">
-        <Loader2 :size="28" class="spin" />
-        <p>Loading preview...</p>
-      </div>
       <video
-        v-else-if="previewUrl"
+        v-if="previewUrl"
         class="video-player"
         controls
         autoplay

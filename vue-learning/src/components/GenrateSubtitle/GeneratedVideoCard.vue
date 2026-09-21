@@ -1,43 +1,35 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { Download, Film, Loader2 } from 'lucide-vue-next'
-import type { SubtitleFile } from '../../services/subtitleService'
-import { fetchVideoBlobUrl } from '../../services/videoService'
+import { Download, Film } from 'lucide-vue-next'
+import { getVideoPreviewUrl } from '../../services/videoService'
 
 const props = defineProps<{
   title: string
   videoId: string
-  subtitle: SubtitleFile | null
 }>()
 
 const emit = defineEmits<{
-  (event: 'download-video'): void
-  (event: 'download-subtitle'): void
+  'download-video': []
 }>()
 
 const streamUrl = ref<string | null>(null)
-const isLoading = ref(false)
 
-async function loadStreamUrl(videoId: string) {
-  if (streamUrl.value) URL.revokeObjectURL(streamUrl.value)
+function loadStreamUrl(videoId: string) {
   streamUrl.value = null
 
   if (!videoId) return
 
-  isLoading.value = true
-  try {
-    streamUrl.value = await fetchVideoBlobUrl(videoId)
-  } catch {
-    streamUrl.value = null
-  } finally {
-    isLoading.value = false
-  }
+  streamUrl.value = getVideoPreviewUrl(videoId)
 }
 
-watch(() => props.videoId, (id) => void loadStreamUrl(id), { immediate: true })
+watch(
+  () => props.videoId,
+  (id) => loadStreamUrl(id),
+  { immediate: true },
+)
 
 onBeforeUnmount(() => {
-  if (streamUrl.value) URL.revokeObjectURL(streamUrl.value)
+  streamUrl.value = null
 })
 </script>
 
@@ -45,38 +37,33 @@ onBeforeUnmount(() => {
   <section class="generated-card">
     <div class="generated-card__header">
       <div class="generated-card__heading">
-        <div class="generated-card__icon"><Film :size="16" /></div>
+        <div class="generated-card__icon">
+          <Film :size="16" />
+        </div>
         <div>
           <h3>Generated Video</h3>
           <p>{{ title }}</p>
         </div>
       </div>
       <div class="generated-card__actions">
-        <button class="generated-card__download" type="button" title="Download video" @click="emit('download-video')">
-          <Download :size="14" />
-          Download video
-        </button>
         <button
           class="generated-card__download"
           type="button"
-          title="Download subtitle file"
-          :disabled="!props.subtitle"
-          @click="emit('download-subtitle')"
+          title="Download video"
+          @click="emit('download-video')"
         >
           <Download :size="14" />
-          Download subtitles
+          Download video
         </button>
       </div>
     </div>
 
-    <div v-if="isLoading" class="generated-card__state">
-      <Loader2 :size="24" class="spin" />
-      <p>Loading generated video...</p>
-    </div>
-    <video v-else-if="streamUrl" class="generated-card__video" controls :src="streamUrl">
+    <video v-if="streamUrl" class="generated-card__video" controls :src="streamUrl">
       Your browser does not support video playback.
     </video>
-    <p v-else class="generated-card__state generated-card__state--error">Could not load the generated video preview.</p>
+    <p v-else class="generated-card__state generated-card__state--error">
+      Could not load the generated video preview.
+    </p>
   </section>
 </template>
 
@@ -152,15 +139,10 @@ onBeforeUnmount(() => {
   font-size: 0.72rem;
 }
 
-.generated-card__download:hover:not(:disabled) {
+.generated-card__download:hover {
   color: var(--text-primary);
   border-color: var(--border-light);
   background: var(--hover-color);
-}
-
-.generated-card__download:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .generated-card__video {
@@ -176,6 +158,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.6rem;
   margin: 0 1.25rem 1.25rem;
   padding: 2.5rem 1rem;
@@ -183,17 +166,38 @@ onBeforeUnmount(() => {
   background: #000;
   border-radius: 10px;
   text-align: center;
+  font-size: 0.8rem;
 }
 
-.generated-card__state p { margin: 0; font-size: 0.8rem; }
-.generated-card__state--error { color: #ef4444; }
+.generated-card__state--error {
+  color: #ef4444;
+}
 
-.spin { animation: spin 1s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.generated-card__state p {
+  margin: 0;
+  white-space: normal;
+  overflow: visible;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
 @media (max-width: 640px) {
-  .generated-card__header { align-items: flex-start; flex-direction: column; }
-  .generated-card__actions { width: 100%; }
-  .generated-card__download { flex: 1; justify-content: center; }
+  .generated-card__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .generated-card__actions {
+    width: 100%;
+  }
+  .generated-card__download {
+    flex: 1;
+    justify-content: center;
+  }
 }
 </style>

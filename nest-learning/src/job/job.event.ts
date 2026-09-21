@@ -35,6 +35,35 @@ export class JobEvents implements OnModuleInit, OnModuleDestroy {
         'Processing',
       );
     });
+
+    this.queueEvents.on('failed', ({ jobId, failedReason }) => {
+
+      console.log(
+        'BullMQ failed:',
+        jobId,
+        failedReason,
+      );
+
+      this.gateway.sendProgress(
+        jobId,
+        0,
+        'Failed',
+      );
+    });
+
+    this.queueEvents.on('stalled', ({ jobId }) => {
+
+      console.log('BullMQ stalled:', jobId);
+
+      this.gateway.sendProgress(
+        jobId,
+        0,
+        'Stalled',
+      );
+    });
+  
+
+    
   }
 
   async onModuleDestroy() {

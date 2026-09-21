@@ -1,4 +1,5 @@
 import { baseApi } from '../api/baseApi'
+import { useAuthStore } from '../stores/authStore'
 
 export type VideoStatus = 'UPLOADED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 export type VideoType = 'VIDEO' | 'BURNED_VIDEO'
@@ -34,10 +35,7 @@ export interface AudioFile {
 export interface SubtitleSettings {
   leng: string
   formate: string
-  timestamps: boolean
-  lables: boolean
   autoTranslate: boolean
-  autoPunctuation: boolean
   wordLevelTiming: boolean
   burnVideo: boolean
   // Burn-in subtitle style — only sent when burnVideo is true
@@ -56,11 +54,11 @@ export interface UploadResult {
   options: Record<string, unknown>
 }
 
-export const uploadVideoOnly = async (file: File, userId: string): Promise<VideoDto> => {
+export const uploadVideoOnly = async (file: File): Promise<VideoDto> => {
   const formData = new FormData()
   formData.append('video', file)
 
-  const response = await baseApi.post(`/videos/upload/${userId}`, formData)
+  const response = await baseApi.post(`/videos`, formData)
 
   return response as unknown as VideoDto
 }
@@ -73,13 +71,11 @@ export const uploadVideo = async (
 
   formData.append('video', file)
 
-  const response = await baseApi.post('/videos', formData, {
+  const response = await baseApi.post('/videos/subtitle-jobs', formData, {
     params: {
       leng: params.leng,
       formate: params.formate,
-      lables: params.lables,
       autoTranslate: params.autoTranslate,
-      autoPunctuation: params.autoPunctuation,
       wordLevelTiming: params.wordLevelTiming,
       burnVideo: params.burnVideo,
       ...(params.burnVideo
@@ -97,25 +93,17 @@ export const uploadVideo = async (
   })
 
   return response as unknown as UploadResult
-}
-
-export const generateSubtitle = async (videoId: string) => {
-  const response = await baseApi.post(`/subtitle/${videoId}`)
-
-  return response
 }
 
 export const generateSubtitleForVideo = async (
   videoId: string,
   params: SubtitleSettings,
 ): Promise<UploadResult> => {
-  const response = await baseApi.post(`/videos/generate-subtitle/${videoId}`, null, {
+  const response = await baseApi.post(`/videos/${videoId}/subtitle-jobs`, null, {
     params: {
       leng: params.leng,
       formate: params.formate,
-      lables: params.lables,
       autoTranslate: params.autoTranslate,
-      autoPunctuation: params.autoPunctuation,
       wordLevelTiming: params.wordLevelTiming,
       burnVideo: params.burnVideo,
       ...(params.burnVideo
@@ -135,8 +123,8 @@ export const generateSubtitleForVideo = async (
   return response as unknown as UploadResult
 }
 
-export const getUserVideos = async (userId: string): Promise<VideoDto[]> => {
-  const response = await baseApi.get<VideoDto[]>(`/videos/user/${userId}`)
+export const getUserVideos = async (): Promise<VideoDto[]> => {
+  const response = await baseApi.get<VideoDto[]>(`/videos`)
 
   return response as unknown as VideoDto[]
 }
@@ -167,20 +155,20 @@ export const deleteAudioFile = async (audioId: string): Promise<AudioFile> => {
 }
 
 export const deleteVideo = async (videoId: string): Promise<VideoDto> => {
-  const response = await baseApi.get<VideoDto>(`/videos/delete/${videoId}`)
+  const response = await baseApi.delete<VideoDto>(`/videos/${videoId}`)
 
   return response as unknown as VideoDto
 }
 
 export const getVideoStreamUrl = (videoId: string): string => {
-  return `${baseApi.defaults.baseURL}/videos/stream/${videoId}`
+  const base = `${baseApi.defaults.baseURL}/videos/stream/${videoId}`
+  const authStore = useAuthStore()
+  const token = authStore.accessToken
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base
 }
 
-export async function fetchVideoBlobUrl(videoId: string): Promise<string> {
-  const blob = await baseApi.get<Blob>(`/videos/stream/${videoId}`, {
-    responseType: 'blob',
-  }) as unknown as Blob
-  return URL.createObjectURL(blob)
+export const getVideoPreviewUrl = (videoId: string): string => {
+  return getVideoStreamUrl(videoId)
 }
 
 export const downloadVideoFile = async (videoId: string, filename: string): Promise<void> => {

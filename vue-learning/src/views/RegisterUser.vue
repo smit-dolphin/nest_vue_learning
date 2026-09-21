@@ -8,9 +8,9 @@ import {
   User,
   ArrowRight,
 } from 'lucide-vue-next'
-import axios from 'axios'
 import { useAuthStore } from '../stores/authStore.ts'
-import { getMyProfile, startGoogleAuth } from '../services/authService.ts'
+import { getMyProfile, registerUser, startGoogleAuth } from '../services/authService.ts'
+import { toast } from 'vue-sonner'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -32,19 +32,17 @@ const handleRegister = async () => {
   errorMessage.value = ''
 
   try {
-    const result = await axios.post(
-      'http://localhost:3000/auth/register',
-      {
-        username: username.value,
-        email: email.value,
-        password: password.value,
-      }
-    )
+    const result = await registerUser(username.value, email.value, password.value)
 
-    authStore.setAccessToken(result.data.accessToken)
-    const userdata = await getMyProfile()
-    authStore.setUser(userdata)
+    authStore.setAccessToken(result.accessToken)
+    if (result.user) {
+      authStore.setUser(result.user)
+    } else {
+      const userdata = await getMyProfile().catch(() => null)
+      if (userdata) authStore.setUser(userdata)
+    }
 
+    toast.success('Account created successfully!')
     router.push('/')
   } catch (error: any) {
     errorMessage.value =
