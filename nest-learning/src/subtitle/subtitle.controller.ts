@@ -39,6 +39,11 @@ export class SubtitleController {
           
     }
 
+    @Delete('clean-up/local-files')
+    @UseGuards(JwtAuthGuard)
+    localFilesCleanup(){
+        return this.subtitleService.cleanupLocalFiles()
+    }
 
 
 }
