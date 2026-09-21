@@ -86,7 +86,7 @@ export class FfmpegService {
     // const audioOutputRelativePath=`/upload/audio/${unique}.wav`
     //upload/audio is exist aleady
 
-     const audioOutputPath = path.join(workDir, `${unique}.wav`);
+     const audioOutputPath = path.join(workDir, `${unique}.mp3`);
 
     const audio = await this.createAudio(videoPath, audioOutputPath); 
 
@@ -104,12 +104,24 @@ export class FfmpegService {
 
   async createAudio(videoPath: string, outputPath: string) {
 
+    // const ffmpeg = spawn("ffmpeg", [
+    //   "-i",
+    //   videoPath,
+    //   "-vn",
+    //   outputPath
+    // ])
     const ffmpeg = spawn("ffmpeg", [
-      "-i",
-      videoPath,
-      "-vn",
-      outputPath
-    ])
+  "-i",
+  videoPath,
+  "-vn",
+  "-ac",
+  "1",
+  "-ar",
+  "16000",
+  "-b:a",
+  "64k",
+  outputPath,
+]);
 
     ffmpeg.stderr.on("data", (chunk) => {
       console.log("FFmpeg:", chunk.toString());

@@ -24,4 +24,8 @@ export class StorageService {
   exists(storageKey: string) {
     return this.provider.exists(storageKey);
   }
+
+  getPublicUrl(storageKey: string) {
+    return this.provider.getPublicUrl(storageKey);
+  }
 }

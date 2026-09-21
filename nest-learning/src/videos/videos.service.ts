@@ -302,18 +302,8 @@ export class VideosService {
             throw new ForbiddenException('You do not have permission to access this video');
         }
 
-        const filePath = isAbsolute(video.path)
-            ? video.path
-            : resolve(process.cwd(), video.path.replace(/^[/\\]+/, ''));
-
-        try {
-            await stat(filePath);
-        } catch {
-            throw new NotFoundException('Video file not found');
-        }
-
         return {
-            filePath,
+            storageKey: video.path,
             filename: basename(video.filename),
             mimetype: video.mimetype,
         };

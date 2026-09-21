@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, watch } from 'vue'
-import { Download, Film, Loader2 } from 'lucide-vue-next'
-import { fetchVideoBlobUrl } from '../../services/videoService'
+import { Download, Film } from 'lucide-vue-next'
+import { getVideoPreviewUrl } from '../../services/videoService'
 
 const props = defineProps<{
   title: string
@@ -13,34 +13,23 @@ const emit = defineEmits<{
 }>()
 
 const streamUrl = ref<string | null>(null)
-const isLoading = ref(false)
-const failed = ref(false)
 
-async function loadStreamUrl(videoId: string) {
-  if (streamUrl.value) URL.revokeObjectURL(streamUrl.value)
+function loadStreamUrl(videoId: string) {
   streamUrl.value = null
-  failed.value = false
 
   if (!videoId) return
 
-  isLoading.value = true
-  try {
-    streamUrl.value = await fetchVideoBlobUrl(videoId)
-  } catch {
-    failed.value = true
-  } finally {
-    isLoading.value = false
-  }
+  streamUrl.value = getVideoPreviewUrl(videoId)
 }
 
 watch(
   () => props.videoId,
-  (id) => void loadStreamUrl(id),
+  (id) => loadStreamUrl(id),
   { immediate: true },
 )
 
 onBeforeUnmount(() => {
-  if (streamUrl.value) URL.revokeObjectURL(streamUrl.value)
+  streamUrl.value = null
 })
 </script>
 
@@ -69,14 +58,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-if="isLoading" class="generated-card__state">
-      <Loader2 :size="24" class="spin" />
-      <p>Loading generated video…</p>
-    </div>
-    <video v-else-if="streamUrl" class="generated-card__video" controls :src="streamUrl">
+    <video v-if="streamUrl" class="generated-card__video" controls :src="streamUrl">
       Your browser does not support video playback.
     </video>
-    <p v-else-if="failed" class="generated-card__state generated-card__state--error">
+    <p v-else class="generated-card__state generated-card__state--error">
       Could not load the generated video preview.
     </p>
   </section>

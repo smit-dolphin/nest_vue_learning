@@ -36,4 +36,8 @@ export class LocalStorageProvider implements StorageProvider {
     try { await access(this.resolveKeyToPath(storageKey)); return true; }
     catch { return false; }
   }
+
+  getPublicUrl(): string | null {
+    return null;
+  }
 }

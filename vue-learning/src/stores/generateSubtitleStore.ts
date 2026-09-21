@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { generateSubtitleForVideo, uploadVideo, type SubtitleSettings as VideoSubtitleSettings } from '../services/videoService'
+import { generateSubtitleForVideo, uploadVideo, type SubtitleSettings as VideoSubtitleSettings, type UploadResult } from '../services/videoService'
 import { getSubtitleFileContent, getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
 import { useCurrentJobStore } from './currentJobStore'
 import { useSettingsStore } from './settingsStore'
@@ -133,23 +133,56 @@ export const useGenerateSubtitleStore = defineStore('generate-subtitle', () => {
     const jobStore = useCurrentJobStore()
     const currentVideoId = sourceVideoId.value || videoIdFromRoute
 
-    if ((!sourceFile.value && !currentVideoId) || jobStore.isProcessing) return false
+    if ((!sourceFile.value && !currentVideoId) || jobStore.isProcessing || isStarting.value) return false
 
     resetResults()
     generationStartedAt.value = Date.now()
     isStarting.value = true
 
-    try {
-      const result = currentVideoId
-        ? await generateSubtitleForVideo(currentVideoId, buildParams())
-        : await uploadVideo(sourceFile.value!, buildParams())
+    // Enter the "uploading" phase before hitting the API. Socket listening
+    // only starts once we have a positive upload response with a job id.
+    jobStore.startUpload()
 
-      sourceVideoId.value = currentVideoId ?? (result.result as { id?: string })?.id ?? null
+    try {
+      let result: UploadResult
+      if (currentVideoId) {
+        result = await generateSubtitleForVideo(currentVideoId, buildParams())
+        sourceVideoId.value = currentVideoId
+      } else {
+        result = await uploadVideo(sourceFile.value!, buildParams())
+
+        const uploadedId = (result.result as { id?: string } | null | undefined)?.id
+        if (!uploadedId) {
+          throw new Error('The server did not confirm the video upload.')
+        }
+        sourceVideoId.value = uploadedId
+      }
+
+      if (!result.jobId) {
+        throw new Error('The server did not create a processing job for this video.')
+      }
+
+      // The user may have cancelled while the upload was in flight – never
+      // start socket listening after a cancel.
+      if (jobStore.jobStatus !== 'uploading') {
+        return false
+      }
+
+      // Upload confirmed – now watch the queue for progress events.
       jobStore.startJob(result.jobId)
       return true
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to start the subtitle job.'
+      jobStore.failJob(message)
+      return false
     } finally {
       isStarting.value = false
     }
+  }
+
+  function cancelCurrentJob() {
+    useCurrentJobStore().cancelJob()
   }
 
   const createdAfterGeneration = (createdAt: string) => {
@@ -208,6 +241,7 @@ export const useGenerateSubtitleStore = defineStore('generate-subtitle', () => {
     closeLibraryPicker,
     resetResults,
     startJob,
+    cancelCurrentJob,
     loadResults,
   }
 })

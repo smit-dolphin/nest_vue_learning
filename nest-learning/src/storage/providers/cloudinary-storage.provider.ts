@@ -325,6 +325,14 @@ export class CloudinaryStorageProvider implements StorageProvider {
     }
 
     /**
+     * Cloudinary files are served directly from the CDN so streaming can be
+     * handed off without proxying the bytes through the backend.
+     */
+    getPublicUrl(storageKey: string): string | null {
+        return this.getUrl(storageKey);
+    }
+
+    /**
      * Save a web/node stream to a local file.
      */
     private async saveStreamToFile(body: any, localPath: string): Promise<void> {

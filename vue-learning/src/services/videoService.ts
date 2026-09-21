@@ -1,4 +1,5 @@
 import { baseApi } from '../api/baseApi'
+import { useAuthStore } from '../stores/authStore'
 
 export type VideoStatus = 'UPLOADED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 export type VideoType = 'VIDEO' | 'BURNED_VIDEO'
@@ -160,14 +161,14 @@ export const deleteVideo = async (videoId: string): Promise<VideoDto> => {
 }
 
 export const getVideoStreamUrl = (videoId: string): string => {
-  return `${baseApi.defaults.baseURL}/videos/stream/${videoId}`
+  const base = `${baseApi.defaults.baseURL}/videos/stream/${videoId}`
+  const authStore = useAuthStore()
+  const token = authStore.accessToken
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base
 }
 
-export async function fetchVideoBlobUrl(videoId: string): Promise<string> {
-  const blob = await baseApi.get<Blob>(`/videos/download/${videoId}`, {
-    responseType: 'blob',
-  }) as unknown as Blob
-  return URL.createObjectURL(blob)
+export const getVideoPreviewUrl = (videoId: string): string => {
+  return getVideoStreamUrl(videoId)
 }
 
 export const downloadVideoFile = async (videoId: string, filename: string): Promise<void> => {

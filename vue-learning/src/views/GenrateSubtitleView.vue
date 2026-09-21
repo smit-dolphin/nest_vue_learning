@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
-import { AlertCircle, Loader2, RefreshCw, Sparkles } from 'lucide-vue-next'
+import { Loader2, RefreshCw, Sparkles } from 'lucide-vue-next'
 import { toast } from 'vue-sonner'
 import { downloadVideoFile } from '../services/videoService'
 import { downloadSubtitleFile } from '../services/subtitleService'
@@ -41,9 +41,14 @@ const {
 } = storeToRefs(generateStore)
 
 const { isProcessing, isDone, isFailed, progress, error: jobError } = storeToRefs(jobStore)
+const { isUploading, isQueued, isCancelled, jobStatus, stage, connectionState } = storeToRefs(jobStore)
 
 const canGenerate = computed(
   () => generateStore.hasSource && !isProcessing.value && !isStarting.value,
+)
+
+const isJobRunning = computed(
+  () => isUploading.value || isQueued.value || isProcessing.value,
 )
 
 const settings = computed(() => generateStore.activeSettings)
@@ -69,6 +74,11 @@ async function startProcessing() {
 
 async function retryLoadResults() {
   await generateStore.loadResults()
+}
+
+function cancelProcessing() {
+  generateStore.cancelCurrentJob()
+  toast.info('Job cancelled. You can start a new one.')
 }
 
 function selectVideoFromLibrary(video: LibraryVideo) {
@@ -135,25 +145,26 @@ watch(isDone, (done) => {
           type="button"
           @click="startProcessing"
         >
-          <Loader2 v-if="isStarting || isProcessing" :size="18" class="spin" />
+          <Loader2 v-if="isStarting || isJobRunning" :size="18" class="spin" />
           <Sparkles v-else :size="18" />
-          <span>{{ isStarting || isProcessing ? 'Generating…' : 'Generate Subtitles' }}</span>
+          <span>{{ isStarting || isJobRunning ? 'Generating…' : 'Generate Subtitles' }}</span>
         </button>
       </div>
 
       <!-- Right: Progress + Output -->
       <div class="gen-page__right">
         <Transition name="fade">
-          <ProgressCard v-if="isProcessing || isDone" :progress="progress" />
+          <ProgressCard
+            v-if="jobStatus && jobStatus !== 'idle'"
+            :status="jobStatus"
+            :progress="progress"
+            :stage="stage"
+            :error="jobError"
+            :connection-state="connectionState"
+            :cancellable="isJobRunning"
+            @cancel="cancelProcessing"
+          />
         </Transition>
-
-        <div v-if="isFailed || jobError" class="generation-error" role="alert">
-          <AlertCircle :size="20" />
-          <div>
-            <strong>Generation failed</strong>
-            <p>{{ jobError ?? 'The subtitle job could not be completed.' }}</p>
-          </div>
-        </div>
 
         <div v-if="isDone" class="gen-page__results">
           <Transition name="fade">
@@ -188,7 +199,7 @@ watch(isDone, (done) => {
         </div>
 
         <Transition name="fade">
-          <EmptyPanel v-if="!isProcessing && !isDone && !isFailed" />
+          <EmptyPanel v-if="!isJobRunning && !isDone && !isFailed && !isCancelled" />
         </Transition>
       </div>
     </div>
@@ -207,30 +218,6 @@ watch(isDone, (done) => {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.generation-error {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.7rem;
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 12px;
-  background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
-}
-
-.generation-error strong {
-  display: block;
-  color: var(--text-primary);
-  font-size: 0.85rem;
-}
-
-.generation-error p {
-  margin: 0.25rem 0 0;
-  color: var(--text-muted);
-  font-size: 0.78rem;
 }
 
 .gen-page__grid {
