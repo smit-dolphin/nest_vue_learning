@@ -222,9 +222,16 @@ watch(isDone, (done) => {
 
 .gen-page__grid {
   display: grid;
-  grid-template-columns: 420px 1fr;
+  grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
+}
+
+.gen-page__left {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
 }
 
 .gen-page__results {
@@ -277,7 +284,6 @@ watch(isDone, (done) => {
   cursor: pointer;
   box-shadow: 0 4px 20px rgba(139, 92, 246, 0.45);
   transition: all 0.2s;
-  margin-top: 1rem;
 }
 
 .btn--generate:hover:not(:disabled) {
