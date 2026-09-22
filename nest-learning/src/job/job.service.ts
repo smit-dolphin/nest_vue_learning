@@ -21,6 +21,12 @@ export class JobService {
         const { videoId, options } = data;
         
         const job = await this.videoProcessingQueue.add('generate-subtitle', { videoId, options }, {
+              attempts: 3,
+
+    backoff: {
+      type: 'exponential',
+      delay: 5000,
+    },
             removeOnComplete: {
                 count: 1000,
             },
@@ -64,6 +70,12 @@ export class JobService {
             options,
             subtitleJobId: jobEntry.id,
         }, {
+              attempts: 3,
+
+    backoff: {
+      type: 'exponential',
+      delay: 5000,
+    },
             removeOnComplete: {
                 count: 1000,
             },
