@@ -495,4 +495,88 @@ const preferenceDescriptions = {
   .settings-layout { grid-template-columns: 1fr; }
   .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; }
 }
+
+@media (max-width: 760px) {
+  .settings-page {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-section {
+    padding: 1.1rem;
+  }
+
+  .settings-section__footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .settings-section__footer .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .danger-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .danger-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .security-2fa {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .avatar-upload {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .plan-card__footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .plan-card__footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .api-key-card__key {
+    flex-wrap: wrap;
+  }
+
+  .api-key-card__key code {
+    flex: 1 1 100%;
+    overflow-wrap: break-word;
+  }
+
+  .api-key-card__footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .settings-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .settings-nav__item {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
 </style>

@@ -371,4 +371,70 @@ const avgAccuracy = computed(() => {
 
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .history-page {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .summary-strip {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .summary-divider {
+    display: none;
+  }
+
+  .summary-item {
+    min-width: 45%;
+  }
+
+  .toolbar__search {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .toolbar__filters {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .timeline__items {
+    padding-left: 0.25rem;
+  }
+}
+
+@media (max-width: 600px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .page-header__icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .page-header .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .timeline__date-header {
+    margin-left: 0.5rem;
+  }
+
+  .history-card {
+    padding: 0.8rem;
+  }
+
+  .history-card__actions {
+    flex-wrap: wrap;
+  }
+}
 </style>

@@ -35,8 +35,9 @@ const handleLogin = async () => {
 
     toast.success('Signed in successfully.')
     router.push('/')
-  } catch (error: any) {
-    errorMessage.value = error?.response?.data?.message || 'Login failed. Please check your credentials.'
+  } catch (error: unknown) {
+    const message = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
+    errorMessage.value = message || 'Login failed. Please check your credentials.'
   } finally {
     isLoading.value = false
   }

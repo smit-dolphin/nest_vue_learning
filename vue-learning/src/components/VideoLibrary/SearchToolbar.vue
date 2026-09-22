@@ -84,4 +84,33 @@ const viewMode = defineModel<ViewMode>('viewMode', { default: 'grid' })
 .view-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; border: none; background: transparent; transition: all 0.2s; }
 .view-btn--active { background: var(--active-color); color: var(--primary-color); }
 .view-btn:hover:not(.view-btn--active) { color: var(--text-primary); }
+
+@media (max-width: 700px) {
+  .toolbar { gap: 0.6rem; }
+
+  .toolbar__search {
+    flex: 1 1 100%;
+    min-width: 0;
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+  }
+
+  .toolbar__filters {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .toolbar__right {
+    width: 100%;
+    margin-left: 0;
+    justify-content: space-between;
+  }
+
+  .sort-select {
+    flex: 1;
+    min-width: 0;
+  }
+}
 </style>

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
 import {
+  Menu,
   Search,
   Sparkles,
 } from 'lucide-vue-next'
@@ -14,6 +15,10 @@ import { useAuthStore } from '@/stores/authStore.ts';
 
 const props = defineProps<{
   collapsed?: boolean
+}>()
+
+const emit = defineEmits<{
+  'toggle-mobile': []
 }>()
 
 const route = useRoute()
@@ -71,6 +76,16 @@ const breadcrumbs = computed(() => {
 
     <!-- LEFT -->
     <div class="navbar__left">
+
+      <button
+        class="navbar__menu-btn"
+        type="button"
+        title="Open menu"
+        aria-label="Open navigation menu"
+        @click="emit('toggle-mobile')"
+      >
+        <Menu :size="20" />
+      </button>
 
       <div class="navbar__title-wrap">
 
@@ -528,10 +543,54 @@ const breadcrumbs = computed(() => {
 
 
 /* =========================================
+   HAMBURGER (mobile only)
+========================================= */
+
+.navbar__menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin-right: 0.25rem;
+  color: var(--text-secondary);
+  background: var(--card-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.navbar__menu-btn:hover {
+  color: var(--text-primary);
+  background: var(--hover-color);
+  border-color: var(--border-light);
+}
+
+/* =========================================
    RESPONSIVE
 ========================================= */
 
 @media (max-width: 900px) {
+
+  .navbar {
+    left: 0 !important;
+    height: 60px;
+    padding: 0 0.85rem;
+  }
+
+  .navbar__menu-btn {
+    display: flex;
+  }
+
+  .navbar__breadcrumb {
+    display: none;
+  }
+
+  .navbar__left {
+    gap: 0.35rem;
+  }
 
   .navbar__ai-badge {
     display: none;
@@ -541,15 +600,21 @@ const breadcrumbs = computed(() => {
     max-width: 350px;
   }
 
+  .navbar__right {
+    gap: 0.5rem;
+  }
+
 }
 
-
 @media (max-width: 650px) {
+
+  .navbar__title {
+    font-size: 0.95rem;
+  }
 
   .navbar__search {
     display: none;
   }
 
 }
-
 </style>

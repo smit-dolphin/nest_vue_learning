@@ -10,11 +10,9 @@ import PopupModal from '../components/Containers/PopupModal.vue'
 import { downloadVideoFile, uploadVideoOnly, getVideoPreviewUrl } from '../services/videoService'
 import type { LibraryFilter, ViewMode } from '../components/VideoLibrary/types'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
-import { useAuthStore } from '../stores/authStore'
 import { toast } from 'vue-sonner'
 
 const videoStore = useVideoLibraryStore()
-const authStore = useAuthStore()
 
 const searchQuery = ref('')
 const activeFilter = ref<LibraryFilter>('all')
@@ -385,5 +383,12 @@ const confirmDelete = async () => {
   gap: 0.5rem; padding: 0.75rem 1rem;
   font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
   color: var(--text-muted); border-bottom: 1px solid var(--border-color);
+}
+
+@media (max-width: 760px) {
+  .library-page { padding: 1rem; gap: 1rem; }
+  .video-grid { grid-template-columns: 1fr; gap: 0.8rem; }
+  .video-list__head { display: none; }
+  .state-message { padding: 3rem 1rem; }
 }
 </style>

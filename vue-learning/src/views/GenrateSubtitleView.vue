@@ -342,4 +342,11 @@ watch(isDone, (done) => {
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 760px) {
+  .gen-page {
+    padding: 1rem;
+    gap: 1rem;
+  }
+}
 </style>

@@ -23,13 +23,13 @@ const emit = defineEmits<{
       </div>
       <span class="video-list__filename" :title="video.title">{{ video.title }}</span>
     </div>
-    <span class="video-list__cell video-list__type" :style="{ color: video.color }">
+    <span class="video-list__cell video-list__cell--type" :style="{ color: video.color }">
       {{ video.type === 'BURNED_VIDEO' ? 'Burned' : 'Uploaded' }}
     </span>
-    <span class="video-list__cell">{{ video.duration }}</span>
-    <span class="video-list__cell">{{ video.size }}</span>
+    <span class="video-list__cell video-list__cell--duration">{{ video.duration }}</span>
+    <span class="video-list__cell video-list__cell--size">{{ video.size }}</span>
     <StatusChip :status="video.status" />
-    <span class="video-list__cell">{{ video.date }}</span>
+    <span class="video-list__cell video-list__cell--date">{{ video.date }}</span>
     <div class="video-list__actions">
       <button class="action-btn" type="button" title="Download video" aria-label="Download video" @click="emit('download')"><Download :size="13" /></button>
       <button class="action-btn action-btn--danger" type="button" title="Delete video" aria-label="Delete video" @click="emit('delete')"><Trash2 :size="13" /></button>
@@ -61,4 +61,45 @@ const emit = defineEmits<{
 .action-btn:hover { background: var(--hover-color); color: var(--text-primary); border-color: var(--border-light); }
 .action-btn--danger:hover { background: rgba(239,68,68,0.1); color: #ef4444; border-color: rgba(239,68,68,0.3); }
 .action-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+@media (max-width: 760px) {
+  .video-list__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.65rem;
+    margin: 0.5rem 0.75rem;
+    padding: 0.8rem;
+    background: var(--card-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+  }
+
+  .video-list__row:last-child {
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .video-list__row:hover {
+    background: var(--card-color);
+    border-color: var(--border-light);
+  }
+
+  .video-list__file {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .video-list__cell--type {
+    display: none;
+  }
+
+  .video-list__actions {
+    margin-left: auto;
+  }
+
+  .video-list__cell {
+    font-size: 0.75rem;
+  }
+}
 </style>

@@ -44,9 +44,10 @@ const handleRegister = async () => {
 
     toast.success('Account created successfully!')
     router.push('/')
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = (error as { response?: { data?: { message?: string } } } | undefined)?.response?.data?.message
     errorMessage.value =
-      error?.response?.data?.message ||
+      message ||
       'Registration failed. Please try again.'
   } finally {
     isLoading.value = false

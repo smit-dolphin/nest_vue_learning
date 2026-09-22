@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -119,5 +119,17 @@ export class JobService {
             },
         });
     }
+
+
+    // async cancelJobById(userId:string,jobId:string){
+    //     //my goal is to cancell the job it here so i need bull mq then job tables 
+    //     const job =await this.prisma.subtitleJob.findUnique({where:{
+    //         queueJobId:jobId
+    //     }})
+
+    //     if (!job ) return new NotFoundException('the queue job not found')
+
+    //     const queue = this.videoProcessingQueue.job
+    // }
 
 }
