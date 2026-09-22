@@ -706,4 +706,94 @@ onMounted(loadDashboard)
   .dashboard__stats { grid-template-columns: repeat(2, 1fr); }
   .dashboard__bottom { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 760px) {
+  .dashboard {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .dashboard__hero {
+    padding: 1.4rem 1.1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+
+  .dashboard__hero-visual {
+    display: none;
+  }
+
+  .dashboard__hero-title {
+    font-size: 1.35rem;
+  }
+
+  .dashboard__hero-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .dashboard__hero-actions .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Recent jobs -> stacked cards */
+  .jobs-table__head {
+    display: none;
+  }
+
+  .jobs-table__row {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.45rem 0.75rem;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: var(--card-color);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+  }
+
+  .jobs-table__row:last-child {
+    margin-bottom: 0;
+  }
+
+  .jobs-table__row:hover {
+    background: var(--card-color);
+    border-color: var(--border-light);
+  }
+
+  .jobs-table__file {
+    grid-column: 1 / -1;
+  }
+
+  .jobs-table__more {
+    display: none;
+  }
+
+  .jobs-table__lang,
+  .jobs-table__dur,
+  .jobs-table__time,
+  .jobs-table__row .badge {
+    min-width: 0;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+
+  .card__header {
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .dashboard__stats {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .stat-card {
+    padding: 1rem;
+  }
+}
 </style>

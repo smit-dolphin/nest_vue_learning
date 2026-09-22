@@ -152,110 +152,117 @@ export class AgentService {
       // ---------------------------------------------
       // Dynamic prompt
       // ---------------------------------------------
-
-      let prompt = `
+let prompt = `
 You are a professional speech transcription and subtitle generation engine.
 
-Transcribe the provided audio accurately.
-
-Rules:
-- Transcribe only spoken content.
-- Do not add explanations.
-- Do not add markdown.
-- Do not add introductory text.
-- Do not invent words.
-- Do not omit spoken content.
-- Preserve the meaning and context.
-- Use correct punctuation.
-
+TASK:
+- Transcribe all spoken content from the provided audio accurately.
+- Do not add, remove, summarize, or invent spoken content.
+- Do not add explanations, comments, introductions, markdown, or any text outside the requested output format.
+- Preserve the original meaning, context, tone, and order of speech.
+- Use natural and correct punctuation.
+- Do not describe non-speech sounds unless they are explicitly spoken.
+-all point provided bellow shoud be followed strictly
 
 SOURCE LANGUAGE:
-- Automatically detect the language spoken in the audio.
-- First understand the spoken language.
+- Automatically detect the language actually spoken in the audio.
+- Do not assume the source language.
+- First understand the original spoken content before performing any translation.
+
 `;
 
-      // ---------------------------------------------
-      // Source language
-      // ---------------------------------------------
 
-//       if (languageCode === "auto") {
-//         prompt += `
-// SOURCE LANGUAGE:
-// - Automatically detect the language spoken in the audio.
-// - First understand the spoken language.
-// `;
-//       } else {
-//         prompt += `
-// SOURCE LANGUAGE:
-// - The spoken language is ${getLanguageByCode(languageCode)}.
-// - Treat this as the source language.
-// `;
-//       }
+// =====================================================
+// TRANSLATION
+// =====================================================
 
-      // ---------------------------------------------
-      // Translation
-      // ---------------------------------------------
-
-      if (shouldTranslate) {
-        prompt += `
+if (shouldTranslate) {
+  prompt += `
 TRANSLATION:
 - Translation is enabled.
+- Target language: ${getLanguageByCode(translateLanguage)}
 - First transcribe and understand the original spoken content.
-- Then translate the transcription into ${getLanguageByCode(
-          translateLanguage,
-        )}.
-- The final subtitle text MUST be in the target language.
-- Do not output the original language as the final subtitle text.
-- Preserve the original meaning, tone and context.
+- Then translate the complete transcription into the specified target language.
+- The final subtitle text MUST be written only in the target language.
+- Do NOT output the original-language transcription as the final subtitle text.
+- Do NOT mix the original language with the translated language.
+- Preserve the original meaning, context, tone, intent, and order of speech.
+- Do not summarize or shorten the translation.
 `;
-      } else {
-        prompt += `
+} else {
+  prompt += `
 TRANSLATION:
 - Translation is disabled.
-- Keep the subtitles in the original spoken language.
+- Keep the subtitle text in the original spoken language.
+- Do not translate the spoken content.
 `;
-      }
+}
 
-      // ---------------------------------------------
-      // Word timing
-      // ---------------------------------------------
 
-      if (isWordLevel) {
-        prompt += `
+// =====================================================
+// TIMING
+// =====================================================
+
+if (isWordLevel) {
+  prompt += `
 TIMING:
 - Word-level timing is required.
-- Provide timestamps for individual words.
+- Every subtitle segment MUST contain start and end timestamps.
+- Every subtitle segment MUST also contain timing information for each spoken word.
+- Word timestamps must be ordered chronologically.
+- Word timestamps must remain within the segment start and end timestamps.
+- Do not invent word timestamps.
 `;
-      } else {
-        prompt += `
+} else {
+  prompt += `
 TIMING:
-- Word-level timing is not required.
-- Use normal subtitle segment-level timestamps.
+- Word-level timing is disabled.
+- Provide only subtitle segment-level start and end timestamps.
 `;
-      }
+}
 
-      if(options.lables){
-      prompt += `
-SPEAKER LABLE:
-- identyfy speakers (charecters,names,gender).
-- append speakers lable in front of every sagment .
+
+// =====================================================
+// SPEAKER LABELS
+// =====================================================
+
+if (options.lables === true || options.lables === 'true') {
+  prompt += `
+SPEAKER LABELS:
+- Identify different speakers when they can be distinguished from the audio.
+- Add the speaker label at the beginning of every subtitle segment.
+- Keep the speaker label consistent throughout the entire transcription.
+- Do not invent speaker names.
+- If a person's name is not known, use a neutral label such as "Speaker 1", "Speaker 2", etc.
 `;
-      }
+} else {
+  prompt += `
+SPEAKER LABELS:
+- Speaker labels are disabled.
+- Do not add speaker labels.
+`;
+}
 
-      // ---------------------------------------------
-      // Output format
-      // ---------------------------------------------
 
-      switch (subtitleFormat.extension) {
-        case '.srt':
-          prompt += `
+// =====================================================
+// OUTPUT FORMAT
+// =====================================================
+
+switch (subtitleFormat.extension) {
+
+  case '.srt':
+    prompt += `
 OUTPUT FORMAT:
-- Return valid SRT only.
-- Do not use markdown.
-- Do not add explanations.
+- Return ONLY valid SRT content.
+- Do not return JSON.
+- Do not return WebVTT.
+- Do not return Markdown.
+- Do not add explanations or comments.
+- Do not wrap the output in code fences.
 
-Every subtitle block must contain:
-1. Subtitle number
+Each subtitle block MUST contain:
+
+1. Subtitle sequence number
 2. Start timestamp
 3. End timestamp
 4. Subtitle text
@@ -263,69 +270,161 @@ Every subtitle block must contain:
 Timestamp format:
 HH:MM:SS,mmm
 
-Return only the SRT content.
-`;
-          break;
+CORRECT SRT FORMAT:
 
-        case '.vtt':
-          prompt += `
+1
+00:00:01,005 --> 00:00:03,635
+Screen conversions, these things practice.
+
+2
+00:00:03,795 --> 00:00:05,335
+Naturally, I was like this.
+
+3
+00:00:05,865 --> 00:00:08,225
+Then Coton is the monitor that comes out.
+
+IMPORTANT SRT RULES:
+- The subtitle number MUST be on its own line.
+- The timestamp MUST be on the line immediately after the subtitle number.
+- The subtitle text MUST be on the line immediately after the timestamp.
+- Each subtitle block MUST be separated by one empty line.
+- Subtitle numbers MUST start at 1 and increase sequentially.
+- Timestamp hours MUST always be included.
+- Use a comma before milliseconds: HH:MM:SS,mmm
+- Do NOT put timestamps inside the subtitle text.
+- Do NOT put word-level timestamps inside the subtitle text.
+- Do NOT put square brackets containing timestamps inside the subtitle text.
+- Do NOT put speaker labels before the subtitle number.
+
+If speaker labels are enabled, the speaker label MUST be part of the subtitle text.
+
+CORRECT SPEAKER LABEL EXAMPLE:
+
+1
+00:00:01,005 --> 00:00:03,635
+[SPEAKER_1] Screen conversions, these things practice.
+
+2
+00:00:03,795 --> 00:00:05,335
+[SPEAKER_1] Naturally, I was like this.
+
+you should provide exect formate not single thing should be diffrent
+`;
+    break;
+
+
+  case '.vtt':
+    prompt += `
 OUTPUT FORMAT:
-- Return valid WebVTT only.
-- Do not use markdown.
-- Do not add explanations.
-- Start with WEBVTT.
+- Return ONLY valid WebVTT content.
+- Do not return SRT.
+- Do not return JSON.
+- Do not return Markdown.
+- Do not add explanations or comments.
+- Do not wrap the output in code fences.
+
+The output MUST begin with:
+
+WEBVTT
 
 Timestamp format:
-HH:MM:SS.mmm
+HH:MM:SS.mmm --> HH:MM:SS.mmm
 
-Return only the WebVTT content.
+Example structure:
+
+WEBVTT
+
+00:00:01.000 --> 00:00:03.500
+Subtitle text
+
+Rules:
+- Every cue must have a valid start and end timestamp.
+- Return ONLY the WebVTT content.
 `;
-          break;
+    break;
 
-        case '.txt':
-          prompt += `
+
+  case '.txt':
+    prompt += `
 OUTPUT FORMAT:
-- Return plain text transcription only.
+- Return ONLY plain text transcription.
 - Do not include timestamps.
-- Do not include subtitle numbering.
+- Do not include subtitle numbers.
+- Do not include speaker labels unless speaker labels were explicitly enabled.
+- Do not return JSON.
+- Do not return SRT.
+- Do not return WebVTT.
+- Do not add explanations or comments.
+- Return ONLY the final subtitle/transcription text.
 `;
-          break;
+    break;
 
-        case '.json':
-          prompt += `
+
+  case '.json':
+    prompt += `
 OUTPUT FORMAT:
-- Return valid JSON only.
-- Do not use markdown.
-- Do not add explanations.
+- Return ONLY valid JSON.
+- Do not use Markdown code fences.
+- Do not add explanations or comments.
+- Do not return SRT.
+- Do not return WebVTT.
+- The response MUST be valid JSON that can be parsed directly using JSON.parse().
 
-Use this structure:
+Required structure:
 
 {
   "segments": [
     {
       "start": 0,
       "end": 3,
-      "text": "spoken text"
+      "text": "subtitle text"
     }
   ]
 }
 
 Rules:
-- start and end must be numbers representing seconds.
-- text must contain the final subtitle text.
+- "start" and "end" MUST be numbers representing seconds.
+- "start" MUST be smaller than "end".
+- Segments MUST be ordered chronologically.
+- "text" MUST contain the final subtitle text.
+- Do not add fields that are not requested.
 `;
-          break;
 
-        default:
-          prompt += `
+    if (isWordLevel) {
+      prompt += `
+Because word-level timing is enabled, each segment MUST also contain:
+
+"words": [
+  {
+    "start": 0,
+    "end": 0.5,
+    "text": "word"
+  }
+]
+
+Word rules:
+- "start" and "end" MUST be numbers representing seconds.
+- Word timestamps MUST be inside their parent segment timestamps.
+- Words MUST be in spoken order.
+- Do not invent words or timestamps.
+`;
+    }
+
+    break;
+
+
+  default:
+    prompt += `
 OUTPUT FORMAT:
-- Return the transcription with timestamps.
-- Do not add explanations.
+- Return ONLY the transcription with subtitle segment timestamps.
+- Do not add explanations or comments.
+- Do not use Markdown.
+- Do not use code fences.
+- Do not return an unsupported format.
 `;
-          break;
-      }
-
-      
+    break;
+}
 
       // ---------------------------------------------
       // Upload audio to Gemini
@@ -382,7 +481,7 @@ OUTPUT FORMAT:
 
       const result =
         await this.ai.models.generateContent({
-          model: 'gemini-3.1-flash-lite',
+          model: 'gemini-3.5-flash-lite',
 
           contents: createUserContent([
             createPartFromUri(

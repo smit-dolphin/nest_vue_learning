@@ -124,6 +124,20 @@ export class SubtitleService {
                     where: { id: jobEntry.id },
                     data: { status: 'COMPLETED', completedAt: new Date(), errorMessage: null },
                 });
+                const createNotification = await this.prisma.notification.create({
+                    data: {
+                        userId: videoResult.userId,
+                        type: 'JOB_COMPLETED',
+                        title: 'Subtitle generation completed',
+                        message: 'Your video subtitles have been generated successfully.',
+                        data: {
+                            jobId: job.id,
+                            videoId: videoResult.id,
+                            subtitleId: subtitleRecord.id,
+                           
+                        },
+                    },
+                });
 
                 return subtitleRecord;
             }
@@ -170,7 +184,25 @@ export class SubtitleService {
 
             //___Return_Burned_Video________________
 
+            const createNotification = await this.prisma.notification.create({
+                data: {
+                    userId: videoResult.userId,
+                    type: 'JOB_COMPLETED',
+                    title: 'Subtitle generation completed',
+                    message: 'Your video subtitles have been generated successfully.',
+                    data: {
+                        jobId: job.id,
+                        videoId: videoResult.id,
+                        subtitleId: subtitleRecord.id,
+                        ...(burnedVideoRecord && {
+                            burnedVideoId: burnedVideoRecord.id,
+                        }),
+                    },
+                },
+            });
+
             return burnedVideoRecord;
+
 
         } catch (error) {
 
@@ -181,6 +213,20 @@ export class SubtitleService {
                 data: {
                     status: 'FAILED',
                     errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                },
+            });
+
+            const createNotification = await this.prisma.notification.create({
+                data: {
+                    userId: videoResult.userId,
+                    type: 'JOB_failed',
+                    title: 'Subtitle generation failed',
+                    message: 'Your video subtitles have been failed.',
+                    data: {
+                        jobId: job.id,
+                        videoId: videoResult.id,
+                        
+                    },
                 },
             });
 
@@ -418,7 +464,7 @@ export class SubtitleService {
 
         await Promise.all(
             entries.map((entry) =>
-                 rm(path.join(jobDirectory, entry), {
+                rm(path.join(jobDirectory, entry), {
                     recursive: true,
                     force: true,
                 }),

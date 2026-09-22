@@ -213,17 +213,17 @@ onMounted(async () => {
           </thead>
           <tbody>
             <tr v-if="audio">
-              <td>
+              <td data-label="File name">
                 <div class="file-name">
                   <Music2 :size="17" />
                   <strong>{{ audio.filename }}</strong>
                 </div>
               </td>
-              <td>{{ audio.mimetype }}</td>
-              <td>Audio</td>
-              <td>Generated audio</td>
-              <td>{{ formatBytes(audio.size) }}</td>
-              <td>{{ new Date(audio.createdAt).toLocaleDateString() }}</td>
+              <td data-label="Format">{{ audio.mimetype }}</td>
+              <td data-label="Language">Audio</td>
+              <td data-label="Type">Generated audio</td>
+              <td data-label="Size">{{ formatBytes(audio.size) }}</td>
+              <td data-label="Created">{{ new Date(audio.createdAt).toLocaleDateString() }}</td>
               <td class="file-actions">
                 <button class="download-button" type="button" :disabled="downloadingId === audio.id" @click="downloadAudio">
                   <Loader2 v-if="downloadingId === audio.id" :size="15" class="spin" />
@@ -238,17 +238,17 @@ onMounted(async () => {
               </td>
             </tr>
             <tr v-for="file in files" :key="file.id">
-              <td>
+              <td data-label="File name">
                 <div class="file-name">
                   <FileText :size="17" />
                   <strong>{{ file.filename }}</strong>
                 </div>
               </td>
-              <td>{{ file.subtitleFormat }}</td>
-              <td>{{ file.languageCode }}</td>
-              <td>{{ file.mimeType }}</td>
-              <td>{{ formatBytes(file.size) }}</td>
-              <td>{{ new Date(file.createdAt).toLocaleDateString() }}</td>
+              <td data-label="Format">{{ file.subtitleFormat }}</td>
+              <td data-label="Language">{{ file.languageCode }}</td>
+              <td data-label="Type">{{ file.mimeType }}</td>
+              <td data-label="Size">{{ formatBytes(file.size) }}</td>
+              <td data-label="Created">{{ new Date(file.createdAt).toLocaleDateString() }}</td>
               <td class="file-actions">
                 <button
                   class="download-button"
@@ -332,5 +332,86 @@ h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 2rem); }
 .table-state--error { color: #ef4444; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 640px) { .subtitle-files-page { padding: 1rem; } .files-panel__header { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 640px) {
+  .subtitle-files-page { padding: 1rem; }
+  .files-panel__header { align-items: flex-start; flex-direction: column; }
+
+  .files-table-wrap { overflow-x: visible; }
+  .files-table { min-width: 0; }
+
+  .files-table thead { display: none; }
+
+  .files-table,
+  .files-table tbody,
+  .files-table tr,
+  .files-table td { display: block; width: 100%; }
+
+  .files-table tbody tr {
+    width: auto;
+    margin: 0 0.75rem 0.75rem;
+    padding: 0.25rem 0.75rem;
+    background: var(--card-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+  }
+
+  .files-table tbody tr:last-child {
+    margin-bottom: 0.75rem;
+  }
+
+  .files-table td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--border-color);
+    text-align: right;
+    white-space: normal;
+  }
+
+  .files-table td::before {
+    content: attr(data-label);
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  .files-table tbody tr:last-child td {
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .files-table td:last-child {
+    border-bottom: none;
+  }
+
+  .file-name {
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .file-name strong {
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .file-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .file-actions::before {
+    display: none;
+  }
+
+  .download-button,
+  .burn-button,
+  .delete-button {
+    margin-left: 0;
+  }
+}
 </style>

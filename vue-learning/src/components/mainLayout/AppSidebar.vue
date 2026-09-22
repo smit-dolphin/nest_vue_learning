@@ -13,6 +13,7 @@ import {
   LogOut,
 } from 'lucide-vue-next'
 
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { logoutMe } from '@/services/authService'
 import { useAuthStore } from '@/stores/authStore'
@@ -24,11 +25,32 @@ const authStore = useAuthStore()
 // Parent controls the collapsed state
 const props = defineProps<{
   collapsed: boolean
+  mobileOpen?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:collapsed': [value: boolean]
+  'close-mobile': []
 }>()
+
+const isMobile = ref(false)
+let mediaQuery: MediaQueryList | null = null
+
+function handleMediaChange(event: MediaQueryListEvent) {
+  isMobile.value = event.matches
+}
+
+onMounted(() => {
+  mediaQuery = window.matchMedia('(max-width: 900px)')
+  isMobile.value = mediaQuery.matches
+  mediaQuery.addEventListener('change', handleMediaChange)
+})
+
+onBeforeUnmount(() => {
+  mediaQuery?.removeEventListener('change', handleMediaChange)
+})
+
+const effectiveCollapsed = computed(() => props.collapsed && !isMobile.value)
 
 const navItems = [
   {
@@ -99,17 +121,20 @@ const logout = async () => {
 <template>
   <aside
     class="sidebar"
-    :class="{ 'sidebar--collapsed': props.collapsed }"
+    :class="{
+      'sidebar--collapsed': effectiveCollapsed,
+      'sidebar--mobile-open': props.mobileOpen,
+    }"
   >
     <!-- Logo -->
-    <div class="sidebar__logo" :class="{ 'sidebar__logo--collapsed': props.collapsed }">
+    <div class="sidebar__logo" :class="{ 'sidebar__logo--collapsed': effectiveCollapsed }">
       <div class="sidebar__logo-icon">
         <Sparkles :size="20" />
       </div>
 
       <Transition name="fade">
         <span
-          v-if="!props.collapsed"
+          v-if="!effectiveCollapsed"
           class="sidebar__logo-text"
         >
           Sub<span class="sidebar__logo-accent">AI</span>
@@ -118,12 +143,12 @@ const logout = async () => {
 
       <button
         class="sidebar__toggle"
-        :title="props.collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-        :aria-label="props.collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        :title="effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        :aria-label="effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         type="button"
         @click="toggleCollapsed"
       >
-        <ChevronLeft v-if="!props.collapsed" :size="16" />
+        <ChevronLeft v-if="!effectiveCollapsed" :size="16" />
         <ChevronRight v-else :size="16" />
       </button>
     </div>
@@ -131,7 +156,7 @@ const logout = async () => {
     <!-- Upgrade Banner -->
     <Transition name="fade">
       <div
-        v-if="!props.collapsed"
+        v-if="!effectiveCollapsed"
         class="sidebar__upgrade"
       >
         <div class="sidebar__upgrade-icon">
@@ -160,7 +185,7 @@ const logout = async () => {
         <!-- Group title -->
         <Transition name="fade">
           <p
-            v-if="!props.collapsed"
+            v-if="!effectiveCollapsed"
             class="sidebar__group-label"
           >
             {{ group.group }}
@@ -176,7 +201,8 @@ const logout = async () => {
           :class="{
             'sidebar__nav-item--active': isActive(item.to),
           }"
-          :title="props.collapsed ? item.label : ''"
+          :title="effectiveCollapsed ? item.label : ''"
+          @click="emit('close-mobile')"
         >
           <!-- Icon -->
           <span class="sidebar__nav-icon">
@@ -189,7 +215,7 @@ const logout = async () => {
           <!-- Label -->
           <Transition name="fade">
             <span
-              v-if="!props.collapsed"
+              v-if="!effectiveCollapsed"
               class="sidebar__nav-label"
             >
               {{ item.label }}
@@ -199,7 +225,7 @@ const logout = async () => {
           <!-- Active dot -->
           <span
             v-if="
-              !props.collapsed &&
+              !effectiveCollapsed &&
               isActive(item.to)
             "
             class="sidebar__nav-dot"
@@ -211,13 +237,13 @@ const logout = async () => {
     <!-- Logout -->
     <button
       class="sidebar__logout"
-      :title="props.collapsed ? 'Log out' : ''"
+      :title="effectiveCollapsed ? 'Log out' : ''"
       type="button"
       @click="logout"
     >
       <LogOut :size="17" />
       <Transition name="fade">
-        <span v-if="!props.collapsed">Log out</span>
+        <span v-if="!effectiveCollapsed">Log out</span>
       </Transition>
     </button>
   </aside>
@@ -594,5 +620,45 @@ const logout = async () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+/* =========================
+   Mobile drawer
+========================= */
+
+@media (max-width: 900px) {
+  .sidebar {
+    z-index: 130;
+    width: min(300px, 86vw);
+    transform: translateX(-100%);
+    transition:
+      transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+      box-shadow 0.3s ease;
+    box-shadow: none;
+  }
+
+  .sidebar--mobile-open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-md);
+  }
+
+  .sidebar--collapsed {
+    width: min(300px, 86vw);
+  }
+
+  .sidebar__toggle {
+    display: none;
+  }
+
+  .sidebar__logo--collapsed {
+    justify-content: flex-start;
+    padding-inline: 1rem;
+  }
+
+  .sidebar--collapsed .sidebar__logout {
+    justify-content: flex-start;
+    margin-inline: 0.5rem;
+    padding-inline: 0.65rem;
+  }
 }
 </style>

@@ -40,4 +40,31 @@ const emit = defineEmits<{
 .btn { display: inline-flex; align-items: center; gap: 6px; border-radius: 10px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s; padding: 0.55rem 1.1rem; border: none; text-decoration: none; }
 .btn--primary { background: var(--team-gradient); color: #fff; box-shadow: 0 4px 12px rgba(139,92,246,0.4); }
 .btn--primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(139,92,246,0.5); }
+
+@media (max-width: 600px) {
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+  }
+
+  .page-header__icon {
+    width: 42px;
+    height: 42px;
+  }
+
+  .page-header__icon :deep(svg) {
+    width: 19px;
+    height: 19px;
+  }
+
+  .page-header__title {
+    font-size: 1.15rem;
+  }
+
+  .page-header .btn {
+    justify-content: center;
+    width: 100%;
+  }
+}
 </style>

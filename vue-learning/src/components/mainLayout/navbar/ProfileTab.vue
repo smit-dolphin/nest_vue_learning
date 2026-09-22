@@ -186,6 +186,26 @@ const logout = async  () => {
   text-align: left;
 }
 
+@media (max-width: 650px) {
+  .navbar__avatar-info {
+    display: none;
+  }
+
+  .navbar__avatar-btn {
+    padding: 0.3rem;
+  }
+
+  .navbar__profile-menu {
+    position: fixed;
+    top: 64px;
+    right: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    max-height: calc(100vh - 88px);
+    overflow-y: auto;
+  }
+}
+
 .navbar__avatar-name {
   font-size: 0.78rem;
   font-weight: 600;

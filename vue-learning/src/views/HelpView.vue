@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import {
-  HelpCircle, Search, ChevronDown, ChevronRight, ExternalLink,
+  HelpCircle, Search, ChevronDown, ExternalLink,
   MessageCircle, Book, Video, Zap, Mail, Github, FileText,
-  CheckCircle2, AlertCircle, Clock, Globe2
+  CheckCircle2, Clock, Globe2
 } from 'lucide-vue-next'
 
 const searchQuery = ref('')
@@ -340,5 +340,40 @@ const statusBg = (s: string) => ({ operational: 'rgba(16,185,129,0.1)', degraded
 @media (max-width: 1100px) {
   .help-grid { grid-template-columns: 1fr; }
   .tutorials-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .help-page {
+    padding: 1rem;
+    gap: 1rem;
+  }
+
+  .help-hero {
+    padding: 1.5rem 1rem;
+  }
+
+  .help-hero__title {
+    font-size: 1.4rem;
+  }
+
+  .help-hero__sub {
+    font-size: 0.82rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .tutorials-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .faq-item__question {
+    padding: 0.85rem 1rem;
+    font-size: 0.82rem;
+  }
+
+  .faq-item__answer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 </style>

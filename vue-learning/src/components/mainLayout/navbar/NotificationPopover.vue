@@ -392,9 +392,9 @@ onUnmounted(() => {
 @media (max-width: 650px) {
   .notification-panel {
     position: fixed;
-    top: 68px;
-    right: 1rem;
-    left: 1rem;
+    top: 64px;
+    right: 0.75rem;
+    left: 0.75rem;
     width: auto;
   }
 }

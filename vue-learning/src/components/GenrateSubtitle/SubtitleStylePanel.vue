@@ -256,14 +256,14 @@ function setBackgroundOpacity(event: Event) {
 
 .style-card__title {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 800;
   color: var(--text-primary);
 }
 
 .style-card__subtitle {
   margin: 1px 0 0;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
 }
 
@@ -288,7 +288,7 @@ function setBackgroundOpacity(event: Event) {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.4px;
@@ -325,6 +325,11 @@ function setBackgroundOpacity(event: Event) {
   opacity: 0.4;
 }
 
+.stepper__btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 1px;
+}
+
 .stepper__value {
   font-size: 0.8rem;
   font-weight: 700;
@@ -346,6 +351,11 @@ function setBackgroundOpacity(event: Event) {
 
 .color-input:hover {
   border-color: var(--border-focus);
+}
+
+.color-input:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
 }
 
 .color-input__picker {
@@ -397,7 +407,8 @@ function setBackgroundOpacity(event: Event) {
 }
 
 .style-toggle__desc {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
   color: var(--text-muted);
   margin: 0;
 }
@@ -413,6 +424,15 @@ function setBackgroundOpacity(event: Event) {
   padding: 2px;
   transition: background 0.25s, border-color 0.25s;
   position: relative;
+}
+
+.switch:hover {
+  border-color: var(--border-focus);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
 }
 
 .switch--on {

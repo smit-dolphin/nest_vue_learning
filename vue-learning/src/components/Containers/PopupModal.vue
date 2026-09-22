@@ -106,4 +106,28 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
 .popup-leave-to { opacity: 0; }
 .popup-enter-from .popup-modal__panel,
 .popup-leave-to .popup-modal__panel { transform: translateY(10px) scale(0.98); }
+
+@media (max-width: 520px) {
+  .popup-modal {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .popup-modal__panel {
+    width: 100%;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .popup-modal__body {
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  .popup-modal__footer {
+    flex-wrap: wrap;
+  }
+}
 </style>
