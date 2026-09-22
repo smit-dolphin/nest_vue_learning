@@ -2,6 +2,8 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
@@ -12,14 +14,21 @@ import type { Request } from 'express';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 
+import { unlink } from 'fs/promises';
+
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { UpdateProfileDto } from './dto/update-profile.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { UpdateSettingsDto } from './dto/update-settings.dto.js';
+import { StorageService } from '../storage/storage.service.js';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly storageService: StorageService,
   ) { }
 
   // =========================
@@ -428,8 +437,164 @@ export class AuthService {
         email: true,
         role: true,
         profileImage: true,
+        googleId: true,
+        settings: true,
         createdAt: true
       }
     });
+  }
+
+  // =========================
+  // UPDATE MY PROFILE
+  // =========================
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    if (dto.username === undefined || dto.username === null) {
+      throw new BadRequestException('Nothing to update');
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { username: dto.username },
+    });
+
+    return this.getMyProfile(userId);
+  }
+
+  // =========================
+  // CHANGE PASSWORD
+  // =========================
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    if (user.googleId) {
+      throw new ForbiddenException(
+        'You signed in with Google and cannot change a password',
+      );
+    }
+
+    if (!user.password) {
+      throw new ForbiddenException(
+        'This account does not have a password set',
+      );
+    }
+
+    const passwordCorrect =
+      await bcrypt.compare(dto.currentPassword, user.password);
+
+    if (!passwordCorrect) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Password updated successfully' };
+  }
+
+  // =========================
+  // PROFILE IMAGE
+  // =========================
+
+  async uploadProfileImage(userId: string, file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No image uploaded');
+    }
+
+    const storageKey = await this.storageService.upload(
+      file.path,
+      `/uploads/profiles/${Date.now()}-${file.filename}`,
+    );
+
+    await unlink(file.path).catch(() => {});
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { profileImage: storageKey },
+    });
+
+    return this.getMyProfile(userId);
+  }
+
+  // =========================
+  // USER SETTINGS
+  // =========================
+
+  async getSettings(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { settings: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return this.mergeSettings(user.settings);
+  }
+
+  async updateSettings(userId: string, dto: UpdateSettingsDto) {
+    const existing = await this.getSettings(userId);
+
+    const notifications = {
+      ...existing.notifications,
+      ...(dto.notifications ?? {}),
+    };
+
+    const nextSettings = {
+      defaultLang: dto.defaultLang ?? existing.defaultLang,
+      defaultFormat: dto.defaultFormat ?? existing.defaultFormat,
+      autoDownload: dto.autoDownload ?? existing.autoDownload,
+      darkMode: dto.darkMode ?? existing.darkMode,
+      compactView: dto.compactView ?? existing.compactView,
+      notifications,
+    };
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { settings: nextSettings },
+    });
+
+    return nextSettings;
+  }
+
+  private mergeSettings(stored: unknown) {
+    const defaults = {
+      defaultLang: 'en',
+      defaultFormat: 'SRT',
+      autoDownload: false,
+      darkMode: true,
+      compactView: false,
+      notifications: {
+        jobComplete: true,
+        jobFailed: true,
+        weeklyReport: false,
+        productUpdates: true,
+        marketing: false,
+      },
+    };
+
+    const storedRecord = (stored ?? {}) as Record<string, unknown>;
+    const storedNotifications = (storedRecord.notifications ?? {}) as Record<string, unknown>;
+
+    return {
+      ...defaults,
+      ...storedRecord,
+      notifications: {
+        ...defaults.notifications,
+        ...storedNotifications,
+      },
+    };
   }
 }

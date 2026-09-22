@@ -1,7 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { UsersService } from './users.service.js';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
+import type { AuthRequest } from '../auth/types/auth-request.js';
 
 @Controller('users')
+@UseGuards(JwtAuthGuard)
 export class UsersController {
 
     constructor(private readonly usersService: UsersService) {}
@@ -12,7 +15,10 @@ export class UsersController {
     }
 
     @Get(':id')
-    getSingleUser(@Param('id') id: string) {
+    getSingleUser(@Param('id') id: string, @Req() req: AuthRequest) {
+        if (id !== req.user.sub) {
+            throw new ForbiddenException('You do not have permission to access this user');
+        }
         return this.usersService.getSingleUser(id);
     }
 
@@ -22,12 +28,18 @@ export class UsersController {
     }
 
     @Patch(':id')
-    updateUser(@Param('id') id: string, @Body() body: Partial<{ email: string; password: string }>) {
+    updateUser(@Param('id') id: string, @Body() body: Partial<{ email: string; password: string }>, @Req() req: AuthRequest) {
+        if (id !== req.user.sub) {
+            throw new ForbiddenException('You do not have permission to update this user');
+        }
         return this.usersService.updateUser(id, body);
     }
 
     @Delete(':id')
-    deleteUser(@Param('id') id: string) {
+    deleteUser(@Param('id') id: string, @Req() req: AuthRequest) {
+        if (id !== req.user.sub) {
+            throw new ForbiddenException('You do not have permission to delete this user');
+        }
         return this.usersService.deleteUser(id);
     }
 }

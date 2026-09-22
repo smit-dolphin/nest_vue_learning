@@ -3,10 +3,21 @@ import {
     Controller,
     Post,
     Get,
+    Patch,
     Req,
     UseGuards,
+    UseInterceptors,
+    UploadedFile,
     Res,
+    BadRequestException,
+    NotFoundException,
+    StreamableFile,
 } from '@nestjs/common';
+
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { createReadStream } from 'fs';
 
 import type {
     Request,
@@ -17,8 +28,13 @@ import { AuthService } from './auth.service.js';
 
 import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
+import { UpdateProfileDto } from './dto/update-profile.dto.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { UpdateSettingsDto } from './dto/update-settings.dto.js';
 
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { StreamAuthGuard } from './guards/stream-auth.guard.js';
+import { StorageService } from '../storage/storage.service.js';
 
 import type { AuthRequest } from './types/auth-request.js';
 
@@ -35,6 +51,7 @@ type GoogleProfile = {
 export class AuthController {
     constructor(
         private readonly authService: AuthService,
+        private readonly storageService: StorageService,
     ) { }
 
     // =========================
@@ -135,6 +152,119 @@ export class AuthController {
         return this.authService.getMyProfile(
             request.user.sub,
         );
+    }
+
+    // =========================
+    // UPDATE MY PROFILE
+    // =========================
+
+    @Patch('me')
+    @UseGuards(JwtAuthGuard)
+    updateProfile(
+        @Req() request: AuthRequest,
+        @Body() body: UpdateProfileDto,
+    ) {
+        return this.authService.updateProfile(
+            request.user.sub,
+            body,
+        );
+    }
+
+    // =========================
+    // CHANGE PASSWORD
+    // =========================
+
+    @Post('change-password')
+    @UseGuards(JwtAuthGuard)
+    changePassword(
+        @Req() request: AuthRequest,
+        @Body() body: ChangePasswordDto,
+    ) {
+        return this.authService.changePassword(
+            request.user.sub,
+            body,
+        );
+    }
+
+    // =========================
+    // PROFILE IMAGE
+    // =========================
+
+    @Post('profile-image')
+    @UseGuards(JwtAuthGuard)
+    @UseInterceptors(FileInterceptor('image', {
+        storage: diskStorage({
+            destination: './uploads',
+            filename: (req, file, cb) => {
+                const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                cb(null, `${unique}${extname(file.originalname)}`);
+            },
+        }),
+        limits: {
+            fileSize: 2 * 1024 * 1024,
+        },
+        fileFilter: (req, file, cb) => {
+            const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+            const valid = allowed.includes(file.mimetype);
+            if (!valid) {
+                return cb(new BadRequestException('Only image files are allowed'), false);
+            }
+
+            cb(null, true);
+        },
+    }))
+    uploadProfileImage(
+        @Req() request: AuthRequest,
+        @UploadedFile() file: Express.Multer.File,
+    ) {
+        return this.authService.uploadProfileImage(
+            request.user.sub,
+            file,
+        );
+    }
+
+    // =========================
+    // PROFILE IMAGE STREAM
+    // =========================
+
+    @Get('profile-image')
+    @UseGuards(StreamAuthGuard)
+    async getProfileImage(
+        @Req() request: AuthRequest,
+    ) {
+        const user = await this.authService.getMyProfile(request.user.sub);
+
+        if (!user?.profileImage) {
+            throw new NotFoundException('Profile image not found');
+        }
+
+        const { localPath } = await this.storageService.getLocalCopy(
+            user.profileImage,
+        );
+
+        return new StreamableFile(createReadStream(localPath));
+    }
+
+    // =========================
+    // USER SETTINGS
+    // =========================
+
+    @Get('settings')
+    @UseGuards(JwtAuthGuard)
+    getSettings(
+        @Req() request: AuthRequest,
+    ) {
+        return this.authService.getSettings(request.user.sub);
+    }
+
+    @Patch('settings')
+    @UseGuards(JwtAuthGuard)
+    updateSettings(
+        @Req() request: AuthRequest,
+        @Body() body: UpdateSettingsDto,
+    ) {
+        return this.authService.updateSettings(request.user.sub, body);
     }
 
     // =========================

@@ -6,6 +6,7 @@ import HomeView from '../views/HomeView.vue'
 import GenrateSubtitleView from '../views/GenrateSubtitleView.vue'
 import VideoLibraryView from '../views/VideoLibraryView.vue'
 import SubtitleFilesView from '../views/SubtitleFilesView.vue'
+import SubtitleEditorView from '../views/SubtitleEditorView.vue'
 import HistoryView from '../views/HistoryView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import HelpView from '../views/HelpView.vue'
@@ -15,7 +16,6 @@ import LoginView from '../views/LoginView.vue'
 import RegisterUser from '../views/RegisterUser.vue'
 import GoogleCallbackView from '../views/GoogleCallbackView.vue'
 import NotFoundView from '../views/NotFoundView.vue'
-import JobProgressTest from '../views/JobProgressTest.vue'
 
 
 const router = createRouter({
@@ -71,6 +71,11 @@ const router = createRouter({
           component: SubtitleFilesView,
         },
         {
+          path: '/library/subtitles/:videoId/edit/:subtitleId',
+          name: 'subtitle-editor',
+          component: SubtitleEditorView,
+        },
+        {
           path: '/history',
           name: 'history',
           component: HistoryView,
@@ -89,11 +94,6 @@ const router = createRouter({
           path: '/help',
           name: 'help',
           component: HelpView,
-        },
-        {
-          path: '/socket-test',
-          name: 'socket-test',
-          component: JobProgressTest,
         },
       ],
     },

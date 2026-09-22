@@ -36,7 +36,9 @@ import { join } from 'path';
         ),
         
             ServeStaticModule.forRoot({
-                rootPath:join(process.cwd(),'../vue-learning','dist')
+                rootPath: join(process.cwd(), '..', 'vue-learning', 'dist'),
+                exclude: ['/api', '/api/{*path}'],
+                renderPath: '{*path}',
             }),
         
         JwtModule.register({

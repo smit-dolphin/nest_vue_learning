@@ -1,9 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import {
   Settings, User, Globe2, Bell, Shield, Palette, Key,
-  CreditCard, Trash2, Check, ChevronRight, Moon, AlignLeft, Captions, Zap
+  CreditCard, Trash2, Check, ChevronRight, Moon, AlignLeft, Captions, Loader2
 } from 'lucide-vue-next'
+import { toast } from 'vue-sonner'
+import { useAuthStore } from '@/stores/authStore'
+import {
+  changePassword,
+  getUserSettings,
+  getProfileImageUrl,
+  updateProfile,
+  updateUserSettings,
+  uploadProfileImage,
+} from '@/services/authService'
+import type { UserSettings } from '@/services/authService'
+import { deleteVideo, getUserVideos } from '@/services/videoService'
+import { FORMATS, LANGUAGES } from '@/components/GenrateSubtitle/languages'
+
+const authStore = useAuthStore()
+const isOAuth = computed(() => authStore.isOAuth)
 
 const activeSection = ref('profile')
 
@@ -17,12 +33,13 @@ const sections = [
 ]
 
 /* Profile */
-const profile = ref({ name: 'Smit Dev', email: 'smit@example.com', company: 'SubAI Studio', timezone: 'Asia/Kolkata' })
+const username = ref('')
+const email = ref('')
+const avatarUrl = ref('')
 
 /* Preferences */
-const prefs = ref({
-  defaultLang: 'English',
-  defaultFormat: 'SRT',
+const prefs = ref({ defaultLang: 'en', defaultFormat: 'SRT' })
+const settingToggles = ref({
   autoDownload: false,
   darkMode: true,
   compactView: false,
@@ -37,17 +54,180 @@ const notifs = ref({
   marketing: false,
 })
 
-/* API keys (masked) */
-const apiKeys = [
-  { name: 'Production Key', key: 'sk-prod-••••••••••••ABCD', created: 'Aug 1, 2026', last: '2 min ago' },
-  { name: 'Development Key', key: 'sk-dev-••••••••••••XY12', created: 'Jul 15, 2026', last: '3 days ago' },
-]
+/* Password */
+const passwordForm = ref({ current: '', next: '', confirm: '' })
+const changingPassword = ref(false)
 
-const saved = ref(false)
-const saveProfile = () => {
-  saved.value = true
-  setTimeout(() => (saved.value = false), 2000)
+/* Shared save state */
+const saved = ref('')
+const saving = ref(false)
+const settingsLoading = ref(true)
+const deletingHistory = ref(false)
+
+const savedFlash = (which: string) => {
+  saved.value = which
+  setTimeout(() => (saved.value = ''), 2000)
 }
+
+const loadSettings = async () => {
+  settingsLoading.value = true
+  try {
+    const settings: UserSettings = await getUserSettings()
+    prefs.value.defaultLang = settings.defaultLang
+    prefs.value.defaultFormat = settings.defaultFormat
+    settingToggles.value.autoDownload = settings.autoDownload
+    settingToggles.value.darkMode = settings.darkMode
+    settingToggles.value.compactView = settings.compactView
+    notifs.value = { ...notifs.value, ...settings.notifications }
+  } catch {
+    toast.error('Could not load your settings')
+  } finally {
+    settingsLoading.value = false
+  }
+}
+
+const syncFromUser = () => {
+  username.value = authStore.user?.username ?? ''
+  email.value = authStore.user?.email ?? ''
+  avatarUrl.value = authStore.user?.profileImage ? getProfileImageUrl() : ''
+}
+
+const saveProfile = async () => {
+  if (!username.value.trim()) {
+    toast.error('Username cannot be empty')
+    return
+  }
+  if (username.value === authStore.user?.username) {
+    savedFlash('profile')
+    return
+  }
+  saving.value = true
+  try {
+    const updated = await updateProfile({ username: username.value.trim() })
+    authStore.setUser(updated)
+    savedFlash('profile')
+  } catch {
+    /* error toast handled by interceptor */
+  } finally {
+    saving.value = false
+  }
+}
+
+const savePrefs = async () => {
+  saving.value = true
+  try {
+    await updateUserSettings({
+      defaultLang: prefs.value.defaultLang,
+      defaultFormat: prefs.value.defaultFormat,
+      autoDownload: settingToggles.value.autoDownload,
+      darkMode: settingToggles.value.darkMode,
+      compactView: settingToggles.value.compactView,
+    })
+    savedFlash('prefs')
+  } catch {
+    /* handled */
+  } finally {
+    saving.value = false
+  }
+}
+
+const saveNotifs = async () => {
+  saving.value = true
+  try {
+    await updateUserSettings({ notifications: { ...notifs.value } })
+    savedFlash('notifs')
+  } catch {
+    /* handled */
+  } finally {
+    saving.value = false
+  }
+}
+
+const pickedAvatar = ref<File | null>(null)
+
+const pickAvatar = () => {
+  document.getElementById('avatar-file-input')?.click()
+}
+
+const onPickAvatar = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  pickedAvatar.value = file
+
+  const reader = new FileReader()
+  reader.onload = () => { avatarUrl.value = String(reader.result) }
+  reader.readAsDataURL(file)
+}
+
+const uploadAvatar = async () => {
+  const file = pickedAvatar.value
+  if (!file) {
+    toast.error('Choose an image first')
+    return
+  }
+
+  saving.value = true
+  try {
+    const updated = await uploadProfileImage(file)
+    authStore.setUser(updated)
+    avatarUrl.value = updated.profileImage ? getProfileImageUrl() : ''
+    pickedAvatar.value = null
+    savedFlash('profile')
+  } catch {
+    /* handled */
+  } finally {
+    saving.value = false
+  }
+}
+
+const submitPassword = async () => {
+  const { current, next, confirm } = passwordForm.value
+  if (!current || !next || !confirm) {
+    toast.error('Fill in all password fields')
+    return
+  }
+  if (next !== confirm) {
+    toast.error('New passwords do not match')
+    return
+  }
+  changingPassword.value = true
+  try {
+    await changePassword(current, next)
+    passwordForm.value = { current: '', next: '', confirm: '' }
+    toast.success('Password updated successfully')
+  } catch {
+    /* handled */
+  } finally {
+    changingPassword.value = false
+  }
+}
+
+const deleteHistory = async () => {
+  if (!window.confirm('Delete ALL videos, subtitle files, and job history? This cannot be undone.')) return
+  deletingHistory.value = true
+  try {
+    const videos = await getUserVideos()
+    for (const video of videos) {
+      await deleteVideo(video.id)
+    }
+    toast.success(`Deleted ${videos.length} item${videos.length === 1 ? '' : 's'}`)
+  } catch {
+    /* handled */
+  } finally {
+    deletingHistory.value = false
+  }
+}
+
+const initials = computed(() => {
+  const name = authStore.user?.username || authStore.user?.email || 'User'
+  return name.slice(0, 1).toUpperCase()
+})
+
+onMounted(() => {
+  syncFromUser()
+  void loadSettings()
+})
 
 const preferenceIcons = { autoDownload: Captions, darkMode: Moon, compactView: Palette }
 const preferenceLabels = { autoDownload: 'Auto Download', darkMode: 'Dark Mode', compactView: 'Compact View' }
@@ -99,41 +279,39 @@ const preferenceDescriptions = {
           <!-- Avatar -->
           <div class="avatar-upload">
             <div class="avatar-upload__preview">
-              <span>SD</span>
+              <img v-if="avatarUrl" :src="avatarUrl" alt="Profile photo" />
+              <span v-else>{{ initials }}</span>
             </div>
             <div>
-              <button class="btn btn--ghost btn--sm">Change Photo</button>
+              <input id="avatar-file-input" type="file" accept="image/jpeg,image/png,image/webp" hidden @change="onPickAvatar" />
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn--ghost btn--sm" @click="pickAvatar">Change Photo</button>
+                <button class="btn btn--primary btn--sm" @click="uploadAvatar">
+                  <Loader2 v-if="saving" :size="14" class="spin" />
+                  <Check v-else-if="saved === 'profile'" :size="14" />
+                  Upload
+                </button>
+              </div>
               <p class="avatar-upload__hint">JPG, PNG up to 2MB</p>
             </div>
           </div>
 
           <div class="form-grid">
             <div class="form-field">
-              <label class="form-label">Full Name</label>
-              <input v-model="profile.name" type="text" class="form-input" />
+              <label class="form-label">Username</label>
+              <input v-model="username" type="text" class="form-input" />
             </div>
             <div class="form-field">
               <label class="form-label">Email Address</label>
-              <input v-model="profile.email" type="email" class="form-input" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">Company / Studio</label>
-              <input v-model="profile.company" type="text" class="form-input" />
-            </div>
-            <div class="form-field">
-              <label class="form-label">Timezone</label>
-              <select v-model="profile.timezone" class="form-select">
-                <option>Asia/Kolkata</option>
-                <option>America/New_York</option>
-                <option>Europe/London</option>
-                <option>Asia/Tokyo</option>
-              </select>
+              <input :value="email" type="email" class="form-input" disabled />
             </div>
           </div>
 
           <div class="settings-section__footer">
             <button class="btn btn--primary" @click="saveProfile">
-              <Check v-if="saved" :size="15" /> {{ saved ? 'Saved!' : 'Save Changes' }}
+              <Loader2 v-if="saving" :size="15" class="spin" />
+              <Check v-else-if="saved === 'profile'" :size="15" />
+              {{ saved === 'profile' ? 'Saved!' : 'Save Changes' }}
             </button>
           </div>
 
@@ -149,14 +327,11 @@ const preferenceDescriptions = {
                   <p class="danger-row__title">Delete All History</p>
                   <p class="danger-row__desc">Permanently remove all job history and subtitle files</p>
                 </div>
-                <button class="btn btn--danger btn--sm"><Trash2 :size="14" /> Delete History</button>
-              </div>
-              <div class="danger-row">
-                <div>
-                  <p class="danger-row__title">Delete Account</p>
-                  <p class="danger-row__desc">Permanently delete your account and all associated data</p>
-                </div>
-                <button class="btn btn--danger btn--sm"><Trash2 :size="14" /> Delete Account</button>
+                <button class="btn btn--danger btn--sm" :disabled="deletingHistory" @click="deleteHistory">
+                  <Loader2 v-if="deletingHistory" :size="14" class="spin" />
+                  <Trash2 v-else :size="14" />
+                  {{ deletingHistory ? 'Deleting…' : 'Delete History' }}
+                </button>
               </div>
             </div>
           </div>
@@ -168,44 +343,47 @@ const preferenceDescriptions = {
             <h3>Preferences</h3>
             <p>Customize your default subtitle settings and app appearance</p>
           </div>
+          <div v-if="settingsLoading" class="settings-loading"><Loader2 :size="18" class="spin" /> Loading preferences…</div>
+          <template v-else>
           <div class="form-grid">
             <div class="form-field">
               <label class="form-label"><Globe2 :size="13" /> Default Language</label>
               <select v-model="prefs.defaultLang" class="form-select">
-                <option v-for="l in ['English','Spanish','French','German','Japanese','Korean']" :key="l">{{ l }}</option>
+                <option v-for="l in LANGUAGES" :key="l.code" :value="l.code">{{ l.name }}</option>
               </select>
             </div>
             <div class="form-field">
               <label class="form-label"><AlignLeft :size="13" /> Default Format</label>
               <select v-model="prefs.defaultFormat" class="form-select">
-                <option v-for="f in ['SRT','WebVTT','ASS/SSA','JSON','Plain Text']" :key="f">{{ f }}</option>
+                <option v-for="f in FORMATS" :key="f" :value="f">{{ f }}</option>
               </select>
             </div>
           </div>
           <div class="pref-toggles">
-            <div v-for="(val, key) in prefs" :key="key" class="pref-toggle-row">
-              <div v-if="typeof val === 'boolean'">
-                <div class="pref-toggle-row__inner">
-                  <div class="pref-toggle-row__info">
-                    <component :is="preferenceIcons[key as keyof typeof preferenceIcons] ?? Captions" :size="15" />
-                    <div>
-                      <p class="pref-toggle-row__label">{{ preferenceLabels[key as keyof typeof preferenceLabels] }}</p>
-                      <p class="pref-toggle-row__desc">{{ preferenceDescriptions[key as keyof typeof preferenceDescriptions] }}</p>
-                    </div>
+            <div v-for="(val, key) in settingToggles" :key="key" class="pref-toggle-row">
+              <div class="pref-toggle-row__inner">
+                <div class="pref-toggle-row__info">
+                  <component :is="preferenceIcons[key as keyof typeof preferenceIcons] ?? Captions" :size="15" />
+                  <div>
+                    <p class="pref-toggle-row__label">{{ preferenceLabels[key as keyof typeof preferenceLabels] }}</p>
+                    <p class="pref-toggle-row__desc">{{ preferenceDescriptions[key as keyof typeof preferenceDescriptions] }}</p>
                   </div>
-                  <button class="toggle-btn" :class="{ 'toggle-btn--on': prefs[key as keyof typeof prefs] }"
-                    @click="(prefs[key as keyof typeof prefs] as boolean) = !(prefs[key as keyof typeof prefs] as boolean)">
-                    <span class="toggle-btn__thumb"></span>
-                  </button>
                 </div>
+                <button class="toggle-btn" :class="{ 'toggle-btn--on': settingToggles[key as keyof typeof settingToggles] }"
+                  @click="(settingToggles[key as keyof typeof settingToggles] as boolean) = !(settingToggles[key as keyof typeof settingToggles] as boolean)">
+                  <span class="toggle-btn__thumb"></span>
+                </button>
               </div>
             </div>
           </div>
           <div class="settings-section__footer">
-            <button class="btn btn--primary" @click="saveProfile">
-              <Check v-if="saved" :size="15" /> {{ saved ? 'Saved!' : 'Save Preferences' }}
+            <button class="btn btn--primary" @click="savePrefs">
+              <Loader2 v-if="saving" :size="15" class="spin" />
+              <Check v-else-if="saved === 'prefs'" :size="15" />
+              {{ saved === 'prefs' ? 'Saved!' : 'Save Preferences' }}
             </button>
           </div>
+          </template>
         </div>
 
         <!-- API Keys -->
@@ -214,28 +392,11 @@ const preferenceDescriptions = {
             <h3>API Keys</h3>
             <p>Manage your API keys for programmatic access</p>
           </div>
-          <div class="api-keys">
-            <div v-for="k in apiKeys" :key="k.name" class="api-key-card">
-              <div class="api-key-card__header">
-                <div>
-                  <p class="api-key-card__name">{{ k.name }}</p>
-                  <p class="api-key-card__created">Created {{ k.created }}</p>
-                </div>
-                <div class="api-key-card__badge">Active</div>
-              </div>
-              <div class="api-key-card__key">
-                <code>{{ k.key }}</code>
-                <button class="btn btn--ghost btn--xs">Copy</button>
-              </div>
-              <div class="api-key-card__footer">
-                <span>Last used: {{ k.last }}</span>
-                <button class="btn btn--danger btn--xs"><Trash2 :size="12" /> Revoke</button>
-              </div>
-            </div>
+          <div class="coming-soon">
+            <Key :size="22" />
+            <p class="coming-soon__title">Coming soon</p>
+            <p class="coming-soon__desc">API access is currently in private beta. Programmatic subtitle generation will be available here shortly.</p>
           </div>
-          <button class="btn btn--ghost" style="margin-top: 1rem;">
-            <Key :size="15" /> Generate New Key
-          </button>
         </div>
 
         <!-- Notifications -->
@@ -244,6 +405,8 @@ const preferenceDescriptions = {
             <h3>Notifications</h3>
             <p>Choose what updates you want to receive</p>
           </div>
+          <div v-if="settingsLoading" class="settings-loading"><Loader2 :size="18" class="spin" /> Loading notifications…</div>
+          <template v-else>
           <div class="notif-list">
             <div v-for="(val, key) in notifs" :key="key" class="notif-row">
               <div class="notif-row__info">
@@ -269,10 +432,13 @@ const preferenceDescriptions = {
             </div>
           </div>
           <div class="settings-section__footer">
-            <button class="btn btn--primary" @click="saveProfile">
-              <Check v-if="saved" :size="15" /> {{ saved ? 'Saved!' : 'Save Preferences' }}
+            <button class="btn btn--primary" @click="saveNotifs">
+              <Loader2 v-if="saving" :size="15" class="spin" />
+              <Check v-else-if="saved === 'notifs'" :size="15" />
+              {{ saved === 'notifs' ? 'Saved!' : 'Save Preferences' }}
             </button>
           </div>
+          </template>
         </div>
 
         <!-- Billing -->
@@ -281,26 +447,10 @@ const preferenceDescriptions = {
             <h3>Billing & Plan</h3>
             <p>Manage your subscription and payment methods</p>
           </div>
-          <div class="plan-card">
-            <div class="plan-card__badge"><Zap :size="13" /> Pro Plan</div>
-            <h4 class="plan-card__price">$29 <span>/month</span></h4>
-            <p class="plan-card__desc">Unlimited subtitle generation · 50+ languages · Priority processing</p>
-            <div class="plan-card__usage">
-              <div class="plan-card__usage-row">
-                <span>Hours Processed</span><span>348 / Unlimited</span>
-              </div>
-              <div class="plan-card__usage-row">
-                <span>Subtitle Jobs</span><span>1,284 / Unlimited</span>
-              </div>
-              <div class="plan-card__usage-row">
-                <span>Storage Used</span><span>12.4 GB / 100 GB</span>
-              </div>
-            </div>
-            <div class="plan-card__usage-bar-track"><div class="plan-card__usage-bar" style="width: 12%"></div></div>
-            <div class="plan-card__footer">
-              <span>Next billing: Sep 1, 2026</span>
-              <button class="btn btn--ghost btn--sm">Manage Plan</button>
-            </div>
+          <div class="coming-soon">
+            <CreditCard :size="22" />
+            <p class="coming-soon__title">Coming soon</p>
+            <p class="coming-soon__desc">Payments and plan management are not available yet. You can continue using the app for free.</p>
           </div>
         </div>
 
@@ -310,18 +460,28 @@ const preferenceDescriptions = {
             <h3>Security</h3>
             <p>Protect your account with a strong password and two-factor authentication</p>
           </div>
+
+          <div v-if="isOAuth" class="oauth-note">
+            <Shield :size="18" />
+            <div>
+              <p class="oauth-note__title">Signed in with Google</p>
+              <p class="oauth-note__desc">You signed in using your Google account, so a password is not used. Password changes are only available for accounts created with email.</p>
+            </div>
+          </div>
+
+          <template v-else>
           <div class="form-grid">
             <div class="form-field" style="grid-column: 1/-1">
               <label class="form-label">Current Password</label>
-              <input type="password" class="form-input" placeholder="••••••••" />
+              <input v-model="passwordForm.current" type="password" class="form-input" placeholder="••••••••" />
             </div>
             <div class="form-field">
               <label class="form-label">New Password</label>
-              <input type="password" class="form-input" placeholder="••••••••" />
+              <input v-model="passwordForm.next" type="password" class="form-input" placeholder="••••••••" />
             </div>
             <div class="form-field">
               <label class="form-label">Confirm New Password</label>
-              <input type="password" class="form-input" placeholder="••••••••" />
+              <input v-model="passwordForm.confirm" type="password" class="form-input" placeholder="••••••••" />
             </div>
           </div>
           <div class="security-2fa">
@@ -332,11 +492,15 @@ const preferenceDescriptions = {
                 <p class="security-2fa__desc">Add an extra layer of security to your account</p>
               </div>
             </div>
-            <button class="btn btn--primary btn--sm">Enable 2FA</button>
+            <button class="btn btn--primary btn--sm" disabled>Coming soon</button>
           </div>
           <div class="settings-section__footer">
-            <button class="btn btn--primary">Update Password</button>
+            <button class="btn btn--primary" :disabled="changingPassword" @click="submitPassword">
+              <Loader2 v-if="changingPassword" :size="15" class="spin" />
+              {{ changingPassword ? 'Updating…' : 'Update Password' }}
+            </button>
           </div>
+          </template>
         </div>
 
       </main>
@@ -393,8 +557,28 @@ const preferenceDescriptions = {
   width: 68px; height: 68px; border-radius: 18px;
   background: var(--team-gradient); display: flex; align-items: center; justify-content: center;
   font-size: 1.25rem; font-weight: 800; color: #fff; flex-shrink: 0;
+  overflow: hidden;
 }
+.avatar-upload__preview img { width: 100%; height: 100%; object-fit: cover; }
 .avatar-upload__hint { font-size: 0.72rem; color: var(--text-muted); margin: 4px 0 0; }
+
+/* Loading + states */
+.settings-loading { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: 0.85rem; padding: 1rem 0; }
+.coming-soon {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 2.5rem 1.5rem; text-align: center; color: var(--text-muted);
+  background: var(--card-color); border: 1px dashed var(--border-light); border-radius: 12px;
+}
+.coming-soon__title { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); margin: 0; }
+.coming-soon__desc { font-size: 0.78rem; color: var(--text-secondary); margin: 0; max-width: 420px; line-height: 1.5; }
+
+/* OAuth note */
+.oauth-note { display: flex; align-items: flex-start; gap: 10px; color: #a78bfa; background: var(--card-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem 1.25rem; }
+.oauth-note__title { font-size: 0.88rem; font-weight: 700; color: var(--text-primary); margin: 0 0 3px; }
+.oauth-note__desc { font-size: 0.75rem; color: var(--text-muted); margin: 0; line-height: 1.45; }
+
+.spin { animation: settings-spin 0.9s linear infinite; }
+@keyframes settings-spin { to { transform: rotate(360deg); } }
 
 /* Form */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }

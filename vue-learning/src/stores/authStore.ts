@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import type { UserSettings } from '../services/authService'
 
 interface User {
   id: string
@@ -6,6 +7,8 @@ interface User {
   email: string
   role: string |null
   profileImage: string | null
+  googleId: string | null
+  settings: UserSettings | null
   createdAt: string
 }
 
@@ -23,6 +26,10 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: false,
     isLoading: true,
   }),
+
+  getters: {
+    isOAuth: (state): boolean => !!state.user?.googleId,
+  },
 
   actions: {
     // Called after successful login/register

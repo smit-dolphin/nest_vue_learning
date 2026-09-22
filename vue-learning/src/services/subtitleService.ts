@@ -64,7 +64,7 @@ export async function downloadSubtitleFile(subtitleId: string, filename: string)
 }
 
 export async function getSubtitleFileContent(subtitleId: string): Promise<string> {
-  const blob = await baseApi.get<Blob>(`/subtitle/download/${subtitleId}`, {
+  const blob = await baseApi.get<Blob>(`/subtitle/${subtitleId}/content`, {
     responseType: 'blob',
   }) as unknown as Blob
   return blob.text()

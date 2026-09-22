@@ -138,7 +138,7 @@ const handleGoogleLogin = () => {
         </button>
 
         <div class="login-footer">
-          <p>Don't have an account? <router-link to="/register" class="signup-link">Create one</router-link></p>
+          <p>Don't have an account? <router-link to="/admin/register" class="signup-link">Create one</router-link></p>
         </div>
       </div>
     </div>

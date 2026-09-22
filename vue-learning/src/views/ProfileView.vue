@@ -2,9 +2,11 @@
 import { computed, ref } from 'vue'
 import { CalendarDays, CheckCircle2, Mail, ShieldCheck, UserRound } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/authStore'
+import { getProfileImageUrl } from '@/services/authService'
 
 const authStore = useAuthStore()
 const profileImageFailed = ref(false)
+const profileImageUrl = computed(() => (user.value?.profileImage ? getProfileImageUrl() : ''))
 
 const user = computed(() => authStore.user)
 const initials = computed(() => {
@@ -42,7 +44,7 @@ const joinedDate = computed(() => {
         <div class="profile-avatar">
           <img
             v-if="user?.profileImage && !profileImageFailed"
-            :src="user.profileImage"
+            :src="profileImageUrl"
             alt="Profile photo"
             @error="profileImageFailed = true"
           />
