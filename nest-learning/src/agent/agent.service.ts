@@ -212,6 +212,9 @@ TIMING:
 - Word timestamps must be ordered chronologically.
 - Word timestamps must remain within the segment start and end timestamps.
 - Do not invent word timestamps.
+- The each word which is segmented should have its own timetemps, ratherthant while dialog in one timestamp 
+- word level timing , handle it as every word spoken is given in his own timestemp when it spoken 
+
 `;
 } else {
   prompt += `
@@ -251,26 +254,24 @@ SPEAKER LABELS:
 switch (subtitleFormat.extension) {
 
   case '.srt':
-    prompt += `
+     prompt += `
 OUTPUT FORMAT:
 - Return ONLY valid SRT content.
-- Do not return JSON.
-- Do not return WebVTT.
-- Do not return Markdown.
-- Do not add explanations or comments.
-- Do not wrap the output in code fences.
+- Do NOT return JSON.
+- Do NOT return WebVTT.
+- Do NOT return Markdown.
+- Do NOT add explanations or comments.
+- Do NOT use code fences.
 
-Each subtitle block MUST contain:
+SRT STRUCTURE:
 
-1. Subtitle sequence number
-2. Start timestamp
-3. End timestamp
-4. Subtitle text
+Each subtitle MUST have exactly this structure:
 
-Timestamp format:
-HH:MM:SS,mmm
+[number]
+[start timestamp] --> [end timestamp]
+[subtitle text]
 
-CORRECT SRT FORMAT:
+Example:
 
 1
 00:00:01,005 --> 00:00:03,635
@@ -284,32 +285,62 @@ Naturally, I was like this.
 00:00:05,865 --> 00:00:08,225
 Then Coton is the monitor that comes out.
 
-IMPORTANT SRT RULES:
-- The subtitle number MUST be on its own line.
-- The timestamp MUST be on the line immediately after the subtitle number.
-- The subtitle text MUST be on the line immediately after the timestamp.
-- Each subtitle block MUST be separated by one empty line.
-- Subtitle numbers MUST start at 1 and increase sequentially.
-- Timestamp hours MUST always be included.
-- Use a comma before milliseconds: HH:MM:SS,mmm
-- Do NOT put timestamps inside the subtitle text.
-- Do NOT put word-level timestamps inside the subtitle text.
-- Do NOT put square brackets containing timestamps inside the subtitle text.
-- Do NOT put speaker labels before the subtitle number.
+STRICT TIMESTAMP RULES:
+- Timestamp format MUST be exactly HH:MM:SS,mmm.
+- Hours MUST always be present.
+- Example: 00:00:07,329
+- Example: 00:08:49,748
+- NEVER use MM:SS,mmm.
+- NEVER use timestamps inside subtitle text.
+- NEVER use square brackets around timestamps.
 
-If speaker labels are enabled, the speaker label MUST be part of the subtitle text.
+STRICT SPEAKER RULES:
+- If speaker labels are enabled, add EXACTLY ONE speaker label at the BEGINNING of each subtitle.
+- The speaker label MUST appear only once per subtitle.
+- The speaker label MUST be part of the subtitle text.
+- NEVER repeat the speaker label before individual words.
+- NEVER put the speaker label between words.
+- NEVER put the speaker label after words.
+- NEVER create a separate subtitle for each word just because word-level timing is enabled.
 
-CORRECT SPEAKER LABEL EXAMPLE:
+Correct:
 
 1
-00:00:01,005 --> 00:00:03,635
-[SPEAKER_1] Screen conversions, these things practice.
+00:00:07,329 --> 00:00:19,259
+[SPEAKER_1] There's nothing to call it, but first, we have this kind of circle.
 
-2
-00:00:03,795 --> 00:00:05,335
-[SPEAKER_1] Naturally, I was like this.
+Incorrect:
 
-you should provide exect formate not single thing should be diffrent
+1
+00:00:07,329 --> 00:00:19,259
+[SPEAKER_1] There's [SPEAKER_1] nothing [SPEAKER_1] to [SPEAKER_1] call it.
+
+WORD-LEVEL TIMING:
+- Word-level timing is INTERNAL timing information only.
+- Word-level timing MUST NOT appear anywhere in SRT subtitle text.
+- Do NOT write word timestamps into SRT.
+- Do NOT write one speaker label per word.
+- Do NOT repeat speaker labels for individual words.
+- The final SRT subtitle text MUST contain normal readable sentences.
+
+SUBTITLE TEXT:
+- Subtitle text must be natural readable text.
+- Preserve the complete spoken meaning.
+- Do not split every word into separate timed items.
+- Do not insert technical timing information into the subtitle text.
+
+SEQUENCE:
+- Subtitle numbers start at 1.
+- Numbers increase sequentially.
+- Do not skip numbers.
+
+BLOCK SEPARATION:
+- Separate every subtitle block with exactly one empty line.
+
+FINAL REQUIREMENT:
+Return ONLY the SRT content.
+Nothing before it.
+Nothing after it.
 `;
     break;
 
