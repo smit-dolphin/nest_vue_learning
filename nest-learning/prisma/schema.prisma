@@ -16,6 +16,8 @@ model User {
 
   googleId String? @unique 
 
+  settings Json?
+
   role      UserRole @default(USER)
 
   createdAt DateTime @default(now())

@@ -4,10 +4,12 @@ import { AuthController } from './auth.controller.js';
 
 import { PassportModule } from '@nestjs/passport';
 import { GoogleStrategy } from './google.strategy.js';
+import { StorageModule } from '../storage/storage.module.js';
 
 @Module({
     imports: [
     PassportModule,
+    StorageModule,
   ],
   providers: [AuthService, GoogleStrategy],
   controllers: [AuthController]

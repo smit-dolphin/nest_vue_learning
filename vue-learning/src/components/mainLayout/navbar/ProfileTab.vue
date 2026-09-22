@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/authStore'
-import { ChevronDown, ChevronUp, User, LogOut } from 'lucide-vue-next'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { ChevronDown, ChevronUp, User, LogOut, Settings as SettingsIcon } from 'lucide-vue-next'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 // import { useRoute } from 'vue-router'
 import router from '@/router'
 const authstore = useAuthStore()
-import {logoutMe} from '@/services/authService.ts'
+import { logoutMe, getProfileImageUrl } from '@/services/authService.ts'
 
 const isOpen = ref(false) 
 const profileImageFailed = ref(false)
+const profileImageUrl = computed(() => getProfileImageUrl())
 const toggleMenu = () => {
   isOpen.value = !isOpen.value
 }
@@ -52,7 +53,7 @@ const logout = async  () => {
       <div class="navbar__avatar">
         <img
           v-if="authstore.user?.profileImage && !profileImageFailed"
-          :src="authstore.user.profileImage"
+          :src="profileImageUrl"
           alt="Profile photo"
           @error="profileImageFailed = true"
         />
@@ -93,7 +94,7 @@ const logout = async  () => {
           <div class="navbar__menu-avatar">
             <img
               v-if="authstore.user?.profileImage && !profileImageFailed"
-              :src="authstore.user.profileImage"
+              :src="profileImageUrl"
               alt="Profile photo"
               @error="profileImageFailed = true"
             />
@@ -121,6 +122,16 @@ const logout = async  () => {
         >
           <User :size="16" />
           <span>Profile</span>
+        </router-link>
+
+        <!-- Settings -->
+        <router-link
+          class="navbar__menu-item"
+          to="/settings"
+          @click="isOpen = false"
+        >
+          <SettingsIcon :size="16" />
+          <span>Settings</span>
         </router-link>
 
         <!-- Logout -->

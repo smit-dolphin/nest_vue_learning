@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { TranscriptionService } from '../transcription/transcription.service.js';
 import path, { resolve } from 'node:path';
-import { readdir, rm, stat, unlink } from 'node:fs/promises';
+import { readdir, readFile, rm, stat, unlink } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { Job } from 'bullmq';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
@@ -219,7 +219,7 @@ export class SubtitleService {
             const createNotification = await this.prisma.notification.create({
                 data: {
                     userId: videoResult.userId,
-                    type: 'JOB_failed',
+                    type: 'JOB_FAILED',
                     title: 'Subtitle generation failed',
                     message: 'Your video subtitles have been failed.',
                     data: {
@@ -401,6 +401,34 @@ export class SubtitleService {
         return subtitleFiles;
     }
 
+    async getSubtitleContent(id: string, userId: string) {
+        const subtitle = await this.prisma.subtitle.findUnique({
+            where: { id },
+            include: { video: true },
+        });
+
+        if (!subtitle) {
+            throw new NotFoundException('Subtitle not found');
+        }
+
+        if (subtitle.video.userId !== userId) {
+            throw new ForbiddenException('You do not have permission to access this subtitle');
+        }
+
+        const exists = await this.storageService.exists(subtitle.path);
+        if (!exists) {
+            throw new NotFoundException('Subtitle file not found');
+        }
+
+        const { localPath, cleanup } = await this.storageService.getLocalCopy(subtitle.path);
+
+        try {
+            return readFile(localPath, 'utf8');
+        } finally {
+            cleanup();
+        }
+    }
+
     async downloadSubtitle(id: string, userId: string) {
         const subtitle = await this.prisma.subtitle.findUnique({
             where: { id },
@@ -428,8 +456,6 @@ export class SubtitleService {
             mimeType: subtitle.mimeType,
         };
     }
-
-
 
     async deleteSubtitleById(subtitleId: string, userId: string) {
         const sub = await this.prisma.subtitle.findUnique({

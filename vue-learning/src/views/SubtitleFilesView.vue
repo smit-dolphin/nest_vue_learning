@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ArrowLeft, Download, FileText, Flame, Loader2, Music2, RefreshCw, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Download, FileText, Flame, Loader2, Pencil, RefreshCw, Trash2 } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import { burnSubtitleFile, deleteSubtitleFile, downloadSubtitleFile, getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
-import { deleteAudioFile, downloadAudioFile, getAudioByVideoId, type AudioFile } from '../services/videoService'
 import { jobService } from '../services/jobService'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
 import { toast } from 'vue-sonner'
@@ -13,7 +12,6 @@ const router = useRouter()
 const videoStore = useVideoLibraryStore()
 
 const files = ref<SubtitleFile[]>([])
-const audio = ref<AudioFile | null>(null)
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 const downloadingId = ref<string | null>(null)
@@ -40,50 +38,12 @@ const loadFiles = async () => {
   error.value = null
 
   try {
-    const [subtitleFiles, audioFile] = await Promise.all([
-      getSubtitleFiles(videoId.value),
-      getAudioByVideoId(videoId.value).catch(() => null),
-    ])
-    files.value = subtitleFiles
-    audio.value = audioFile
+    files.value = await getSubtitleFiles(videoId.value)
   } catch {
     files.value = []
-    audio.value = null
     error.value = 'No subtitle files were found for this video.'
   } finally {
     isLoading.value = false
-  }
-}
-
-const downloadAudio = async () => {
-  if (!audio.value) return
-  downloadingId.value = audio.value.id
-  downloadError.value = null
-
-  try {
-    await downloadAudioFile(videoId.value, audio.value.id, audio.value.filename)
-    toast.success(`Downloading ${audio.value.filename}.`)
-  } catch {
-    downloadError.value = `Could not download ${audio.value.filename}.`
-  } finally {
-    downloadingId.value = null
-  }
-}
-
-const deleteAudio = async () => {
-  const file = audio.value
-  if (!file || !window.confirm(`Delete audio file "${file.filename}"?`)) return
-
-  deletingId.value = file.id
-  try {
-    await deleteAudioFile(file.id)
-    audio.value = null
-    toast.success('Audio deleted successfully.')
-  } catch {
-    downloadError.value = `Could not delete ${file.filename}.`
-    toast.error(`Could not delete ${file.filename}.`)
-  } finally {
-    deletingId.value = null
   }
 }
 
@@ -173,7 +133,7 @@ onMounted(async () => {
       <div class="files-panel__header">
         <div>
           <h2>Available files</h2>
-          <p>{{ files.length + (audio ? 1 : 0) }} generated file{{ files.length + (audio ? 1 : 0) === 1 ? '' : 's' }}</p>
+          <p>{{ files.length }} generated file{{ files.length === 1 ? '' : 's' }}</p>
           <p v-if="downloadError" class="download-error">{{ downloadError }}</p>
         </div>
         <button class="refresh-button" type="button" title="Refresh files" @click="loadFiles">
@@ -193,7 +153,7 @@ onMounted(async () => {
         <button class="retry-button" type="button" @click="loadFiles">Try again</button>
       </div>
 
-      <div v-else-if="!files.length && !audio" class="table-state">
+      <div v-else-if="!files.length" class="table-state">
         <FileText :size="26" />
         <span>This video has no generated files yet.</span>
       </div>
@@ -212,31 +172,6 @@ onMounted(async () => {
             </tr>
           </thead>
           <tbody>
-            <tr v-if="audio">
-              <td data-label="File name">
-                <div class="file-name">
-                  <Music2 :size="17" />
-                  <strong>{{ audio.filename }}</strong>
-                </div>
-              </td>
-              <td data-label="Format">{{ audio.mimetype }}</td>
-              <td data-label="Language">Audio</td>
-              <td data-label="Type">Generated audio</td>
-              <td data-label="Size">{{ formatBytes(audio.size) }}</td>
-              <td data-label="Created">{{ new Date(audio.createdAt).toLocaleDateString() }}</td>
-              <td class="file-actions">
-                <button class="download-button" type="button" :disabled="downloadingId === audio.id" @click="downloadAudio">
-                  <Loader2 v-if="downloadingId === audio.id" :size="15" class="spin" />
-                  <Download v-else :size="15" />
-                  <span>{{ downloadingId === audio.id ? 'Downloading' : 'Download' }}</span>
-                </button>
-                <button class="delete-button" type="button" :disabled="deletingId === audio.id" @click="deleteAudio">
-                  <Loader2 v-if="deletingId === audio.id" :size="15" class="spin" />
-                  <Trash2 v-else :size="15" />
-                  <span>{{ deletingId === audio.id ? 'Deleting' : 'Delete' }}</span>
-                </button>
-              </td>
-            </tr>
             <tr v-for="file in files" :key="file.id">
               <td data-label="File name">
                 <div class="file-name">
@@ -261,6 +196,17 @@ onMounted(async () => {
                   <Loader2 v-if="downloadingId === file.id" :size="15" class="spin" />
                   <Download v-else :size="15" />
                   <span>{{ downloadingId === file.id ? 'Downloading' : 'Download' }}</span>
+                </button>
+                <button
+                  v-if="isBurnableFormat(file)"
+                  class="edit-button"
+                  type="button"
+                  :title="`Edit ${file.filename}`"
+                  :aria-label="`Edit ${file.filename}`"
+                  @click="router.push(`/library/subtitles/${videoId}/edit/${file.id}`)"
+                >
+                  <Pencil :size="15" />
+                  <span>Edit</span>
                 </button>
                 <button
                   v-if="isBurnableFormat(file)"
@@ -325,6 +271,8 @@ h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 2rem); }
 .burn-button { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: 0.35rem; border: 1px solid rgba(249,115,22,0.35); border-radius: 7px; padding: 0.42rem 0.65rem; background: rgba(249,115,22,0.08); color: #f97316; font-size: 0.75rem; cursor: pointer; }
 .burn-button:hover:not(:disabled) { background: rgba(249,115,22,0.16); }
 .burn-button:disabled { cursor: wait; opacity: 0.65; }
+.edit-button { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: 0.35rem; border: 1px solid rgba(139,92,246,0.4); border-radius: 7px; padding: 0.42rem 0.65rem; background: rgba(139,92,246,0.1); color: #a78bfa; font-size: 0.75rem; cursor: pointer; }
+.edit-button:hover { background: rgba(139,92,246,0.18); }
 .delete-button { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: 0.35rem; border: 1px solid rgba(239,68,68,0.35); border-radius: 7px; padding: 0.42rem 0.65rem; background: rgba(239,68,68,0.08); color: #ef4444; font-size: 0.75rem; cursor: pointer; }
 .delete-button:hover:not(:disabled) { background: rgba(239,68,68,0.16); }
 .delete-button:disabled { cursor: wait; opacity: 0.65; }
@@ -410,7 +358,8 @@ h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 2rem); }
 
   .download-button,
   .burn-button,
-  .delete-button {
+  .delete-button,
+  .edit-button {
     margin-left: 0;
   }
 }

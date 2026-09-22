@@ -15,6 +15,12 @@ export class SubtitleController {
 
     // }
     
+    @Get(':id/content')
+    @UseGuards(JwtAuthGuard)
+    getSubtitleContent(@Param('id') id: string, @Req() req: any) {
+        return this.subtitleService.getSubtitleContent(id, req.user.sub);
+    }
+
     @Get(':id/download')
     @UseGuards(JwtAuthGuard)
     async downloadSubtitle(@Param('id') id: string, @Req() req: any) {
