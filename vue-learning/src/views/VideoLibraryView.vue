@@ -1,23 +1,28 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { FileVideo, Loader2, UploadCloud, X } from 'lucide-vue-next'
 import PageHeader from '../components/VideoLibrary/PageHeader.vue'
 import SearchToolbar from '../components/VideoLibrary/SearchToolbar.vue'
 import VideoCard from '../components/VideoLibrary/VideoCard.vue'
 import VideoListRow from '../components/VideoLibrary/VideoListRow.vue'
 import EmptyState from '../components/VideoLibrary/EmptyState.vue'
+import PaginationBar from '../components/Common/PaginationBar.vue'
+import FilterPopover from '../components/Common/FilterPopover.vue'
 import PopupModal from '../components/Containers/PopupModal.vue'
-import { downloadVideoFile, uploadVideoOnly, getVideoPreviewUrl } from '../services/videoService'
+import { useDebouncedSearch } from '../composables/useDebouncedSearch'
+import { downloadVideoFile, uploadVideoOnly, getVideoPreviewUrl, type VideoStatus } from '../services/videoService'
 import type { LibraryFilter, ViewMode } from '../components/VideoLibrary/types'
 import { useVideoLibraryStore } from '../stores/videoLibraryStore'
 import { toast } from 'vue-sonner'
 
 const videoStore = useVideoLibraryStore()
 
-const searchQuery = ref('')
+const { input: searchQuery, value: debouncedSearch } = useDebouncedSearch(350)
 const activeFilter = ref<LibraryFilter>('all')
+const statusFilter = ref<VideoStatus | 'ALL'>('ALL')
 const viewMode = ref<ViewMode>('grid')
-const sortBy = ref('newest')
+const fromDate = ref('')
+const toDate = ref('')
 const deleteCandidate = ref<{ id: string; title: string } | null>(null)
 const selectedVideo = ref<{ id: string; title: string; mimetype: string } | null>(null)
 const previewUrl = ref<string | null>(null)
@@ -29,21 +34,32 @@ const isUploading = ref(false)
 const uploadError = ref<string | null>(null)
 
 const videos = computed(() => videoStore.videos)
+const hasError = computed(() => videoStore.error !== null)
 
-const filtered = computed(() => {
-  return videos.value
-    .filter(v => activeFilter.value === 'all'
-      || (activeFilter.value === 'uploaded' && v.type === 'VIDEO')
-      || (activeFilter.value === 'burned' && v.type === 'BURNED_VIDEO'))
-    .filter(v => v.title.toLowerCase().includes(searchQuery.value.toLowerCase()))
-    .sort((a, b) => {
-      if (sortBy.value === 'oldest') return a.createdAt.localeCompare(b.createdAt)
-      if (sortBy.value === 'size') return b.sizeBytes - a.sizeBytes
-      return b.createdAt.localeCompare(a.createdAt)
-    })
+watch(debouncedSearch, (value) => {
+  videoStore.setSearch(value.trim())
 })
 
-const hasError = computed(() => videoStore.error !== null)
+watch(activeFilter, (value) => {
+  videoStore.setFilter(value)
+})
+
+watch(statusFilter, (value) => {
+  videoStore.setStatus(value)
+})
+
+watch([fromDate, toDate], ([f, t]) => {
+  videoStore.setDateRange(f, t)
+})
+
+const clearFilters = () => {
+  fromDate.value = ''
+  toDate.value = ''
+  activeFilter.value = 'all'
+  statusFilter.value = 'ALL'
+  searchQuery.value = ''
+  videoStore.resetFilters()
+}
 
 onMounted(() => {
   videoStore.fetchVideos()
@@ -118,7 +134,12 @@ const uploadSelectedVideo = async () => {
 
   try {
     await uploadVideoOnly(file)
-    await videoStore.fetchVideos()
+    searchQuery.value = ''
+    activeFilter.value = 'all'
+    statusFilter.value = 'ALL'
+    fromDate.value = ''
+    toDate.value = ''
+    videoStore.resetFilters()
     toast.success(`${file.name} uploaded successfully.`)
   } catch {
     uploadError.value = `Could not upload ${file.name}.`
@@ -171,13 +192,28 @@ const confirmDelete = async () => {
 <template>
   <div class="library-page">
 
-    <PageHeader :total="videos.length" @upload="onUpload" />
-    <SearchToolbar
-      v-model:search-query="searchQuery"
-      v-model:active-filter="activeFilter"
-      v-model:sort-by="sortBy"
-      v-model:view-mode="viewMode"
-    />
+    <PageHeader :total="videoStore.totalItems" @upload="onUpload" />
+    <div class="library-toolbar">
+      <SearchToolbar
+        v-model:search-query="searchQuery"
+        v-model:active-filter="activeFilter"
+        v-model:status-filter="statusFilter"
+        v-model:view-mode="viewMode"
+      />
+      <FilterPopover
+        :count="videoStore.activeFilterCount"
+        @clear="clearFilters"
+      >
+        <div class="filter-field">
+          <label for="video-from">From date</label>
+          <input id="video-from" v-model="fromDate" type="date" />
+        </div>
+        <div class="filter-field">
+          <label for="video-to">To date</label>
+          <input id="video-to" v-model="toDate" type="date" />
+        </div>
+      </FilterPopover>
+    </div>
 
     <!-- Grid View -->
     <div v-if="videoStore.isLoading" class="state-message">
@@ -194,7 +230,7 @@ const confirmDelete = async () => {
     <!-- Grid View -->
     <div v-else-if="viewMode === 'grid'" class="video-grid">
       <VideoCard
-        v-for="video in filtered"
+        v-for="video in videos"
         :key="video.id"
         :video="video"
         @open="openVideo(video)"
@@ -202,7 +238,7 @@ const confirmDelete = async () => {
         @delete="requestDelete(video.id, video.title)"
       />
 
-      <EmptyState v-if="!filtered.length" show-hint />
+      <EmptyState v-if="!videos.length" show-hint />
     </div>
 
     <!-- List View -->
@@ -218,7 +254,7 @@ const confirmDelete = async () => {
       </div>
 
       <VideoListRow
-        v-for="video in filtered"
+        v-for="video in videos"
         :key="video.id"
         :video="video"
         @open="openVideo(video)"
@@ -226,8 +262,18 @@ const confirmDelete = async () => {
         @delete="requestDelete(video.id, video.title)"
       />
 
-      <EmptyState v-if="!filtered.length" />
+      <EmptyState v-if="!videos.length" />
     </div>
+
+    <PaginationBar
+      v-if="!videoStore.isLoading && !hasError"
+      :page="videoStore.page"
+      :limit="videoStore.limit"
+      :total-pages="videoStore.totalPages"
+      :total-data="videoStore.totalItems"
+      @update:page="videoStore.setPage"
+      @update:limit="videoStore.setLimit"
+    />
 
     <p v-if="downloadError" class="download-error">{{ downloadError }}</p>
 
@@ -326,6 +372,12 @@ const confirmDelete = async () => {
 
 <style scoped>
 .library-page { padding: 1.5rem; display: flex; flex-direction: column; gap: 1.25rem; }
+
+.library-toolbar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; justify-content: space-between; }
+
+@media (max-width: 760px) {
+  .library-toolbar { align-items: stretch; flex-direction: column; }
+}
 
 /* Grid */
 .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }

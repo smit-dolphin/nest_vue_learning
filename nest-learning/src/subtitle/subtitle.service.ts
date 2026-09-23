@@ -1,5 +1,6 @@
 
 import { Injectable, InternalServerErrorException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { SubtitleFormat } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { TranscriptionService } from '../transcription/transcription.service.js';
@@ -14,6 +15,22 @@ import { cwd } from 'node:process';
 import { StorageService } from '../storage/storage.service.js';
 import { createWorkDir, cleanupWorkDir } from '../storage/tmp-workspace.js';
 import { Result } from 'pg';
+import {
+    paginationHelper,
+    searchHelper,
+    enumFilter,
+    dateRangeFilter,
+    type PrismaWhere,
+} from '../common/query/query.helpers.js';
+
+export interface ListSubtitlesQuery {
+    page?: string | number;
+    limit?: string | number;
+    search?: string;
+    format?: string;
+    from?: string;
+    to?: string;
+}
 
 @Injectable()
 export class SubtitleService {
@@ -68,8 +85,8 @@ export class SubtitleService {
 
         try {
             const shouldTranslate =
-                options.autoTranslate === true || options.autoTranslate === 'true';
-            const targetLanguage = options.targetLanguage || options.leng || 'en';
+                options?.autoTranslate === true || options?.autoTranslate === 'true';
+            const targetLanguage = options?.targetLanguage || options?.leng || 'en';
 
             //___Video_to_Audio__Service_____________
 
@@ -110,8 +127,8 @@ export class SubtitleService {
 
             //___Valid_Output_Format__Check__________
 
-            const selectedFormat = getWhisperOutputFormat(options.formate);
-            const shouldBurn = options.burnVideo === true || options.burnVideo === 'true';
+            const selectedFormat = getWhisperOutputFormat(options?.formate);
+            const shouldBurn = options?.burnVideo === true || options?.burnVideo === 'true';
             const isBurnableFormat =
                 selectedFormat.extension === '.srt' || selectedFormat.extension === '.vtt';
 
@@ -375,7 +392,7 @@ export class SubtitleService {
         }
     }
 
-    async getSubtitleFiles(videoId: string, userId: string) {
+    async getSubtitleFiles(videoId: string, userId: string, query: ListSubtitlesQuery = {}) {
         const video = await this.prisma.video.findUnique({
             where: { id: videoId },
         });
@@ -388,17 +405,38 @@ export class SubtitleService {
             throw new ForbiddenException('You do not have permission to access subtitles for this video');
         }
 
-        const subtitleFiles = await this.prisma.subtitle.findMany({
-            where: {
-                videoId: videoId,
-            },
+        const where: PrismaWhere = {
+            videoId: videoId,
+        };
+
+        searchHelper(where, query.search, ['filename', 'languageCode']);
+        enumFilter(where, 'subtitleFormat', query.format, SubtitleFormat);
+        dateRangeFilter(where, 'createdAt', query.from, query.to);
+
+        const totalData = await this.prisma.subtitle.count({
+            where,
         });
 
-        if (!subtitleFiles || subtitleFiles.length === 0) {
+        if (totalData === 0) {
             throw new NotFoundException('No subtitle files found for the given video ID');
         }
 
-        return subtitleFiles;
+        const { skip, take, meta } = paginationHelper(query, totalData, 10);
+
+        const subtitleFiles = await this.prisma.subtitle.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { createdAt: 'desc' },
+        });
+
+        return {
+            status: 200,
+            message: 'Subtitles fetched successfully',
+            data: subtitleFiles,
+            meta,
+            success: true,
+        };
     }
 
     async getSubtitleContent(id: string, userId: string) {

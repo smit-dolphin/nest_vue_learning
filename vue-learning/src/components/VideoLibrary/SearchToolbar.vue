@@ -2,10 +2,11 @@
 import { Search, Grid3x3, List } from 'lucide-vue-next'
 import type { LibraryFilter, ViewMode } from './types'
 import { filters } from './types'
+import { VIDEO_STATUSES, type VideoStatus } from '../../services/videoService'
 
 const searchQuery = defineModel<string>('searchQuery', { default: '' })
 const activeFilter = defineModel<LibraryFilter>('activeFilter', { default: 'all' })
-const sortBy = defineModel<string>('sortBy', { default: 'newest' })
+const statusFilter = defineModel<VideoStatus | 'ALL'>('statusFilter', { default: 'ALL' })
 const viewMode = defineModel<ViewMode>('viewMode', { default: 'grid' })
 </script>
 
@@ -17,7 +18,7 @@ const viewMode = defineModel<ViewMode>('viewMode', { default: 'grid' })
       <input v-model="searchQuery" type="text" placeholder="Search videos..." class="toolbar__search-input" />
     </div>
 
-    <!-- Filters -->
+    <!-- Type Filters -->
     <div class="toolbar__filters">
       <button
         v-for="f in filters"
@@ -30,13 +31,13 @@ const viewMode = defineModel<ViewMode>('viewMode', { default: 'grid' })
       </button>
     </div>
 
-    <!-- Sort + View -->
+    <!-- Status + View -->
     <div class="toolbar__right">
-      <select v-model="sortBy" class="sort-select">
-        <option value="newest">Newest First</option>
-        <option value="oldest">Oldest First</option>
-        <option value="duration">By Duration</option>
-        <option value="size">By Size</option>
+      <select v-model="statusFilter" class="status-select" aria-label="Filter by status">
+        <option value="ALL">All statuses</option>
+        <option v-for="s in VIDEO_STATUSES" :key="s" :value="s">
+          {{ s.charAt(0) + s.slice(1).toLowerCase() }}
+        </option>
       </select>
       <div class="view-toggle">
         <button class="view-btn" :class="{ 'view-btn--active': viewMode === 'grid' }" @click="viewMode = 'grid'">
@@ -73,12 +74,12 @@ const viewMode = defineModel<ViewMode>('viewMode', { default: 'grid' })
 .filter-btn:hover:not(.filter-btn--active) { color: var(--text-primary); }
 
 .toolbar__right { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
-.sort-select {
+.status-select {
   background: var(--secondary-color); border: 1px solid var(--border-color);
   border-radius: 8px; padding: 0.45rem 0.85rem; font-size: 0.8rem; color: var(--text-primary);
   outline: none; cursor: pointer; transition: border-color 0.2s;
 }
-.sort-select:focus { border-color: var(--border-focus); }
+.status-select:focus { border-color: var(--border-focus); }
 
 .view-toggle { display: flex; background: var(--secondary-color); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
 .view-btn { width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); cursor: pointer; border: none; background: transparent; transition: all 0.2s; }
@@ -108,7 +109,7 @@ const viewMode = defineModel<ViewMode>('viewMode', { default: 'grid' })
     justify-content: space-between;
   }
 
-  .sort-select {
+  .status-select {
     flex: 1;
     min-width: 0;
   }

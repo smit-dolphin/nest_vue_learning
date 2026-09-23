@@ -1,17 +1,57 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import {
   History, Search, Captions, Globe2, Clock, CheckCircle2,
   AlertCircle, Loader2, Download, RotateCcw, Trash2,
   CalendarDays, TrendingUp
 } from 'lucide-vue-next'
-import { useJobStore } from '../stores/jobStore'
+import { useJobStore, JOB_STATUS_FILTERS, type JobStatusFilter } from '../stores/jobStore'
+import PaginationBar from '../components/Common/PaginationBar.vue'
+import FilterPopover from '../components/Common/FilterPopover.vue'
+import { useDebouncedSearch } from '../composables/useDebouncedSearch'
+import { LANGUAGES } from '../components/GenrateSubtitle/languages'
 import type { JobDto } from '../services/jobService'
 
-const searchQuery = ref('')
-const filterStatus = ref('all')
-
 const jobStore = useJobStore()
+
+const { input: searchQuery, value: debouncedSearch } = useDebouncedSearch(350)
+const statusFilter = ref<JobStatusFilter>('ALL')
+const languageFilter = ref('')
+const fromDate = ref('')
+const toDate = ref('')
+
+const STATUS_LABELS: Record<JobStatusFilter, string> = {
+  ALL: 'All',
+  COMPLETED: 'Completed',
+  PROCESSING: 'Processing',
+  PENDING: 'Pending',
+  FAILED: 'Failed',
+}
+
+watch(debouncedSearch, (value) => {
+  jobStore.setSearch(value.trim())
+})
+
+watch(statusFilter, (value) => {
+  jobStore.setStatus(value)
+})
+
+watch(languageFilter, (value) => {
+  jobStore.setLanguage(value)
+})
+
+watch([fromDate, toDate], ([f, t]) => {
+  jobStore.setDateRange(f, t)
+})
+
+const clearFilters = () => {
+  statusFilter.value = 'ALL'
+  languageFilter.value = ''
+  fromDate.value = ''
+  toDate.value = ''
+  searchQuery.value = ''
+  jobStore.resetFilters()
+}
 
 interface HistoryItem {
   id: string
@@ -70,16 +110,10 @@ const retry = () => {
   void jobStore.fetchJobs()
 }
 
-// Group by date
+// Group by date (server already applied search + status/language/date filters)
 const grouped = computed(() => {
-  const q = searchQuery.value.toLowerCase()
-  const filtered = items.value.filter(i => {
-    const matchSearch = i.title.toLowerCase().includes(q) || i.lang.toLowerCase().includes(q)
-    const matchStatus = filterStatus.value === 'all' || i.status === filterStatus.value
-    return matchSearch && matchStatus
-  })
   const groups: Record<string, HistoryItem[]> = {}
-  for (const item of filtered) {
+  for (const item of items.value) {
     const group = groups[item.date] ?? (groups[item.date] = [])
     group.push(item)
   }
@@ -121,7 +155,7 @@ const avgAccuracy = computed(() => {
       <div class="summary-item">
         <div class="summary-item__icon summary-item__icon--purple"><Captions :size="16" /></div>
         <div>
-          <p class="summary-item__value">{{ items.length }}</p>
+          <p class="summary-item__value">{{ jobStore.totalItems }}</p>
           <p class="summary-item__label">Total Jobs</p>
         </div>
       </div>
@@ -158,11 +192,31 @@ const avgAccuracy = computed(() => {
         <input v-model="searchQuery" type="text" placeholder="Search history..." class="toolbar__search-input" />
       </div>
       <div class="toolbar__filters">
-        <button v-for="s in ['all','done','processing','failed']" :key="s"
-          class="filter-btn" :class="{ 'filter-btn--active': filterStatus === s }"
-          @click="filterStatus = s"
-        >{{ s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1) }}</button>
+        <button
+          v-for="s in JOB_STATUS_FILTERS"
+          :key="s"
+          class="filter-btn"
+          :class="{ 'filter-btn--active': statusFilter === s }"
+          @click="statusFilter = s"
+        >{{ STATUS_LABELS[s] }}</button>
       </div>
+      <FilterPopover :count="jobStore.activeFilterCount" @clear="clearFilters">
+        <div class="filter-field">
+          <label for="job-language">Language</label>
+          <select id="job-language" v-model="languageFilter">
+            <option value="">All languages</option>
+            <option v-for="lang in LANGUAGES" :key="lang.code" :value="lang.code">{{ lang.name }}</option>
+          </select>
+        </div>
+        <div class="filter-field">
+          <label for="job-from">From date</label>
+          <input id="job-from" v-model="fromDate" type="date" />
+        </div>
+        <div class="filter-field">
+          <label for="job-to">To date</label>
+          <input id="job-to" v-model="toDate" type="date" />
+        </div>
+      </FilterPopover>
     </div>
 
     <!-- Timeline Groups -->
@@ -247,6 +301,16 @@ const avgAccuracy = computed(() => {
       </div>
       </template>
     </div>
+
+    <PaginationBar
+      v-if="!jobStore.isLoading && !jobStore.error"
+      :page="jobStore.page"
+      :limit="jobStore.limit"
+      :total-pages="jobStore.totalPages"
+      :total-data="jobStore.totalItems"
+      @update:page="jobStore.setPage"
+      @update:limit="jobStore.setLimit"
+    />
 
   </div>
 </template>

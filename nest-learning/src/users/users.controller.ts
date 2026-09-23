@@ -1,5 +1,5 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
-import { UsersService } from './users.service.js';
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { UsersService, type ListUsersQuery } from './users.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import type { AuthRequest } from '../auth/types/auth-request.js';
 
@@ -10,8 +10,8 @@ export class UsersController {
     constructor(private readonly usersService: UsersService) {}
 
     @Get()
-    getUsers() {
-        return this.usersService.getUsers();
+    getUsers(@Query() query: ListUsersQuery) {
+        return this.usersService.getUsers(query);
     }
 
     @Get(':id')

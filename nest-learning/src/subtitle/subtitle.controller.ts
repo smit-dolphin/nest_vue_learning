@@ -1,6 +1,6 @@
-import { Controller, Post, Param, Get, StreamableFile, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Param, Get, StreamableFile, Delete, UseGuards, Req, Query } from '@nestjs/common';
 import { createReadStream } from 'node:fs';
-import { SubtitleService } from './subtitle.service.js';
+import { SubtitleService, type ListSubtitlesQuery } from './subtitle.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 
@@ -34,8 +34,8 @@ export class SubtitleController {
 
     @Get(':videoId')
     @UseGuards(JwtAuthGuard)
-    getSubtitle(@Param('videoId') videoId:string, @Req() req: any){
-        return this.subtitleService.getSubtitleFiles(videoId, req.user.sub)
+    getSubtitle(@Param('videoId') videoId:string, @Req() req: any, @Query() query: ListSubtitlesQuery){
+        return this.subtitleService.getSubtitleFiles(videoId, req.user.sub, query)
     }
 
     @Delete(':subtitleId')

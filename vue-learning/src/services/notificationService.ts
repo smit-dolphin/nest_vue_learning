@@ -1,4 +1,5 @@
 import baseApi from '@/api/baseApi'
+import { MAX_LIST_LIMIT, type PaginatedList } from '../types/pagination'
 
 export interface NotificationItem {
   id: string
@@ -16,9 +17,15 @@ interface UnreadCountResponse {
 }
 
 export function getNotifications(unreadOnly = false) {
-  return baseApi.get<NotificationItem[]>('/notifications', {
-    params: unreadOnly ? { unreadOnly: true } : undefined,
-  }) as unknown as Promise<NotificationItem[]>
+  const params: Record<string, unknown> = { limit: MAX_LIST_LIMIT }
+  if (unreadOnly) params.unreadOnly = true
+
+  return baseApi
+    .get<PaginatedList<NotificationItem>>('/notifications', { params })
+    .then(
+      (response) =>
+        ((response as unknown as PaginatedList<NotificationItem>).data ?? []) as NotificationItem[],
+    )
 }
 
 export function getUnreadNotificationCount() {

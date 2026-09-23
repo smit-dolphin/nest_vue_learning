@@ -9,11 +9,9 @@ import { AuthModule } from './auth/auth.module.js';
 import { JwtModule } from '@nestjs/jwt';
 import { FfmpegModule } from './ffmpeg/ffmpeg.module.js';
 import { TranscriptionModule } from './transcription/transcription.module.js'; 
-import { AuthMiddleware } from './auth/auth/auth.middleware.js';
 import { BullModule } from '@nestjs/bullmq';
 import { JobModule } from './job/job.module.js';
-import { AgentModule } from './agent/agent.module.js';
-import { StorageService } from './storage/storage.service.js';
+import { AgentModule } from './agent/agent.module.js'; 
 import { StorageModule } from './storage/storage.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
@@ -52,15 +50,5 @@ import { join } from 'path';
     providers: [AppService],
 })
 
-export class AppModule{}
-// export class AppModule implements NestModule{
-//     configure(consumer:MiddlewareConsumer){
-//         consumer
-//         .apply(AuthMiddleware)
-//         .forRoutes(
-//             'users'
-//             ,'auth/me'
-//         );
-//     }
-// }
+export class AppModule{} 
     

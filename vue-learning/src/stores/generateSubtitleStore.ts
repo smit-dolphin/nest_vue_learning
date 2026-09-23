@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { generateSubtitleForVideo, uploadVideo, type SubtitleSettings as VideoSubtitleSettings, type UploadResult } from '../services/videoService'
 import { getSubtitleFileContent, getSubtitleFiles, type SubtitleFile } from '../services/subtitleService'
+import { emptyPage } from '../types/pagination'
 import { useCurrentJobStore } from './currentJobStore'
 import { useSettingsStore } from './settingsStore'
 import { useVideoLibraryStore } from './videoLibraryStore'
@@ -103,7 +104,7 @@ export const useGenerateSubtitleStore = defineStore('generate-subtitle', () => {
     if (!videoId || sourceVideoId.value) return
 
     const videoStore = useVideoLibraryStore()
-    if (!videoStore.videos.length) await videoStore.fetchVideos()
+    if (!videoStore.videos.length) await videoStore.fetchAll()
 
     const video = videoStore.videos.find((item) => item.id === videoId)
     if (!video) return
@@ -199,7 +200,7 @@ export const useGenerateSubtitleStore = defineStore('generate-subtitle', () => {
     isLoadingResults.value = true
 
     try {
-      await videoStore.fetchVideos()
+      await videoStore.fetchAll()
 
       const burnedVideos = videoStore.videos
         .filter((video) => video.type === 'BURNED_VIDEO' && video.parentVideoId === sourceVideoId.value)
@@ -208,7 +209,7 @@ export const useGenerateSubtitleStore = defineStore('generate-subtitle', () => {
 
       generatedVideo.value = burnedVideos[0] ?? null
 
-      const subtitleFiles = await getSubtitleFiles(sourceVideoId.value).catch(() => [])
+      const subtitleFiles = (await getSubtitleFiles(sourceVideoId.value).catch(() => emptyPage<SubtitleFile>())).data
       generatedSubtitle.value =
         subtitleFiles
           .filter((file) => createdAfterGeneration(file.createdAt))

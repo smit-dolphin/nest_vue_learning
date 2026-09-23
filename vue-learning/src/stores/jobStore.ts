@@ -1,9 +1,13 @@
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { isAxiosError } from 'axios'
-import { jobService, type JobDto } from '../services/jobService'
+import { jobService, JOB_STATUSES, type JobDto } from '../services/jobService'
 import { useAuthStore } from './authStore'
+import type { PaginationMeta } from '../types/pagination'
 import type { VideoItem } from '../components/VideoLibrary/types'
+
+export const JOB_STATUS_FILTERS = ['ALL', ...JOB_STATUSES] as const
+export type JobStatusFilter = (typeof JOB_STATUS_FILTERS)[number]
 
 const STATUS_MAP: Record<string, VideoItem['status']> = {
   COMPLETED: 'done',
@@ -77,24 +81,133 @@ export const useJobStore = defineStore('jobs', () => {
   const videos = ref<VideoItem[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
+  const meta = ref<PaginationMeta | null>(null)
+
+  const page = ref(1)
+  const limit = ref(10)
+  const search = ref('')
+  const status = ref<JobStatusFilter>('ALL')
+  const language = ref('')
+  const from = ref('')
+  const to = ref('')
+
+  const totalItems = computed(() => meta.value?.totalData ?? 0)
+  const totalPages = computed(() => meta.value?.totalPages ?? 0)
+  const activeFilterCount = computed(
+    () =>
+      Number(status.value !== 'ALL') +
+      Number(!!language.value) +
+      Number(!!from.value) +
+      Number(!!to.value),
+  )
+
+  function buildParams() {
+    return {
+      page: page.value,
+      limit: limit.value,
+      search: search.value.trim() || undefined,
+      status: status.value === 'ALL' ? undefined : status.value,
+      language: language.value || undefined,
+      from: from.value ? `${from.value}T00:00:00.000` : undefined,
+      to: to.value ? `${to.value}T23:59:59.999` : undefined,
+    }
+  }
+
+  // Coalesce synchronous filter changes into one request and drop stale
+  // responses so a slow request can't overwrite newer results.
+  let requestSeq = 0
+  let fetchScheduled = false
+
+  function scheduleFetch() {
+    if (fetchScheduled) return
+    fetchScheduled = true
+    queueMicrotask(() => {
+      fetchScheduled = false
+      void fetchJobs()
+    })
+  }
 
   async function fetchJobs() {
     const authStore = useAuthStore()
     if (!authStore.user?.id) return
 
+    const seq = ++requestSeq
     isLoading.value = true
     error.value = null
     try {
-      const data = await jobService.getJobForVideo()
-      jobs.value = data
-      videos.value = data.map(jobToVideoItem)
+      const response = await jobService.getJobForVideo(buildParams())
+      if (seq !== requestSeq) return
+
+      jobs.value = response.data
+      videos.value = response.data.map(jobToVideoItem)
+      meta.value = response.meta
+
+      // Clamp the current page when the result set shrank.
+      const maxPages = response.meta.totalPages
+      if (page.value > maxPages && maxPages >= 1) {
+        page.value = maxPages
+        const retry = await jobService.getJobForVideo(buildParams())
+        if (seq !== requestSeq) return
+        jobs.value = retry.data
+        videos.value = retry.data.map(jobToVideoItem)
+        meta.value = retry.meta
+      }
     } catch (err: unknown) {
+      if (seq !== requestSeq) return
       error.value = isAxiosError(err)
         ? err.response?.data?.message ?? 'Failed to load history'
         : 'Failed to load history'
     } finally {
-      isLoading.value = false
+      if (seq === requestSeq) isLoading.value = false
     }
+  }
+
+  async function setSearch(value: string) {
+    search.value = value
+    page.value = 1
+    scheduleFetch()
+  }
+
+  async function setStatus(value: JobStatusFilter) {
+    status.value = value
+    page.value = 1
+    scheduleFetch()
+  }
+
+  async function setLanguage(value: string) {
+    language.value = value
+    page.value = 1
+    scheduleFetch()
+  }
+
+  async function setDateRange(nextFrom: string, nextTo: string) {
+    from.value = nextFrom
+    to.value = nextTo
+    page.value = 1
+    scheduleFetch()
+  }
+
+  async function setPage(value: number) {
+    if (value === page.value) return
+    page.value = value
+    scheduleFetch()
+  }
+
+  async function setLimit(value: number) {
+    if (value === limit.value) return
+    limit.value = value
+    page.value = 1
+    scheduleFetch()
+  }
+
+  function resetFilters() {
+    status.value = 'ALL'
+    language.value = ''
+    from.value = ''
+    to.value = ''
+    search.value = ''
+    page.value = 1
+    scheduleFetch()
   }
 
   return {
@@ -102,6 +215,23 @@ export const useJobStore = defineStore('jobs', () => {
     videos,
     isLoading,
     error,
+    meta,
+    page,
+    limit,
+    status,
+    language,
+    from,
+    to,
+    totalItems,
+    totalPages,
+    activeFilterCount,
     fetchJobs,
+    setSearch,
+    setStatus,
+    setLanguage,
+    setDateRange,
+    setPage,
+    setLimit,
+    resetFilters,
   }
 })

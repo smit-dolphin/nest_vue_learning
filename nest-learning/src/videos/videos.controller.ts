@@ -5,13 +5,15 @@ import { createReadStream } from 'fs';
 import { stat } from 'fs/promises';
 import { extname } from 'path';
 import type { Response } from 'express';
-import { VideosService } from './videos.service.js';
+import { VideosService, type ListVideosQuery } from './videos.service.js';
 import { SubtitleService } from '../subtitle/subtitle.service.js'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { StreamAuthGuard } from '../auth/guards/stream-auth.guard.js';
 import { JobService } from '../job/job.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { uploadAndGenrateVideoDto } from './dto/video.dto.js';
+import { Role } from '../auth/decorators/role.decorators.js';
+import { RoleGuard } from '../auth/guards/roles-auth.guard.js';
 
 
 
@@ -161,9 +163,10 @@ export class VideosController {
 
     // GET all videos
     @Get()
-    @UseGuards(JwtAuthGuard)
-    getVideos(@Req() req: any) {
-        return this.videosService.getVideos(req.user.sub);
+    @UseGuards(JwtAuthGuard,RoleGuard)
+    @Role('USER')
+    getVideos(@Req() req: any, @Query() query: ListVideosQuery) {
+        return this.videosService.getVideos(req.user.sub, query);
     }
 
 

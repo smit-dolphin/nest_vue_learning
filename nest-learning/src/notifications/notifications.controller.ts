@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import type { AuthRequest } from '../auth/types/auth-request.js';
-import { NotificationsService } from './notifications.service.js';
+import { NotificationsService, type ListNotificationsQuery } from './notifications.service.js';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
@@ -19,12 +19,9 @@ export class NotificationsController {
   @Get()
   findMine(
     @Req() request: AuthRequest,
-    @Query('unreadOnly') unreadOnly?: string,
+    @Query() query: ListNotificationsQuery,
   ) {
-    return this.notificationsService.findForUser(
-      request.user.sub,
-      unreadOnly === 'true',
-    );
+    return this.notificationsService.findForUser(request.user.sub, query);
   }
 
   @Get('unread-count')

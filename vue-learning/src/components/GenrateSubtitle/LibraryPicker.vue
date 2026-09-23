@@ -20,7 +20,7 @@ const videoStore = useVideoLibraryStore()
 watch(
   () => props.modelValue,
   (isOpen) => {
-    if (isOpen && !videoStore.videos.length) void videoStore.fetchVideos()
+    if (isOpen && !videoStore.videos.length) void videoStore.fetchAll()
   },
 )
 
