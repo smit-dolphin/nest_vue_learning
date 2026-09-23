@@ -217,7 +217,7 @@ export const useCurrentJobStore = defineStore('jobs/current', () => {
     if (!id || !isProcessing.value) return 'running'
 
     try {
-      const jobs = await jobService.getJobForVideo()
+      const jobs = (await jobService.getJobForVideo()).data
       const match = jobs.find((entry) => entry.queueJobId === id)
 
       if (!match) return 'missing'

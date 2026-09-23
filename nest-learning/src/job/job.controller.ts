@@ -1,5 +1,5 @@
-import { Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
-import { JobService } from './job.service.js';
+import { Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { JobService, type ListJobsQuery } from './job.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 
 @Controller('jobs')
@@ -11,8 +11,8 @@ export class JobController {
     
 
     @Get()
-    getJobsByUserId(@Req() req:any) {
-        return this.jobService.getJobByUserId(req.user?.sub)
+    getJobsByUserId(@Req() req:any, @Query() query: ListJobsQuery) {
+        return this.jobService.getJobByUserId(req.user?.sub, query)
     }
 
     @Get(':jobId')

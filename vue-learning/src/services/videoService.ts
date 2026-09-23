@@ -1,8 +1,16 @@
 import { baseApi } from '../api/baseApi'
 import { useAuthStore } from '../stores/authStore'
+import { MAX_LIST_LIMIT, type ListQueryParams, type PaginatedList } from '../types/pagination'
 
 export type VideoStatus = 'UPLOADED' | 'PROCESSING' | 'COMPLETED' | 'FAILED'
 export type VideoType = 'VIDEO' | 'BURNED_VIDEO'
+
+export const VIDEO_STATUSES: VideoStatus[] = ['UPLOADED', 'PROCESSING', 'COMPLETED', 'FAILED']
+
+export interface VideoListParams extends ListQueryParams {
+  type?: VideoType
+  status?: VideoStatus
+}
 
 export interface VideoDto {
   id: string
@@ -118,10 +126,14 @@ export const generateSubtitleForVideo = async (
   return response as unknown as UploadResult
 }
 
-export const getUserVideos = async (): Promise<VideoDto[]> => {
-  const response = await baseApi.get<VideoDto[]>(`/videos`)
+export const getUserVideos = async (
+  params: VideoListParams = {},
+): Promise<PaginatedList<VideoDto>> => {
+  const response = (await baseApi.get<PaginatedList<VideoDto>>(`/videos`, {
+    params: { limit: MAX_LIST_LIMIT, ...params },
+  })) as unknown as PaginatedList<VideoDto>
 
-  return response as unknown as VideoDto[]
+  return response
 }
 
 export const deleteVideo = async (videoId: string): Promise<VideoDto> => {

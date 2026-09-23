@@ -87,9 +87,9 @@ onMounted(async () => {
   loadError.value = null
 
   try {
-    if (!videoStore.videos.length) await videoStore.fetchVideos()
+    if (!videoStore.videos.length) await videoStore.fetchAll()
 
-    const files = await getSubtitleFiles(videoId.value)
+    const files = (await getSubtitleFiles(videoId.value)).data
     file.value = files.find(item => item.id === subtitleId.value) ?? null
 
     if (!file.value) {

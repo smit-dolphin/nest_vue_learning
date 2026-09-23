@@ -1,4 +1,11 @@
 import { baseApi } from '../api/baseApi'
+import { MAX_LIST_LIMIT, type ListQueryParams, type PaginatedList } from '../types/pagination'
+
+export const SUBTITLE_FORMATS = ['SRT', 'VTT'] as const
+
+export interface SubtitleListParams extends ListQueryParams {
+  format?: string
+}
 
 export interface SubtitleSegment {
   id: number
@@ -36,9 +43,15 @@ export interface BurnSubtitleJob {
   jobId: string
 }
 
-export async function getSubtitleFiles(videoId: string): Promise<SubtitleFile[]> {
-  const response = await baseApi.get<SubtitleFile[]>(`/subtitle/${videoId}`)
-  return response as unknown as SubtitleFile[]
+export async function getSubtitleFiles(
+  videoId: string,
+  params: SubtitleListParams = {},
+): Promise<PaginatedList<SubtitleFile>> {
+  const response = (await baseApi.get<PaginatedList<SubtitleFile>>(`/subtitle/${videoId}`, {
+    params: { limit: MAX_LIST_LIMIT, ...params },
+  })) as unknown as PaginatedList<SubtitleFile>
+
+  return response
 }
 
 export async function burnSubtitleFile(videoId: string, subtitleId: string): Promise<BurnSubtitleJob> {

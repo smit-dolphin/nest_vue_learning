@@ -207,7 +207,7 @@ const deleteHistory = async () => {
   if (!window.confirm('Delete ALL videos, subtitle files, and job history? This cannot be undone.')) return
   deletingHistory.value = true
   try {
-    const videos = await getUserVideos()
+    const videos = (await getUserVideos()).data
     for (const video of videos) {
       await deleteVideo(video.id)
     }

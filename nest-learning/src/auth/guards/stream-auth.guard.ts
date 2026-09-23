@@ -23,10 +23,6 @@ export class StreamAuthGuard implements CanActivate {
       token = String(request.query.token);
     } else if (request.cookies?.accessToken) {
       token = request.cookies.accessToken;
-    } else if (request.cookies?.refreshToken) {
-      // <video> elements cannot send headers, but the refresh token is kept in
-      // an httpOnly cookie that the browser attaches to same-origin requests.
-      token = request.cookies.refreshToken;
     }
 
     if (!token) {

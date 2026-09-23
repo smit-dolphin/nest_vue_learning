@@ -1,7 +1,25 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { JobStatus } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import {
+    paginationHelper,
+    searchHelper,
+    enumFilter,
+    dateRangeFilter,
+    type PrismaWhere,
+} from '../common/query/query.helpers.js';
+
+export interface ListJobsQuery {
+    page?: string | number;
+    limit?: string | number;
+    search?: string;
+    status?: string;
+    language?: string;
+    from?: string;
+    to?: string;
+}
 
 @Injectable()
 export class JobService {
@@ -108,13 +126,27 @@ export class JobService {
         return job
     }
 
-    async getJobByUserId(userId: string) {
-        return await this.prisma.subtitleJob.findMany({
-            where: {
-                video: {
-                    userId,
-                },
+    async getJobByUserId(userId: string, query: ListJobsQuery = {}) {
+        const where: PrismaWhere = {
+            video: {
+                userId,
             },
+        };
+
+        searchHelper(where, query.search, ['video.filename']);
+        enumFilter(where, 'status', query.status, JobStatus);
+        enumFilter(where, 'languageCode', query.language);
+        dateRangeFilter(where, 'createdAt', query.from, query.to);
+
+        const totalData = await this.prisma.subtitleJob.count({
+            where,
+        });
+        const { skip, take, meta } = paginationHelper(query, totalData, 10);
+
+        const jobs = await this.prisma.subtitleJob.findMany({
+            where,
+            skip,
+            take,
             include: {
                 video: {
                     select: {
@@ -130,6 +162,14 @@ export class JobService {
                 createdAt: 'desc',
             },
         });
+
+        return {
+            status: 200,
+            message: 'Jobs fetched successfully',
+            data: jobs,
+            meta,
+            success: true,
+        };
     }
 
 

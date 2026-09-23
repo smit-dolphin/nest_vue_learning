@@ -1,14 +1,31 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { VideoStatus, VideoType } from '../../generated/prisma/enums.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { JobService } from '../job/job.service.js';
 import { FfmpegService } from '../ffmpeg/ffmpeg.service.js';
 import { spawn } from 'child_process';
 
-
 import { unlink } from 'fs/promises';
 import { stat } from 'fs/promises';
 import { basename, dirname, isAbsolute, join, resolve } from 'path';
 import { StorageService } from '../storage/storage.service.js';
+import {
+    paginationHelper,
+    searchHelper,
+    enumFilter,
+    dateRangeFilter,
+    type PrismaWhere,
+} from '../common/query/query.helpers.js';
+
+export interface ListVideosQuery {
+    page?: string | number;
+    limit?: string | number;
+    search?: string;
+    type?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+}
 
 
 
@@ -191,11 +208,32 @@ export class VideosService {
         }) as SubtitleStyle;
     }
 
-    async getVideos(userId: string) {
-        return await this.prisma.video.findMany({
-            where: { userId },
+    async getVideos(userId: string, query: ListVideosQuery = {}) {
+        const where: PrismaWhere = { userId };
+
+        searchHelper(where, query.search, ['filename']);
+        enumFilter(where, 'type', query.type, VideoType);
+        enumFilter(where, 'status', query.status, VideoStatus);
+        dateRangeFilter(where, 'createdAt', query.from, query.to);
+
+        const totalData = await this.prisma.video.count({ where });
+        const { skip, take, meta } = paginationHelper(query, totalData, 10);
+
+        const videos = await this.prisma.video.findMany({
+            where,
+            skip,
+            take,
+            orderBy: { createdAt: 'desc' },
             include: { user: { select: { email: true } } },
         });
+
+        return {
+            status: 200,
+            message: 'Videos fetched successfully',
+            data: videos,
+            meta,
+            success: true,
+        };
     }
 
     async getUserVideos(userId: string) {

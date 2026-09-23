@@ -315,6 +315,12 @@ Incorrect:
 00:00:07,329 --> 00:00:19,259
 [SPEAKER_1] There's [SPEAKER_1] nothing [SPEAKER_1] to [SPEAKER_1] call it.
 
+
+1
+00:07,329 --> 00:19,259
+[SPEAKER_1] There's nothing to call it, but first, we have this kind of circle.
+
+
 WORD-LEVEL TIMING:
 - Word-level timing is INTERNAL timing information only.
 - Word-level timing MUST NOT appear anywhere in SRT subtitle text.

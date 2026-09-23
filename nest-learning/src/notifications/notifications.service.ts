@@ -2,6 +2,23 @@ import { Injectable } from '@nestjs/common';
 import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateNotificationDto } from './dto/create-notification.dto.js';
+import {
+    paginationHelper,
+    searchHelper,
+    enumFilter,
+    dateRangeFilter,
+    type PrismaWhere,
+} from '../common/query/query.helpers.js';
+
+export interface ListNotificationsQuery {
+    page?: string | number;
+    limit?: string | number;
+    search?: string;
+    unreadOnly?: string;
+    type?: string;
+    from?: string;
+    to?: string;
+}
 
 @Injectable()
 export class NotificationsService {
@@ -19,14 +36,36 @@ export class NotificationsService {
     });
   }
 
-  findForUser(userId: string, unreadOnly = false) {
-    return this.prisma.notification.findMany({
-      where: {
-        userId,
-        ...(unreadOnly ? { readAt: null } : {}),
-      },
+  async findForUser(userId: string, query: ListNotificationsQuery = {}) {
+    const where: PrismaWhere = { userId };
+
+    if (query.unreadOnly === 'true') {
+      where['readAt'] = null;
+    }
+
+    searchHelper(where, query.search, ['title', 'message']);
+    enumFilter(where, 'type', query.type);
+    dateRangeFilter(where, 'createdAt', query.from, query.to);
+
+    const totalData = await this.prisma.notification.count({
+      where,
+    });
+    const { skip, take, meta } = paginationHelper(query, totalData, 10);
+
+    const notifications = await this.prisma.notification.findMany({
+      where,
+      skip,
+      take,
       orderBy: { createdAt: 'desc' },
     });
+
+    return {
+      status: 200,
+      message: 'Notifications fetched successfully',
+      data: notifications,
+      meta,
+      success: true,
+    };
   }
 
   countUnread(userId: string) {

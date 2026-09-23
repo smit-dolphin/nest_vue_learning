@@ -1,10 +1,12 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { PrismaService } from "../../prisma/prisma.service.js";
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly jwtService: JwtService,
+    private readonly prisma:PrismaService
   ) {}
 
   async canActivate(
@@ -19,7 +21,7 @@ export class JwtAuthGuard implements CanActivate {
 
     if (!authHeader) {
       throw new UnauthorizedException(
-        'Authorization header missing',
+        'Authorization header missing', 
       );
     }
 
@@ -35,8 +37,13 @@ export class JwtAuthGuard implements CanActivate {
     try {
       const payload =
         await this.jwtService.verifyAsync(token);
+      
+      const users=await  this.prisma.user.findUnique({where:{
+        email:payload.email
+      }})
 
-      request.user = payload;
+      request.user = {...payload,role:users?.role};
+      console.log(request.user)
 
       return true;
     } catch {
