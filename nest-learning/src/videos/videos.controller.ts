@@ -187,7 +187,6 @@ export class VideosController {
   getVideos(@Req() req: any, @Query() query: ListVideosQuery) {
     return this.videosService.getVideos(req.user.sub, query);
   }
- 
 
   //delete video by id
   @Delete(':videoId')

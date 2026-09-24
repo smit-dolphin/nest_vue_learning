@@ -189,6 +189,4 @@ export class JobService {
 
     return ok('Jobs fetched successfully', jobs, meta);
   }
-
-   
 }

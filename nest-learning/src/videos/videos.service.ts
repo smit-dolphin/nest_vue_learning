@@ -364,7 +364,6 @@ export class VideosService {
   async downloadVideo(videoId: string, userId: string) {
     return this.streamVideo(videoId, userId);
   }
- 
 
   async downloadAudio(videoId: string, audioId: string) {
     const audio = await this.prisma.audio.findFirst({

@@ -6,11 +6,10 @@ import { TranscriptionModule } from '../transcription/transcription.module.js';
 import { AgentModule } from '../agent/agent.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 
-
 @Module({
-  imports:[FfmpegModule,TranscriptionModule,AgentModule,StorageModule],
+  imports: [FfmpegModule, TranscriptionModule, AgentModule, StorageModule],
   providers: [SubtitleService],
   controllers: [SubtitleController],
-  exports:[SubtitleService]
+  exports: [SubtitleService],
 })
 export class SubtitleModule {}

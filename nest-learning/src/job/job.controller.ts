@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { JobService, type ListJobsQuery } from './job.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { ok } from '../common/response/response.js';
@@ -26,6 +19,4 @@ export class JobController {
 
     return ok('Job fetched successfully', job);
   }
-
-   
 }

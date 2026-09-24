@@ -5,8 +5,8 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 
 @Injectable()
+// 2. Pass the options type directly into the parent class definition
 export class PrismaService
-  // 2. Pass the options type directly into the parent class definition
   extends PrismaClient<Prisma.PrismaClientOptions>
   implements OnModuleInit, OnModuleDestroy
 {

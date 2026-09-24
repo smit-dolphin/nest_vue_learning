@@ -28,26 +28,22 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly storageService: StorageService,
-  ) { }
+  ) {}
 
   // =========================
   // CREATE REFRESH TOKEN
   // =========================
 
-  async createRefreshToken(
-    userId: string,
-    email: string,
-  ) {
-    const refreshToken =
-      await this.jwtService.signAsync(
-        {
-          sub: userId,
-          email,
-        },
-        {
-          expiresIn: '7d',
-        },
-      );
+  async createRefreshToken(userId: string, email: string) {
+    const refreshToken = await this.jwtService.signAsync(
+      {
+        sub: userId,
+        email,
+      },
+      {
+        expiresIn: '7d',
+      },
+    );
 
     return refreshToken;
   }
@@ -82,7 +78,9 @@ export class AuthService {
     });
 
     if (consumed.count !== 1) {
-      throw new UnauthorizedException('Google login code has already been used');
+      throw new UnauthorizedException(
+        'Google login code has already been used',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
@@ -111,10 +109,13 @@ export class AuthService {
     };
   }
 
-
-
   //google auth suport
-  async loginWithGoogle(sub: string, email: string, username: string, profileImage?: string) {
+  async loginWithGoogle(
+    sub: string,
+    email: string,
+    username: string,
+    profileImage?: string,
+  ) {
     // 1. Check if user exists
     const user = await this.prisma.user.findUnique({
       where: {
@@ -130,32 +131,29 @@ export class AuthService {
           profileImage,
           role: 'USER',
           googleId: sub,
-        }
-      })
+        },
+      });
 
       await this.prisma.userSettings.create({
         data: { userId: newUser.id },
-      })
-
+      });
 
       // 4. Create access token
-      const accessToken =
-        await this.jwtService.signAsync(
-          {
-            sub: newUser.id,
-            email: newUser.email,
-          },
-          {
-            expiresIn: '5m',
-          },
-        );
+      const accessToken = await this.jwtService.signAsync(
+        {
+          sub: newUser.id,
+          email: newUser.email,
+        },
+        {
+          expiresIn: '5m',
+        },
+      );
 
       // 5. Create refresh token
-      const refreshToken =
-        await this.createRefreshToken(
-          newUser.id,
-          newUser.email,
-        );
+      const refreshToken = await this.createRefreshToken(
+        newUser.id,
+        newUser.email,
+      );
 
       // 6. Return
       return {
@@ -170,8 +168,6 @@ export class AuthService {
         accessToken,
         refreshToken,
       };
-
-
     }
 
     const accessToken = await this.jwtService.signAsync(
@@ -184,10 +180,7 @@ export class AuthService {
       },
     );
 
-    const refreshToken = await this.createRefreshToken(
-      user.id,
-      user.email,
-    );
+    const refreshToken = await this.createRefreshToken(user.id, user.email);
 
     return {
       message: 'Login successful',
@@ -215,48 +208,33 @@ export class AuthService {
 
     // 2. User doesn't exist
     if (!user) {
-      throw new UnauthorizedException(
-        'Invalid email or password',
-      );
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     if (!user.password) {
-      throw new UnauthorizedException(
-        'Invalid email or password',
-      );
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     // 3. Check password
-    const passwordCorrect =
-      await bcrypt.compare(
-        dto.password,
-        user.password,
-      );
+    const passwordCorrect = await bcrypt.compare(dto.password, user.password);
 
     if (!passwordCorrect) {
-      throw new UnauthorizedException(
-        'Invalid email or password',
-      );
+      throw new UnauthorizedException('Invalid email or password');
     }
 
     // 4. Create access token
-    const accessToken =
-      await this.jwtService.signAsync(
-        {
-          sub: user.id,
-          email: user.email,
-        },
-        {
-          expiresIn: '5m',
-        },
-      );
+    const accessToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        email: user.email,
+      },
+      {
+        expiresIn: '5m',
+      },
+    );
 
     // 5. Create refresh token
-    const refreshToken =
-      await this.createRefreshToken(
-        user.id,
-        user.email,
-      );
+    const refreshToken = await this.createRefreshToken(user.id, user.email);
 
     // 6. Return result
     return {
@@ -279,56 +257,46 @@ export class AuthService {
 
   async registerUser(dto: RegisterDto) {
     // 1. Check existing user
-    const existing =
-      await this.prisma.user.findUnique({
-        where: {
-          email: dto.email,
-        },
-      });
+    const existing = await this.prisma.user.findUnique({
+      where: {
+        email: dto.email,
+      },
+    });
 
     if (existing) {
-      throw new ConflictException(
-        'Email already in use',
-      );
+      throw new ConflictException('Email already in use');
     }
 
     // 2. Hash password
-    const hashedPassword =
-      await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
 
     // 3. Create user
-    const user =
-      await this.prisma.user.create({
-        data: {
-          email: dto.email,
-          username: dto.username,
-          password: hashedPassword,
-          role: "USER"
-        },
-      });
+    const user = await this.prisma.user.create({
+      data: {
+        email: dto.email,
+        username: dto.username,
+        password: hashedPassword,
+        role: 'USER',
+      },
+    });
 
     await this.prisma.userSettings.create({
       data: { userId: user.id },
     });
 
     // 4. Create access token
-    const accessToken =
-      await this.jwtService.signAsync(
-        {
-          sub: user.id,
-          email: user.email,
-        },
-        {
-          expiresIn: '5m',
-        },
-      );
+    const accessToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        email: user.email,
+      },
+      {
+        expiresIn: '5m',
+      },
+    );
 
     // 5. Create refresh token
-    const refreshToken =
-      await this.createRefreshToken(
-        user.id,
-        user.email,
-      );
+    const refreshToken = await this.createRefreshToken(user.id, user.email);
 
     // 6. Return
     return {
@@ -349,18 +317,13 @@ export class AuthService {
   // REFRESH ACCESS TOKEN
   // =========================
 
-  async refreshAccessToken(
-    request: Request,
-  ) {
+  async refreshAccessToken(request: Request) {
     // 1. Get refresh token from cookie
 
-    const refreshToken =
-      request.cookies?.refreshToken;
+    const refreshToken = request.cookies?.refreshToken;
 
     if (!refreshToken) {
-      throw new UnauthorizedException(
-        'Refresh token not found',
-      );
+      throw new UnauthorizedException('Refresh token not found');
     }
 
     // 2. Verify refresh token
@@ -371,57 +334,43 @@ export class AuthService {
     };
 
     try {
-      payload =
-        await this.jwtService.verifyAsync(
-          refreshToken,
-        );
+      payload = await this.jwtService.verifyAsync(refreshToken);
     } catch {
-      throw new UnauthorizedException(
-        'Invalid or expired refresh token',
-      );
+      throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
     // 3. Find user using token's user ID
 
-    const user =
-      await this.prisma.user.findUnique({
-        where: {
-          id: payload.sub,
-        },
-      });
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: payload.sub,
+      },
+    });
 
     if (!user) {
-      throw new UnauthorizedException(
-        'Invalid refresh token',
-      );
+      throw new UnauthorizedException('Invalid refresh token');
     }
 
     // 4. Create new access token
 
-    const accessToken =
-      await this.jwtService.signAsync(
-        {
-          sub: user.id,
-          email: user.email,
-        },
-        {
-          expiresIn: '5m',
-        },
-      );
+    const accessToken = await this.jwtService.signAsync(
+      {
+        sub: user.id,
+        email: user.email,
+      },
+      {
+        expiresIn: '5m',
+      },
+    );
 
     // 5. Create new refresh token
 
-    const newRefreshToken =
-      await this.createRefreshToken(
-        user.id,
-        user.email,
-      );
+    const newRefreshToken = await this.createRefreshToken(user.id, user.email);
 
     // 6. Return tokens
 
     return {
-      message:
-        'Token generated successfully',
+      message: 'Token generated successfully',
 
       accessToken,
 
@@ -445,8 +394,8 @@ export class AuthService {
         role: true,
         profileImage: true,
         googleId: true,
-        createdAt: true
-      }
+        createdAt: true,
+      },
     });
   }
 
@@ -487,13 +436,13 @@ export class AuthService {
     }
 
     if (!user.password) {
-      throw new ForbiddenException(
-        'This account does not have a password set',
-      );
+      throw new ForbiddenException('This account does not have a password set');
     }
 
-    const passwordCorrect =
-      await bcrypt.compare(dto.currentPassword, user.password);
+    const passwordCorrect = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
 
     if (!passwordCorrect) {
       throw new BadRequestException('Current password is incorrect');

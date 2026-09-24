@@ -10,27 +10,26 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const config = new DocumentBuilder()
-  .setTitle('Nest Vue Learning API')
-  .setDescription('API documentation for my application')
-  .setVersion('1.0')
-  .build();
+    .setTitle('Nest Vue Learning API')
+    .setDescription('API documentation for my application')
+    .setVersion('1.0')
+    .build();
 
-const document = SwaggerModule.createDocument(app, config);
+  const document = SwaggerModule.createDocument(app, config);
 
-SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('api', app, document);
 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-    })
-  )
+    }),
+  );
 
-  app.useGlobalFilters(
-    new HttpExceptionFilter())
+  app.useGlobalFilters(new HttpExceptionFilter());
 
-  app.setGlobalPrefix('api')
+  app.setGlobalPrefix('api');
 
   app.enableCors({
     origin: 'http://localhost:5173', // Adjust this if your frontend runs on a different port
@@ -38,11 +37,9 @@ SwaggerModule.setup('api', app, document);
     credentials: true,
   });
 
-  app.use(cookieParser())
+  app.use(cookieParser());
   const port = Number(process.env.PORT) || 3000;
 
-await app.listen(port, '0.0.0.0');
-
-
+  await app.listen(port, '0.0.0.0');
 }
 bootstrap();

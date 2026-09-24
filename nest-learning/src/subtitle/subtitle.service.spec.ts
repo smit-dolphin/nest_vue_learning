@@ -41,7 +41,10 @@ describe('SubtitleService', () => {
     const root = process.cwd();
     const subtitleDir = path.join(root, 'uploads', 'subtitle');
     const subtitlePath = path.join(subtitleDir, 'delete-check.srt');
-    const storedPath = path.relative(root, subtitlePath).split(path.sep).join('/');
+    const storedPath = path
+      .relative(root, subtitlePath)
+      .split(path.sep)
+      .join('/');
 
     await fs.mkdir(subtitleDir, { recursive: true });
     await fs.writeFile(subtitlePath, 'subtitle content');

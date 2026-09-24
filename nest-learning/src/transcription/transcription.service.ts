@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { spawn } from 'child_process';
 import path from 'path';
@@ -8,15 +12,18 @@ import { StorageService } from '../storage/storage.service.js';
 
 @Injectable()
 export class TranscriptionService {
-  constructor(private readonly prisma: PrismaService,
-    private readonly storageService: StorageService
-  ) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storageService: StorageService,
+  ) {}
 
-
-
-
-  // adding the output path for genrated audio 
-  async transcriptAudio(audioPath: string, videoId: string, options: any, workDir: string): Promise<{
+  // adding the output path for genrated audio
+  async transcriptAudio(
+    audioPath: string,
+    videoId: string,
+    options: any,
+    workDir: string,
+  ): Promise<{
     localPath: string;
     filename: string;
     mimeType: string;
@@ -24,47 +31,61 @@ export class TranscriptionService {
     duration: number;
     subtitleFormat: string; // extension, e.g. '.srt'
     languageCode: string;
-}> {
+  }> {
     const subtitleFormat = getWhisperOutputFormat(options.formate);
     const languageCode = options.leng || 'en';
 
-    const absoluteWisperPath = path.join(process.cwd(), 'Release', 'whisper-cli');
-    const absoluteModelPath = path.join(process.cwd(), 'Release', 'models', 'ggml-base.bin');
+    const absoluteWisperPath = path.join(
+      process.cwd(),
+      'Release',
+      'whisper-cli',
+    );
+    const absoluteModelPath = path.join(
+      process.cwd(),
+      'Release',
+      'models',
+      'ggml-base.bin',
+    );
 
     // output path now lives in workDir, no extension — whisper-cli appends it
     const outputBasePath = path.join(workDir, videoId);
 
-    const isWordLevel = options.wordLevelTiming === true || options.wordLevelTiming === 'true';
+    const isWordLevel =
+      options.wordLevelTiming === true || options.wordLevelTiming === 'true';
     const wordLevelTiming = isWordLevel ? ['-owts', '-wt', '0.01'] : [];
 
     const wisper = spawn(absoluteWisperPath, [
-        "-m", absoluteModelPath,
-        "-f", audioPath,
-        subtitleFormat.flag,
-        "-of", outputBasePath,
-        "-l", "auto",
-        ...wordLevelTiming
+      '-m',
+      absoluteModelPath,
+      '-f',
+      audioPath,
+      subtitleFormat.flag,
+      '-of',
+      outputBasePath,
+      '-l',
+      'auto',
+      ...wordLevelTiming,
     ]);
 
-    wisper.stdout?.on("data", (data) => {
-        console.log(`Whisper stdout: ${data.toString()}`);
+    wisper.stdout?.on('data', (data) => {
+      console.log(`Whisper stdout: ${data.toString()}`);
     });
 
-    wisper.stderr?.on("data", (data) => {
-        console.error(`Whisper stderr: ${data.toString()}`);
+    wisper.stderr?.on('data', (data) => {
+      console.error(`Whisper stderr: ${data.toString()}`);
     });
 
     await new Promise((resolve, reject) => {
-        wisper.on("error", (err) => {
-            reject(new Error(`failed to run wisper : ${err.message}`));
-        });
-        wisper.on('close', (code) => {
-            if (code === 0) {
-                resolve("transcription genrated successfully");
-            } else {
-                reject(new Error(`failed to genrate transcription : ${code}`));
-            }
-        });
+      wisper.on('error', (err) => {
+        reject(new Error(`failed to run wisper : ${err.message}`));
+      });
+      wisper.on('close', (code) => {
+        if (code === 0) {
+          resolve('transcription genrated successfully');
+        } else {
+          reject(new Error(`failed to genrate transcription : ${code}`));
+        }
+      });
     });
 
     const fullSubtitlePath = `${outputBasePath}${subtitleFormat.extension}`;
@@ -72,16 +93,15 @@ export class TranscriptionService {
     const fileStats = await fs.stat(fullSubtitlePath);
 
     return {
-        localPath: fullSubtitlePath,
-        filename,
-        mimeType: subtitleFormat.mimeType,
-        size: fileStats.size,
-        duration: 0.0,
-        subtitleFormat: subtitleFormat.extension,
-        languageCode,
+      localPath: fullSubtitlePath,
+      filename,
+      mimeType: subtitleFormat.mimeType,
+      size: fileStats.size,
+      duration: 0.0,
+      subtitleFormat: subtitleFormat.extension,
+      languageCode,
     };
-}
-
+  }
 
   async transcriptionAudioDbEntry(file: {
     filename: string;
@@ -103,16 +123,14 @@ export class TranscriptionService {
         videoId: file.videoId,
         languageCode: file.languageCode,
         subtitleFormat: this.mapSubtitleFormat(file.subtitleFormat),
-      }
-    })
-
+      },
+    });
 
     if (transcriptionAudio === undefined || transcriptionAudio === null) {
-      throw new InternalServerErrorException("transcription is not genrated")
+      throw new InternalServerErrorException('transcription is not genrated');
     }
 
-    return transcriptionAudio
-
+    return transcriptionAudio;
   }
 
   // Maps a subtitle extension string (e.g. ".srt", ".vtt") to the schema's
@@ -135,5 +153,4 @@ export class TranscriptionService {
       ? storedPath
       : path.resolve(root, storedPath);
   }
-
 }

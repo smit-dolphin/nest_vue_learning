@@ -1,17 +1,13 @@
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 
-
 import { Server } from 'socket.io';
-
-
 
 @WebSocketGateway({
   cors: {
     origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
-    credentials: true
-  }
+    credentials: true,
+  },
 })
-
 export class jobGateway {
   @WebSocketServer()
   server!: Server;

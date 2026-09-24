@@ -42,9 +42,15 @@ export function getWhisperOutputFormat(format?: string) {
   // Case-insensitive fallback
   const normalized = format.trim().toLowerCase();
   if (normalized === 'srt') return whisperOutputFormats.SRT;
-  if (normalized === 'webvtt' || normalized === 'vtt') return whisperOutputFormats.WebVTT;
+  if (normalized === 'webvtt' || normalized === 'vtt')
+    return whisperOutputFormats.WebVTT;
   if (normalized === 'json') return whisperOutputFormats.JSON;
-  if (normalized === 'plain text' || normalized === 'plaintext' || normalized === 'txt' || normalized === 'text') {
+  if (
+    normalized === 'plain text' ||
+    normalized === 'plaintext' ||
+    normalized === 'txt' ||
+    normalized === 'text'
+  ) {
     return whisperOutputFormats['Plain Text'];
   }
 
