@@ -3,21 +3,22 @@ import { Prisma } from '../../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateNotificationDto } from './dto/create-notification.dto.js';
 import {
-    paginationHelper,
-    searchHelper,
-    enumFilter,
-    dateRangeFilter,
-    type PrismaWhere,
+  paginationHelper,
+  searchHelper,
+  enumFilter,
+  dateRangeFilter,
+  type PrismaWhere,
 } from '../common/query/query.helpers.js';
+import { ok } from '../common/response/response.js';
 
 export interface ListNotificationsQuery {
-    page?: string | number;
-    limit?: string | number;
-    search?: string;
-    unreadOnly?: string;
-    type?: string;
-    from?: string;
-    to?: string;
+  page?: string | number;
+  limit?: string | number;
+  search?: string;
+  unreadOnly?: string;
+  type?: string;
+  from?: string;
+  to?: string;
 }
 
 @Injectable()
@@ -59,13 +60,7 @@ export class NotificationsService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return {
-      status: 200,
-      message: 'Notifications fetched successfully',
-      data: notifications,
-      meta,
-      success: true,
-    };
+    return ok('Notifications fetched successfully', notifications, meta);
   }
 
   countUnread(userId: string) {

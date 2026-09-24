@@ -9,7 +9,11 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import type { AuthRequest } from '../auth/types/auth-request.js';
-import { NotificationsService, type ListNotificationsQuery } from './notifications.service.js';
+import {
+  NotificationsService,
+  type ListNotificationsQuery,
+} from './notifications.service.js';
+import { ok } from '../common/response/response.js';
 
 @Controller('notifications')
 @UseGuards(JwtAuthGuard)
@@ -27,7 +31,7 @@ export class NotificationsController {
   @Get('unread-count')
   async unreadCount(@Req() request: AuthRequest) {
     const count = await this.notificationsService.countUnread(request.user.sub);
-    return { count };
+    return ok('Unread count fetched successfully', { count });
   }
 
   @Patch('read-all')
@@ -35,7 +39,7 @@ export class NotificationsController {
     const result = await this.notificationsService.markAllAsRead(
       request.user.sub,
     );
-    return { updated: result.count };
+    return ok('All notifications marked as read', { updated: result.count });
   }
 
   @Patch(':id/read')
@@ -47,6 +51,6 @@ export class NotificationsController {
       request.user.sub,
       notificationId,
     );
-    return { updated: result.count };
+    return ok('Notification marked as read', { updated: result.count });
   }
 }

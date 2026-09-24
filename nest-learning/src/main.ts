@@ -4,6 +4,7 @@ import { AppModule } from './app.module.js';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -25,6 +26,9 @@ SwaggerModule.setup('api', app, document);
       transform: true,
     })
   )
+
+  app.useGlobalFilters(
+    new HttpExceptionFilter())
 
   app.setGlobalPrefix('api')
 
