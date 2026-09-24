@@ -16,9 +16,10 @@ model User {
 
   googleId String? @unique 
 
-  settings Json?
 
   role      UserRole @default(USER)
+  settings     UserSettings?
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -172,4 +173,45 @@ enum JobStatus {
   PROCESSING
   COMPLETED
   FAILED
+}
+
+
+model UserSettings {
+  id        String   @id @default(cuid())
+
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // General
+  language      String   @default("en")
+  theme         String   @default("dark")
+  compactView   Boolean  @default(false)
+
+  // Subtitle
+  defaultLanguage   String   @default("en")
+  defaultFormat     SubtitleFormat @default(SRT)
+  autoPunctuation   Boolean  @default(true)
+  wordLevelTiming   Boolean  @default(false)
+  autoTranslate     Boolean  @default(false)
+  translateLanguage String?
+
+  // Subtitle style
+  fontSize          Int      @default(32)
+  fontColor         String   @default("#FFFFFF")
+  backgroundOpacity Int      @default(50)
+  position          String   @default("bottom")
+  outline           Boolean  @default(true)
+
+  // Notifications
+  jobComplete       Boolean  @default(true)
+  jobFailed         Boolean  @default(true)
+  weeklyReport      Boolean  @default(false)
+  productUpdates    Boolean  @default(true)
+  marketing         Boolean  @default(false)
+
+  // Download
+  autoDownload      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

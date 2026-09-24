@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FfmpegService } from './ffmpeg.service.js';
+import { SettingsService } from './settings.service.js';
 
-describe('FfmpegService', () => {
-  let service: FfmpegService;
+describe('SettingsService', () => {
+  let service: SettingsService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [FfmpegService],
+      providers: [SettingsService],
     }).compile();
 
-    service = module.get<FfmpegService>(FfmpegService);
+    service = module.get<SettingsService>(SettingsService);
   });
 
   it('should be defined', () => {

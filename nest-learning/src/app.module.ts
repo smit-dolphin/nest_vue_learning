@@ -18,6 +18,7 @@ import { DashboardModule } from './dashboard/dashboard.module.js';
 
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { SettingsModule } from './settings/settings.module.js';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { join } from 'path';
     StorageModule,
     NotificationsModule,
     DashboardModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

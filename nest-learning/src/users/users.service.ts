@@ -77,6 +77,10 @@ export class UsersService {
       data: { email: body.email, password: hashed },
     });
 
+    await this.prisma.userSettings.create({
+      data: { userId: user.id },
+    });
+
     const { password, ...rest } = user;
     return rest;
   }

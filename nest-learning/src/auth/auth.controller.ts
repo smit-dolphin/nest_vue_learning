@@ -27,7 +27,6 @@ import { RegisterDto } from './dto/register.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
-import { UpdateSettingsDto } from './dto/update-settings.dto.js';
 
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { StreamAuthGuard } from './guards/stream-auth.guard.js';
@@ -217,32 +216,6 @@ export class AuthController {
     );
 
     return new StreamableFile(createReadStream(localPath));
-  }
-
-  // =========================
-  // USER SETTINGS
-  // =========================
-
-  @Get('settings')
-  @UseGuards(JwtAuthGuard)
-  async getSettings(@Req() request: AuthRequest) {
-    const settings = await this.authService.getSettings(request.user.sub);
-
-    return ok('Settings fetched successfully', settings);
-  }
-
-  @Patch('settings')
-  @UseGuards(JwtAuthGuard)
-  async updateSettings(
-    @Req() request: AuthRequest,
-    @Body() body: UpdateSettingsDto,
-  ) {
-    const settings = await this.authService.updateSettings(
-      request.user.sub,
-      body,
-    );
-
-    return ok('Settings updated successfully', settings);
   }
 
   // =========================

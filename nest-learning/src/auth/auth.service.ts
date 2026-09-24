@@ -20,7 +20,6 @@ import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { UpdateProfileDto } from './dto/update-profile.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
-import { UpdateSettingsDto } from './dto/update-settings.dto.js';
 import { StorageService } from '../storage/storage.service.js';
 
 @Injectable()
@@ -132,6 +131,10 @@ export class AuthService {
           role: 'USER',
           googleId: sub,
         }
+      })
+
+      await this.prisma.userSettings.create({
+        data: { userId: newUser.id },
       })
 
 
@@ -304,6 +307,10 @@ export class AuthService {
         },
       });
 
+    await this.prisma.userSettings.create({
+      data: { userId: user.id },
+    });
+
     // 4. Create access token
     const accessToken =
       await this.jwtService.signAsync(
@@ -438,7 +445,6 @@ export class AuthService {
         role: true,
         profileImage: true,
         googleId: true,
-        settings: true,
         createdAt: true
       }
     });
@@ -525,76 +531,5 @@ export class AuthService {
     });
 
     return this.getMyProfile(userId);
-  }
-
-  // =========================
-  // USER SETTINGS
-  // =========================
-
-  async getSettings(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { settings: true },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    return this.mergeSettings(user.settings);
-  }
-
-  async updateSettings(userId: string, dto: UpdateSettingsDto) {
-    const existing = await this.getSettings(userId);
-
-    const notifications = {
-      ...existing.notifications,
-      ...(dto.notifications ?? {}),
-    };
-
-    const nextSettings = {
-      defaultLang: dto.defaultLang ?? existing.defaultLang,
-      defaultFormat: dto.defaultFormat ?? existing.defaultFormat,
-      autoDownload: dto.autoDownload ?? existing.autoDownload,
-      darkMode: dto.darkMode ?? existing.darkMode,
-      compactView: dto.compactView ?? existing.compactView,
-      notifications,
-    };
-
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { settings: nextSettings },
-    });
-
-    return nextSettings;
-  }
-
-  private mergeSettings(stored: unknown) {
-    const defaults = {
-      defaultLang: 'en',
-      defaultFormat: 'SRT',
-      autoDownload: false,
-      darkMode: true,
-      compactView: false,
-      notifications: {
-        jobComplete: true,
-        jobFailed: true,
-        weeklyReport: false,
-        productUpdates: true,
-        marketing: false,
-      },
-    };
-
-    const storedRecord = (stored ?? {}) as Record<string, unknown>;
-    const storedNotifications = (storedRecord.notifications ?? {}) as Record<string, unknown>;
-
-    return {
-      ...defaults,
-      ...storedRecord,
-      notifications: {
-        ...defaults.notifications,
-        ...storedNotifications,
-      },
-    };
   }
 }
