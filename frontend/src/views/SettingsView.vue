@@ -218,17 +218,39 @@ const updatePassword = async () => {
 }
 
 const photoInput = ref<HTMLInputElement | null>(null)
-const onPhotoSelected = async (event: Event) => {
+const selectedPhoto = ref<File | null>(null)
+const photoPreviewUrl = ref('')
+const uploadingPhoto = ref(false)
+
+const onPhotoSelected = (event: Event) => {
   const file = (event.target as HTMLInputElement).files?.[0]
   if (!file) return
+  selectedPhoto.value = file
+  photoPreviewUrl.value = URL.createObjectURL(file)
+}
+
+const cancelPhotoSelection = () => {
+  selectedPhoto.value = null
+  photoPreviewUrl.value = ''
+  if (photoInput.value) photoInput.value.value = ''
+}
+
+const uploadPhoto = async () => {
+  if (!selectedPhoto.value) {
+    toast.error('Select a photo first.')
+    return
+  }
+
+  uploadingPhoto.value = true
   try {
-    const user = await uploadProfileImage(file)
+    const user = await uploadProfileImage(selectedPhoto.value)
     authStore.setUser(user)
+    cancelPhotoSelection()
     toast.success('Profile photo updated')
   } catch {
     // Error is toasted by the interceptor.
   } finally {
-    if (photoInput.value) photoInput.value.value = ''
+    uploadingPhoto.value = false
   }
 }
 
@@ -279,7 +301,13 @@ const { errors: passwordErrors, validate: validatePassword, clearField: clearPas
 
             <div class="flex flex-wrap items-center gap-5">
               <img
-                v-if="photoUrl"
+                v-if="photoPreviewUrl"
+                :src="photoPreviewUrl"
+                alt="Profile preview"
+                class="size-20 rounded-3xl object-cover shadow-lg shadow-indigo-500/30"
+              />
+              <img
+                v-else-if="photoUrl"
                 :src="photoUrl"
                 alt="Profile"
                 class="size-20 rounded-3xl object-cover shadow-lg shadow-indigo-500/30"
@@ -288,9 +316,14 @@ const { errors: passwordErrors, validate: validatePassword, clearField: clearPas
                 {{ avatarInitials }}
               </span>
               <div class="flex flex-col gap-2">
-                <div class="flex gap-2">
+                <div class="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" @click="photoInput?.click()">Change photo</Button>
-                  <Button size="sm" @click="photoInput?.click()"><Save class="size-4" /> Upload</Button>
+                  <Button size="sm" :disabled="!selectedPhoto || uploadingPhoto" @click="uploadPhoto">
+                    <Loader2 v-if="uploadingPhoto" class="size-4 animate-spin" />
+                    <Save v-else class="size-4" />
+                    Upload
+                  </Button>
+                  <Button v-if="selectedPhoto" variant="ghost" size="sm" @click="cancelPhotoSelection">Cancel</Button>
                   <input ref="photoInput" type="file" accept="image/jpeg,image/png" class="hidden" @change="onPhotoSelected" />
                 </div>
                 <p class="text-xs text-muted-foreground">JPG, PNG up to 2MB</p>

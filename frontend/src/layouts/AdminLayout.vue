@@ -2,27 +2,14 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
-import AppNavbar from '@/components/layout/AppNavbar.vue'
-import AppSidebar from '@/components/layout/AppSidebar.vue'
-import ProtectedRoutes from '@/components/ProtectedRoutes.vue'
-import { useSettingsStore } from '@/stores/settingsStore'
+import AdminNavbar from '@/components/layout/AdminNavbar.vue'
+import AdminSidebar from '@/components/layout/AdminSidebar.vue'
 
-const settingsStore = useSettingsStore()
-
-const collapsed = ref(settingsStore.effectiveSettings.compactView)
 const mobileOpen = ref(false)
 const isMobile = ref(false)
 const route = useRoute()
 
 let mediaQuery: MediaQueryList | null = null
-
-watch(
-  () => settingsStore.effectiveSettings.compactView,
-  (compact) => {
-    collapsed.value = compact
-  },
-  { immediate: true },
-)
 
 const handleMediaChange = (event: MediaQueryListEvent) => {
   isMobile.value = event.matches
@@ -60,40 +47,35 @@ watch(
 </script>
 
 <template>
-  <ProtectedRoutes>
-    <div class="min-h-screen bg-background">
-      <AppSidebar
-        v-model:collapsed="collapsed"
-        :mobile-open="mobileOpen"
-        @close-mobile="mobileOpen = false"
-      />
+  <div class="min-h-screen bg-background">
+    <AdminSidebar :class="mobileOpen ? 'max-lg:translate-x-0' : ''" @close-mobile="mobileOpen = false" />
 
-      <Teleport to="body">
-        <Transition name="overlay">
-          <div
-            v-if="mobileOpen"
-            class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
-            @click="mobileOpen = false"
-          />
-        </Transition>
-      </Teleport>
+    <Teleport to="body">
+      <Transition name="overlay">
+        <div
+          v-if="mobileOpen"
+          class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
+          @click="mobileOpen = false"
+        />
+      </Transition>
+    </Teleport>
 
-      <div
-        class="flex min-h-screen flex-col transition-[padding] duration-300 ease-in-out max-lg:pl-0"
-        :class="collapsed ? 'lg:pl-[76px]' : 'lg:pl-64'"
-      >
-        <AppNavbar @toggle-mobile="mobileOpen = !mobileOpen" />
+    <div class="flex min-h-screen flex-col pl-0 lg:pl-64">
+      <AdminNavbar @toggle-mobile="mobileOpen = !mobileOpen" />
 
-        <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-          <RouterView v-slot="{ Component }">
-            <Transition name="page" mode="out-in" appear>
-              <component :is="Component" />
-            </Transition>
-          </RouterView>
-        </main>
-      </div>
+      <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <RouterView v-slot="{ Component }">
+          <Transition name="page" mode="out-in" appear>
+            <component :is="Component" />
+          </Transition>
+        </RouterView>
+      </main>
+
+      <footer class="border-t border-border/70 px-6 py-4 text-center text-xs text-muted-foreground">
+        VueSubs Admin Console · Built for internal operations
+      </footer>
     </div>
-  </ProtectedRoutes>
+  </div>
 </template>
 
 <style scoped>

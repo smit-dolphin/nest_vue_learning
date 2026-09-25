@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  ArrowRight,
   CalendarDays,
   CheckCircle2,
   Globe2,
@@ -7,19 +8,50 @@ import {
   ShieldCheck,
   UserRound,
 } from '@lucide/vue'
-import { ArrowRight } from '@lucide/vue'
+import { computed } from 'vue'
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
+import { LANGUAGES } from '@/constants/settings'
+import { getProfileImageUrl } from '@/services/authService'
+import { useAuthStore } from '@/stores/authStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 
-const details = [
-  { label: 'Username', value: 'Smit Gajjar', icon: UserRound },
-  { label: 'Email address', value: 'smit@example.com', icon: Mail },
-  { label: 'Role', value: 'Member', icon: ShieldCheck },
-  { label: 'Member since', value: 'August 27, 2025', icon: CalendarDays },
-]
+const authStore = useAuthStore()
+const settingsStore = useSettingsStore()
+
+const userName = computed(() => authStore.user?.username || 'User')
+const userEmail = computed(() => authStore.user?.email || '')
+const roleLabel = computed(() => (authStore.user?.role === 'ADMIN' ? 'Admin' : 'Member'))
+const memberSince = computed(() => {
+  const raw = authStore.user?.createdAt
+  if (!raw) return '—'
+  return new Date(raw).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+})
+const avatarSrc = computed(() => getProfileImageUrl())
+const userInitials = computed(() => {
+  const source = (authStore.user?.username || authStore.user?.email || 'U').trim()
+  const parts = source.split(/[\s@.]+/).filter(Boolean)
+  const initials = (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')
+  return (initials || 'U').toUpperCase()
+})
+const languageLabel = computed(() => {
+  const code = settingsStore.effectiveSettings.defaultLanguage
+  return LANGUAGES.find((l) => l.code === code)?.label ?? code.toUpperCase()
+})
+
+const details = computed(() => [
+  { label: 'Username', value: userName.value, icon: UserRound },
+  { label: 'Email address', value: userEmail.value, icon: Mail },
+  { label: 'Role', value: roleLabel.value, icon: ShieldCheck },
+  { label: 'Member since', value: memberSince.value, icon: CalendarDays },
+])
 </script>
 
 <template>
@@ -41,18 +73,19 @@ const details = [
       <Card>
         <CardContent class="flex flex-col items-center p-8 text-center">
           <Avatar class="size-24 rounded-3xl">
-            <AvatarFallback class="brand-gradient rounded-3xl text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">SG</AvatarFallback>
+            <AvatarImage v-if="avatarSrc" :src="avatarSrc" alt="Profile" class="rounded-3xl" />
+            <AvatarFallback class="brand-gradient rounded-3xl text-3xl font-bold text-white shadow-lg shadow-indigo-500/30">{{ userInitials }}</AvatarFallback>
           </Avatar>
-          <h3 class="mt-4 text-lg font-bold">Smit Gajjar</h3>
-          <p class="mt-1 text-sm text-muted-foreground">smits@example.com</p>
-          <Badge class="mt-4 capitalize">Member</Badge>
+          <h3 class="mt-4 text-lg font-bold">{{ userName }}</h3>
+          <p class="mt-1 text-sm text-muted-foreground">{{ userEmail }}</p>
+          <Badge class="mt-4 capitalize">{{ roleLabel }}</Badge>
 
           <div class="mt-8 w-full rounded-2xl bg-accent/50 p-4">
             <div class="flex items-center justify-between text-sm">
               <span class="flex items-center gap-1.5 text-muted-foreground">
                 <Globe2 class="size-3.5" /> Language
               </span>
-              <span class="font-medium">English</span>
+              <span class="font-medium">{{ languageLabel }}</span>
             </div>
             <div class="mt-3 flex items-center justify-between text-sm">
               <span class="flex items-center gap-1.5 text-muted-foreground">

@@ -16,8 +16,11 @@ import {
 import type { Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { useLogout } from '@/composables/useLogout'
+
 const route = useRoute()
 const router = useRouter()
+const { logout } = useLogout()
 
 interface NavItem {
   label: string
@@ -203,7 +206,7 @@ const goHome = () => router.push('/')
         class="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-destructive/10 hover:text-destructive"
         :class="collapsed ? 'lg:justify-center lg:px-0' : ''"
         :title="collapsed ? 'Log out' : undefined"
-        @click="router.replace('/login')"
+        @click="logout"
       >
         <LogOut class="size-[18px] shrink-0" />
         <Transition name="fade">

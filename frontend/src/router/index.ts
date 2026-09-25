@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import MainLayout from '@/layouts/MainLayout.vue'
+import AdminLayout from '@/layouts/AdminLayout.vue'
 
 import DashboardView from '@/views/DashboardView.vue'
 import GenerateView from '@/views/GenerateView.vue'
@@ -14,7 +15,14 @@ import ProfileView from '@/views/ProfileView.vue'
 
 import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
+import GoogleCallbackView from '@/views/GoogleCallbackView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
+
+import AdminDashboardView from '@/views/admin/AdminDashboardView.vue'
+import AdminUsersView from '@/views/admin/AdminUsersView.vue'
+import AdminVideosView from '@/views/admin/AdminVideosView.vue'
+import AdminJobsView from '@/views/admin/AdminJobsView.vue'
+import AdminSettingsView from '@/views/admin/AdminSettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -30,6 +38,47 @@ const router = createRouter({
       name: 'register',
       component: RegisterView,
       meta: { guest: true },
+    },
+    {
+      path: '/auth/google/callback',
+      name: 'google-callback',
+      component: GoogleCallbackView,
+    },
+    {
+      path: '/admin',
+      component: AdminLayout,
+      children: [
+        {
+          path: '',
+          name: 'admin-dashboard',
+          component: AdminDashboardView,
+          meta: { title: 'Admin Dashboard' },
+        },
+        {
+          path: 'users',
+          name: 'admin-users',
+          component: AdminUsersView,
+          meta: { title: 'Users' },
+        },
+        {
+          path: 'videos',
+          name: 'admin-videos',
+          component: AdminVideosView,
+          meta: { title: 'Videos' },
+        },
+        {
+          path: 'jobs',
+          name: 'admin-jobs',
+          component: AdminJobsView,
+          meta: { title: 'Subtitle Jobs' },
+        },
+        {
+          path: 'settings',
+          name: 'admin-settings',
+          component: AdminSettingsView,
+          meta: { title: 'System Settings' },
+        },
+      ],
     },
     {
       path: '/',
