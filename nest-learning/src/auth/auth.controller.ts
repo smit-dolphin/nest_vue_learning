@@ -271,7 +271,7 @@ export class AuthController {
     const code = await this.authService.createGoogleAuthCode(result.user.id);
 
     const frontendUrl =
-      process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+       `${req.protocol}://${req.get('host')}`;
 
     return res.redirect(
       `${frontendUrl}/auth/google/callback?code=${encodeURIComponent(code)}`,
