@@ -68,7 +68,7 @@ const goHome = () => router.push('/')
 
 <template>
   <aside
-    class="fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar shadow-sm transition-[width] duration-300 ease-in-out max-lg:-translate-x-full max-lg:bg-sidebar max-lg:shadow-2xl"
+    class="fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar shadow-sm transition-[width] duration-300 ease-in-out max-lg:-translate-x-full max-lg:bg-sidebar max-lg:shadow-2xl max-lg:transition-transform max-lg:duration-300"
     :class="[
       collapsed ? 'lg:w-[76px]' : 'lg:w-64',
       mobileOpen ? 'max-lg:translate-x-0' : '',
@@ -172,28 +172,28 @@ const goHome = () => router.push('/')
         </Transition>
 
         <div class="space-y-1">
-          <router-link
-            v-for="item in group.items"
-            :key="item.to"
-            :to="item.to"
-            :title="collapsed ? item.label : undefined"
-            class="group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-            :class="[
-              isActive(item.to)
-                ? 'bg-sidebar-accent font-semibold text-sidebar-primary'
-                : '',
-              collapsed ? 'lg:justify-center lg:px-0' : '',
-            ]"
-            @click="emit('close-mobile')"
-          >
-            <component :is="item.icon" class="size-[18px] shrink-0" />
-            <Transition name="fade">
-              <span v-if="!collapsed">{{ item.label }}</span>
-            </Transition>
-            <span
-              v-if="!collapsed && isActive(item.to)"
-              class="ml-auto size-1.5 rounded-full bg-primary"
-            />
+<router-link
+             v-for="item in group.items"
+             :key="item.to"
+             :to="item.to"
+             :title="collapsed ? item.label : undefined"
+             class="group relative flex items-center justify-center rounded-xl px-2.5 py-2.5 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+             :class="[
+               isActive(item.to)
+                 ? 'bg-sidebar-accent font-semibold text-sidebar-primary'
+                 : '',
+               collapsed ? 'lg:px-0 lg:justify-center' : 'gap-3',
+             ]"
+             @click="emit('close-mobile')"
+           >
+             <component :is="item.icon" class="size-[18px] shrink-0" />
+             <Transition name="fade">
+               <span v-if="!collapsed">{{ item.label }}</span>
+             </Transition>
+             <span
+               v-if="!collapsed && isActive(item.to)"
+               class="ml-auto size-1.5 rounded-full bg-primary"
+             />
           </router-link>
         </div>
       </div>

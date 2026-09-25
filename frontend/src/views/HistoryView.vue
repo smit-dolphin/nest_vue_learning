@@ -284,7 +284,7 @@ onMounted(() => {
     </div>
 
     <!-- Empty -->
-    <div class="flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-card py-16 text-center">
+    <div v-if="!loading && jobs.length === 0" class="flex flex-col items-center gap-2 rounded-2xl border border-dashed bg-card py-16 text-center">
       <span class="grid size-12 place-items-center rounded-2xl bg-muted text-muted-foreground">
         <History class="size-6" />
       </span>
