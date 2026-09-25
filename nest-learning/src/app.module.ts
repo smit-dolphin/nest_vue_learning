@@ -33,7 +33,7 @@ import { SettingsModule } from './settings/settings.module.js';
 
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), '..', 'frontend', 'dist'),
-      serveRoot: '/',
+      renderPath: '/{*path}',
       exclude: ['/api', '/api/{*path}'],
     }),
 
