@@ -4,21 +4,17 @@ import { jobGateway } from './job.gateway.js';
 
 @Injectable()
 export class JobEvents implements OnModuleInit, OnModuleDestroy {
-
   private queueEvents!: QueueEvents;
 
-  constructor(
-    private readonly gateway: jobGateway,
-  ) {}
+  constructor(private readonly gateway: jobGateway) {}
 
   async onModuleInit() {
-
     this.queueEvents = new QueueEvents('video-processing', {
       connection: {
         // host: process.env.REDIS_HOST,
         // port: Number(process.env.REDIS_PORT),
         // password: process.env.REDIS_PASSWORD,
-        url:process.env.REDIS_URL
+        url: process.env.REDIS_URL,
       },
     });
 
@@ -27,44 +23,22 @@ export class JobEvents implements OnModuleInit, OnModuleDestroy {
     console.log('QueueEvents connected');
 
     this.queueEvents.on('progress', ({ jobId, data }) => {
-
       console.log('BullMQ progress:', jobId, data);
 
-      this.gateway.sendProgress(
-        jobId,
-        Number(data),
-        'Processing',
-      );
+      this.gateway.sendProgress(jobId, Number(data), 'Processing');
     });
 
     this.queueEvents.on('failed', ({ jobId, failedReason }) => {
+      console.log('BullMQ failed:', jobId, failedReason);
 
-      console.log(
-        'BullMQ failed:',
-        jobId,
-        failedReason,
-      );
-
-      this.gateway.sendProgress(
-        jobId,
-        0,
-        'Failed',
-      );
+      this.gateway.sendProgress(jobId, 0, 'Failed');
     });
 
     this.queueEvents.on('stalled', ({ jobId }) => {
-
       console.log('BullMQ stalled:', jobId);
 
-      this.gateway.sendProgress(
-        jobId,
-        0,
-        'Stalled',
-      );
+      this.gateway.sendProgress(jobId, 0, 'Stalled');
     });
-  
-
-    
   }
 
   async onModuleDestroy() {

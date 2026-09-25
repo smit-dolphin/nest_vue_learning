@@ -11,7 +11,7 @@ export class AppController {
   }
 
   @Get('health')
-  getHealth(){
-    return { status:"ok"}
+  getHealth() {
+    return { status: 'ok' };
   }
 }

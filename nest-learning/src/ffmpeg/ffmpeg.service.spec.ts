@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { FfmpegService } from './ffmpeg.service';
+import { FfmpegService } from './ffmpeg.service.js';
 
 describe('FfmpegService', () => {
   let service: FfmpegService;

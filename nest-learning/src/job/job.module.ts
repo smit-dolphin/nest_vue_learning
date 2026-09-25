@@ -8,23 +8,17 @@ import { jobGateway } from './job.gateway.js';
 import { JobEvents } from './job.event.js';
 
 @Module({
-
   imports: [
-    BullModule.registerQueue({ 
-      name:"test"
+    BullModule.registerQueue({
+      name: 'test',
     }),
-    BullModule.registerQueue({ 
-      name:"video-processing"
+    BullModule.registerQueue({
+      name: 'video-processing',
     }),
-    SubtitleModule
+    SubtitleModule,
   ],
-   providers: [
-  JobService,
-  JobProcessor,
-  jobGateway,
-  JobEvents,
-],
+  providers: [JobService, JobProcessor, jobGateway, JobEvents],
   controllers: [JobController],
-  exports: [JobService]
+  exports: [JobService],
 })
 export class JobModule {}

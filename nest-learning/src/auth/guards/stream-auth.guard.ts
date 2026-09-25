@@ -1,17 +1,18 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
 // Accepts the JWT from the Authorization header (axios) OR from the
 // `token` query param (needed because a <video> element cannot send headers).
 @Injectable()
 export class StreamAuthGuard implements CanActivate {
-  constructor(
-    private readonly jwtService: JwtService,
-  ) {}
+  constructor(private readonly jwtService: JwtService) {}
 
-  async canActivate(
-    context: ExecutionContext,
-  ): Promise<boolean> {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
     let token: string | undefined;

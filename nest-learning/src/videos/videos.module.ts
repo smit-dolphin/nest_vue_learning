@@ -7,8 +7,8 @@ import { FfmpegModule } from '../ffmpeg/ffmpeg.module.js';
 import { StorageModule } from '../storage/storage.module.js';
 
 @Module({
-    imports: [SubtitleModule, JobModule, FfmpegModule,StorageModule],
-    controllers: [VideosController],
-    providers: [VideosService],
+  imports: [SubtitleModule, JobModule, FfmpegModule, StorageModule],
+  controllers: [VideosController],
+  providers: [VideosService],
 })
 export class VideosModule {}

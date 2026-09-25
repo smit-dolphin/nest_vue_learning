@@ -31,7 +31,8 @@ function formatDuration(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
-  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  if (h > 0)
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
@@ -52,7 +53,11 @@ export class DashboardService {
 
   async getDashboard(userId: string) {
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
     const startOfYesterday = new Date(startOfToday);
     startOfYesterday.setDate(startOfYesterday.getDate() - 1);
     const startOfWeek = new Date(startOfToday);
@@ -85,7 +90,11 @@ export class DashboardService {
         _sum: { duration: true },
       }),
       this.prisma.video.count({
-        where: { userId, status: 'COMPLETED', updatedAt: { gte: startOfToday } },
+        where: {
+          userId,
+          status: 'COMPLETED',
+          updatedAt: { gte: startOfToday },
+        },
       }),
       this.prisma.video.count({
         where: {
@@ -96,7 +105,9 @@ export class DashboardService {
       }),
       this.prisma.video.count({ where: { userId } }),
       this.prisma.video.count({ where: { userId, status: 'COMPLETED' } }),
-      this.prisma.video.count({ where: { userId, createdAt: { gte: startOfWeek } } }),
+      this.prisma.video.count({
+        where: { userId, createdAt: { gte: startOfWeek } },
+      }),
       this.prisma.video.count({
         where: { userId, createdAt: { gte: startOfWeek }, status: 'COMPLETED' },
       }),
@@ -115,8 +126,10 @@ export class DashboardService {
 
     const totalHours = (totalDuration._sum.duration ?? 0) / 3600;
     const weekHours = (durationThisWeek._sum.duration ?? 0) / 3600;
-    const accuracyRate = totalVideos > 0 ? (completedVideos / totalVideos) * 100 : 0;
-    const recentRate = createdThisWeek > 0 ? (completedThisWeek / createdThisWeek) * 100 : null;
+    const accuracyRate =
+      totalVideos > 0 ? (completedVideos / totalVideos) * 100 : 0;
+    const recentRate =
+      createdThisWeek > 0 ? (completedThisWeek / createdThisWeek) * 100 : null;
     const accuracyDelta = recentRate === null ? 0 : recentRate - accuracyRate;
     const completedDelta = completedToday - completedYesterday;
 
@@ -153,7 +166,7 @@ export class DashboardService {
 
     const recentJobsResult = recentJobs.map((job): RecentJob => ({
       id: job.id,
-      title: job.video.filename,
+      title: job.video.originalName || job.video.filename,
       lang: job.languageCode ?? '—',
       duration: formatDuration(job.video.duration ?? 0),
       status: JOB_STATUS_MAP[job.status] ?? 'queued',
@@ -165,8 +178,13 @@ export class DashboardService {
             : relativeTime(job.createdAt),
     }));
 
-    const totalLanguage = languageCounts.reduce((sum, entry) => sum + entry._count._all, 0);
-    const sorted = [...languageCounts].sort((a, b) => b._count._all - a._count._all);
+    const totalLanguage = languageCounts.reduce(
+      (sum, entry) => sum + entry._count._all,
+      0,
+    );
+    const sorted = [...languageCounts].sort(
+      (a, b) => b._count._all - a._count._all,
+    );
     const top = sorted.slice(0, 4);
     const restCount = sorted
       .slice(4)

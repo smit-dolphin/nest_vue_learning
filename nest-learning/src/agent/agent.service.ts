@@ -5,21 +5,20 @@ import path from 'node:path';
 import {
   GoogleGenAI,
   createUserContent,
-  createPartFromUri
+  createPartFromUri,
 } from '@google/genai';
 import { getLanguageByCode } from './agent.constants.js';
 import { StorageService } from '../storage/storage.service.js';
-import { GoogleGenerativeAI, } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { getWhisperOutputFormat } from '../../commans/constants/outputType.constatns.js';
 
 @Injectable()
 export class AgentService {
-
   private readonly ai: GoogleGenAI;
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storageService: StorageService
+    private readonly storageService: StorageService,
   ) {
     this.ai = new GoogleGenAI({
       apiKey: process.env.GEMINAI_API_KEY,
@@ -64,7 +63,10 @@ export class AgentService {
 
     const extension = path.extname(subtitleLocalPath) || '.srt';
     const baseName = path.basename(subtitleLocalPath, extension);
-    const languageSuffix = (targetLanguage || 'en').replace(/[^a-zA-Z0-9-_]/g, '-');
+    const languageSuffix = (targetLanguage || 'en').replace(
+      /[^a-zA-Z0-9-_]/g,
+      '-',
+    );
     const translatedFilename = `${baseName}-${languageSuffix}-${Date.now()}${extension}`;
     const translatedPath = path.join(workDir, translatedFilename);
 
@@ -76,29 +78,24 @@ export class AgentService {
     };
   }
 
-
   async AgentEngine(input: string) {
-
     const ai = new GoogleGenAI({
       apiKey: process.env.GEMINAI_API_KEY || '',
-    })
+    });
 
     try {
-
       const result = await ai.interactions.create({
         model: 'gemini-3.5-flash-lite',
-        input: input
-      })
-      return result.output_text
+        input: input,
+      });
+      return result.output_text;
     } catch (error) {
       console.error('Error processing input with GoogleGenAI:', error);
-      throw new Error(`Failed to process the input with GoogleGenAI: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to process the input with GoogleGenAI: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
-
-
-
   }
-
 
   async transcriptAudioGemini(
     audioPath: string,
@@ -121,27 +118,26 @@ export class AgentService {
       // Application options
       // ---------------------------------------------
 
-      const subtitleFormat = getWhisperOutputFormat(
-        options.formate,
-      );
+      const subtitleFormat = getWhisperOutputFormat(options.formate);
 
       // "leng" = source/video language
       // "auto" = Gemini detects the spoken language
       const languageCode = options?.leng || 'auto';
 
       const isWordLevel =
-        options.wordLevelTiming === true ||
-        options.wordLevelTiming === 'true';
+        options.wordLevelTiming === true || options.wordLevelTiming === 'true';
 
       const shouldTranslate =
-        options.autoTranslate === true ||
-        options.autoTranslate === 'true';
+        options.autoTranslate === true || options.autoTranslate === 'true';
 
       // Target subtitle language
       // Only required when translation is enabled.
-      const translateLanguage =
-        options.leng || null;
-        console.log("_________________________________",options.leng,translateLanguage)
+      const translateLanguage = options.leng || null;
+      console.log(
+        '_________________________________',
+        options.leng,
+        translateLanguage,
+      );
 
       // if (shouldTranslate && !translateLanguage) {
       //   throw new Error(
@@ -152,7 +148,7 @@ export class AgentService {
       // ---------------------------------------------
       // Dynamic prompt
       // ---------------------------------------------
-let prompt = `
+      let prompt = `
 You are a professional speech transcription and subtitle generation engine.
 
 TASK:
@@ -171,13 +167,12 @@ SOURCE LANGUAGE:
 
 `;
 
+      // =====================================================
+      // TRANSLATION
+      // =====================================================
 
-// =====================================================
-// TRANSLATION
-// =====================================================
-
-if (shouldTranslate) {
-  prompt += `
+      if (shouldTranslate) {
+        prompt += `
 TRANSLATION:
 - Translation is enabled.
 - Target language: ${getLanguageByCode(translateLanguage)}
@@ -189,22 +184,21 @@ TRANSLATION:
 - Preserve the original meaning, context, tone, intent, and order of speech.
 - Do not summarize or shorten the translation.
 `;
-} else {
-  prompt += `
+      } else {
+        prompt += `
 TRANSLATION:
 - Translation is disabled.
 - Keep the subtitle text in the original spoken language.
 - Do not translate the spoken content.
 `;
-}
+      }
 
+      // =====================================================
+      // TIMING
+      // =====================================================
 
-// =====================================================
-// TIMING
-// =====================================================
-
-if (isWordLevel) {
-  prompt += `
+      if (isWordLevel) {
+        prompt += `
 TIMING:
 - Word-level timing is required.
 - Every subtitle segment MUST contain start and end timestamps.
@@ -216,21 +210,20 @@ TIMING:
 - word level timing , handle it as every word spoken is given in his own timestemp when it spoken 
 
 `;
-} else {
-  prompt += `
+      } else {
+        prompt += `
 TIMING:
 - Word-level timing is disabled.
 - Provide only subtitle segment-level start and end timestamps.
 `;
-}
+      }
 
+      // =====================================================
+      // SPEAKER LABELS
+      // =====================================================
 
-// =====================================================
-// SPEAKER LABELS
-// =====================================================
-
-if (options.lables === true || options.lables === 'true') {
-  prompt += `
+      if (options.lables === true || options.lables === 'true') {
+        prompt += `
 SPEAKER LABELS:
 - Identify different speakers when they can be distinguished from the audio.
 - Add the speaker label at the beginning of every subtitle segment.
@@ -238,23 +231,21 @@ SPEAKER LABELS:
 - Do not invent speaker names.
 - If a person's name is not known, use a neutral label such as "Speaker 1", "Speaker 2", etc.
 `;
-} else {
-  prompt += `
+      } else {
+        prompt += `
 SPEAKER LABELS:
 - Speaker labels are disabled.
 - Do not add speaker labels.
 `;
-}
+      }
 
+      // =====================================================
+      // OUTPUT FORMAT
+      // =====================================================
 
-// =====================================================
-// OUTPUT FORMAT
-// =====================================================
-
-switch (subtitleFormat.extension) {
-
-  case '.srt':
-     prompt += `
+      switch (subtitleFormat.extension) {
+        case '.srt':
+          prompt += `
 OUTPUT FORMAT:
 - Return ONLY valid SRT content.
 - Do NOT return JSON.
@@ -348,11 +339,10 @@ Return ONLY the SRT content.
 Nothing before it.
 Nothing after it.
 `;
-    break;
+          break;
 
-
-  case '.vtt':
-    prompt += `
+        case '.vtt':
+          prompt += `
 OUTPUT FORMAT:
 - Return ONLY valid WebVTT content.
 - Do not return SRT.
@@ -379,11 +369,10 @@ Rules:
 - Every cue must have a valid start and end timestamp.
 - Return ONLY the WebVTT content.
 `;
-    break;
+          break;
 
-
-  case '.txt':
-    prompt += `
+        case '.txt':
+          prompt += `
 OUTPUT FORMAT:
 - Return ONLY plain text transcription.
 - Do not include timestamps.
@@ -395,11 +384,10 @@ OUTPUT FORMAT:
 - Do not add explanations or comments.
 - Return ONLY the final subtitle/transcription text.
 `;
-    break;
+          break;
 
-
-  case '.json':
-    prompt += `
+        case '.json':
+          prompt += `
 OUTPUT FORMAT:
 - Return ONLY valid JSON.
 - Do not use Markdown code fences.
@@ -428,8 +416,8 @@ Rules:
 - Do not add fields that are not requested.
 `;
 
-    if (isWordLevel) {
-      prompt += `
+          if (isWordLevel) {
+            prompt += `
 Because word-level timing is enabled, each segment MUST also contain:
 
 "words": [
@@ -446,13 +434,12 @@ Word rules:
 - Words MUST be in spoken order.
 - Do not invent words or timestamps.
 `;
-    }
+          }
 
-    break;
+          break;
 
-
-  default:
-    prompt += `
+        default:
+          prompt += `
 OUTPUT FORMAT:
 - Return ONLY the transcription with subtitle segment timestamps.
 - Do not add explanations or comments.
@@ -460,8 +447,8 @@ OUTPUT FORMAT:
 - Do not use code fences.
 - Do not return an unsupported format.
 `;
-    break;
-}
+          break;
+      }
 
       // ---------------------------------------------
       // Upload audio to Gemini
@@ -476,10 +463,7 @@ OUTPUT FORMAT:
         },
       });
 
-      console.log(
-        'Gemini uploaded file:',
-        uploadedFile.name,
-      );
+      console.log('Gemini uploaded file:', uploadedFile.name);
 
       // ---------------------------------------------
       // Wait for Gemini file processing
@@ -487,19 +471,12 @@ OUTPUT FORMAT:
 
       let fileState = uploadedFile;
 
-      while (
-        fileState.state &&
-        String(fileState.state) !== 'ACTIVE'
-      ) {
+      while (fileState.state && String(fileState.state) !== 'ACTIVE') {
         if (String(fileState.state) === 'FAILED') {
-          throw new Error(
-            'Gemini audio processing failed',
-          );
+          throw new Error('Gemini audio processing failed');
         }
 
-        await new Promise((resolve) =>
-          setTimeout(resolve, 2000),
-        );
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         fileState = await this.ai.files.get({
           name: uploadedFile.name,
@@ -510,24 +487,18 @@ OUTPUT FORMAT:
       // Generate transcription
       // ---------------------------------------------
 
-      console.log(
-        'Generating Gemini transcription...',
-      );
+      console.log('Generating Gemini transcription...');
 
       console.log(prompt);
 
-      const result =
-        await this.ai.models.generateContent({
-          model: 'gemini-3.5-flash-lite',
+      const result = await this.ai.models.generateContent({
+        model: 'gemini-3.5-flash-lite',
 
-          contents: createUserContent([
-            createPartFromUri(
-              fileState.uri,
-              fileState.mimeType || 'audio/mp3',
-            ),
-            prompt,
-          ]),
-        });
+        contents: createUserContent([
+          createPartFromUri(fileState.uri, fileState.mimeType || 'audio/mp3'),
+          prompt,
+        ]),
+      });
 
       // ---------------------------------------------
       // Get response
@@ -535,12 +506,10 @@ OUTPUT FORMAT:
 
       const transcript = result.text?.trim();
 
-      console.log(transcript)
+      console.log(transcript);
 
       if (!transcript) {
-        throw new Error(
-          'Gemini returned an empty transcript',
-        );
+        throw new Error('Gemini returned an empty transcript');
       }
 
       // ---------------------------------------------
@@ -548,10 +517,7 @@ OUTPUT FORMAT:
       // ---------------------------------------------
 
       const cleanedTranscript = transcript
-        .replace(
-          /^```(?:srt|vtt|json|txt|ass|ssa)?\s*/i,
-          '',
-        )
+        .replace(/^```(?:srt|vtt|json|txt|ass|ssa)?\s*/i, '')
         .replace(/\s*```$/i, '')
         .trim();
 
@@ -563,16 +529,9 @@ OUTPUT FORMAT:
 
       const filename = `${videoId}${extension}`;
 
-      const outputPath = path.join(
-        workDir,
-        filename,
-      );
+      const outputPath = path.join(workDir, filename);
 
-      await fs.writeFile(
-        outputPath,
-        cleanedTranscript,
-        'utf8',
-      );
+      await fs.writeFile(outputPath, cleanedTranscript, 'utf8');
 
       // ---------------------------------------------
       // File information
@@ -594,10 +553,7 @@ OUTPUT FORMAT:
         languageCode,
       };
     } catch (error: any) {
-      console.error(
-        `Gemini transcription failed: ${error?.message || error
-        }`,
-      );
+      console.error(`Gemini transcription failed: ${error?.message || error}`);
 
       throw error;
     } finally {
@@ -612,12 +568,10 @@ OUTPUT FORMAT:
           });
         } catch (error: any) {
           console.warn(
-            `Failed to delete Gemini file: ${error?.message || error
-            }`,
+            `Failed to delete Gemini file: ${error?.message || error}`,
           );
         }
       }
     }
   }
-
 }

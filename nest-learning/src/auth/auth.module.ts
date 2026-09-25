@@ -7,11 +7,8 @@ import { GoogleStrategy } from './google.strategy.js';
 import { StorageModule } from '../storage/storage.module.js';
 
 @Module({
-    imports: [
-    PassportModule,
-    StorageModule,
-  ],
+  imports: [PassportModule, StorageModule],
   providers: [AuthService, GoogleStrategy],
-  controllers: [AuthController]
+  controllers: [AuthController],
 })
 export class AuthModule {}

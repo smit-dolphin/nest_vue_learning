@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { spawn } from 'child_process';
 import path from 'path';
 import * as fs from 'fs/promises';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { StorageService } from '../storage/storage.service.js';
-
 
 interface SubtitleBurnStyle {
   fontSize?: number;
@@ -20,20 +23,18 @@ interface SubtitleBurnStyle {
 export class FfmpegService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly storagService:StorageService
-  ) { }
-
-
+    private readonly storagService: StorageService,
+  ) {}
 
   // here we are going to create the audio to video genrator
   // first disscuss tables needed then use them
   // so what are going to do ??
-  //we are going do create 1:n table with the 
-  //for tables the audio also is file so we have to make thet sapration 
+  //we are going do create 1:n table with the
+  //for tables the audio also is file so we have to make thet sapration
   //like audio also have propretys as files as type and stuff
-  //current service just get video from path and save in db and return audio file data 
-  async videoToAudio(videoPath: string, videoId: string,workDir: string) {
-    //get video from path 
+  //current service just get video from path and save in db and return audio file data
+  async videoToAudio(videoPath: string, videoId: string, workDir: string) {
+    //get video from path
     //execute command from it
     //return audio file in output
     //create db entry
@@ -42,7 +43,6 @@ export class FfmpegService {
     // const unique = Date.now() + '-' + Math.round(Math.random() * 1e9)
     // const audioOutputPath= path.resolve('upload','audio',`${unique}.wav`)
     // const audioOutputPath= `/upload/audio/${unique}.wav`
-
 
     // const existingAudioRecords = await this.prisma.audio.findMany({
     //   where: { videoId },
@@ -55,13 +55,12 @@ export class FfmpegService {
     //   if (stillexist){
     //     return existingAudio
     //   }
-      
+
     //   await this.prisma.audio.delete({ where: { id: existingAudio.id } });
-      
+
     // }
 
-    const unique =
-      Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
 
     // Physical directory on your computer
     // const audioDirectory = path.resolve(
@@ -86,101 +85,88 @@ export class FfmpegService {
     // const audioOutputRelativePath=`/upload/audio/${unique}.wav`
     //upload/audio is exist aleady
 
-     const audioOutputPath = path.join(workDir, `${unique}.mp3`);
+    const audioOutputPath = path.join(workDir, `${unique}.mp3`);
 
-    const audio = await this.createAudio(videoPath, audioOutputPath); 
+    const audio = await this.createAudio(videoPath, audioOutputPath);
 
     return {
-        localPath: audioOutputPath,
-        filename: path.basename(audioOutputPath),
-        mimetype: audio.format.format_name,
-        size: Number(audio.format.size),
-        duration: Number(audio.format.duration),
+      localPath: audioOutputPath,
+      filename: path.basename(audioOutputPath),
+      mimetype: audio.format.format_name,
+      size: Number(audio.format.size),
+      duration: Number(audio.format.duration),
     };
-
-
-
   }
 
   async createAudio(videoPath: string, outputPath: string) {
-
     // const ffmpeg = spawn("ffmpeg", [
     //   "-i",
     //   videoPath,
     //   "-vn",
     //   outputPath
     // ])
-    const ffmpeg = spawn("ffmpeg", [
-  "-i",
-  videoPath,
-  "-vn",
-  "-ac",
-  "1",
-  "-ar",
-  "16000",
-  "-b:a",
-  "64k",
-  outputPath,
-]);
+    const ffmpeg = spawn('ffmpeg', [
+      '-i',
+      videoPath,
+      '-vn',
+      '-ac',
+      '1',
+      '-ar',
+      '16000',
+      '-b:a',
+      '64k',
+      outputPath,
+    ]);
 
-    ffmpeg.stderr.on("data", (chunk) => {
-      console.log("FFmpeg:", chunk.toString());
+    ffmpeg.stderr.on('data', (chunk) => {
+      console.log('FFmpeg:', chunk.toString());
     });
 
     await new Promise((resolve, reject) => {
-
-      ffmpeg.on("error", (error) => {
+      ffmpeg.on('error', (error) => {
         reject(error);
       });
-      ffmpeg.on("close", (code) => {
+      ffmpeg.on('close', (code) => {
         if (code === 0) {
-          resolve("ffmpeg success")
+          resolve('ffmpeg success');
+        } else {
+          reject(new Error(`ffmpeg failed: ${code}`));
         }
-        else {
-          reject(new Error(`ffmpeg failed: ${code}`))
-        }
-      })
-    })
+      });
+    });
 
-    const ffprobe = spawn("ffprobe", [
-      "-v",
-      "quiet",
-      "-print_format",
-      "json",
-      "-show_format",
-      "-show_streams",
+    const ffprobe = spawn('ffprobe', [
+      '-v',
+      'quiet',
+      '-print_format',
+      'json',
+      '-show_format',
+      '-show_streams',
       outputPath,
-    ])
+    ]);
 
-    let output = "";
+    let output = '';
 
-    ffprobe.stdout.on("data", (chunk) => {
+    ffprobe.stdout.on('data', (chunk) => {
       output += chunk;
     });
 
     await new Promise((resolve, reject) => {
-
-      ffprobe.on("error", (error) => {
+      ffprobe.on('error', (error) => {
         reject(error);
       });
-      ffprobe.on("close", (code) => {
+      ffprobe.on('close', (code) => {
         if (code === 0) {
-          resolve("ffprobe success!")
+          resolve('ffprobe success!');
+        } else {
+          reject(new Error(`ffprobe failed: ${code}`));
         }
-        else {
-          reject(new Error(`ffprobe failed: ${code}`))
-        }
-      })
-    })
+      });
+    });
 
     const info = JSON.parse(output);
 
-
-
-
-
-    return info
-
+    return info;
   }
 
   async createAudioDbEntry(file: {
@@ -191,7 +177,6 @@ export class FfmpegService {
     duration?: number;
     videoId: string;
   }) {
-
     const result = await this.prisma.audio.create({
       data: {
         filename: file.filename,
@@ -200,16 +185,14 @@ export class FfmpegService {
         size: file.size,
         duration: file.duration,
         videoId: file.videoId,
-      }
-    })
-
+      },
+    });
 
     if (!result || result === undefined) {
-      throw new InternalServerErrorException("failed to create audio entry")
+      throw new InternalServerErrorException('failed to create audio entry');
     }
 
-    return result
-
+    return result;
   }
 
   async burnSubtitleInVideo(
@@ -217,47 +200,44 @@ export class FfmpegService {
     subtitlePath: string,
     workDir: string,
     subtitleStyle?: SubtitleBurnStyle,
-) {
-    const outputPath = path.join(
-        workDir,
-        `burned-${Date.now()}.mp4`
-    );
+  ) {
+    const outputPath = path.join(workDir, `burned-${Date.now()}.mp4`);
 
     const subtitleFilterPath = this.escapeSubtitlePath(subtitlePath);
     const forceStyle = this.buildSubtitleForceStyle(subtitleStyle);
 
     const ffmpeg = spawn('ffmpeg', [
-        '-i', videoPath,
-        '-vf', `subtitles='${subtitleFilterPath}':force_style='${forceStyle}'`,
-        outputPath,
+      '-i',
+      videoPath,
+      '-vf',
+      `subtitles='${subtitleFilterPath}':force_style='${forceStyle}'`,
+      outputPath,
     ]);
 
     ffmpeg.stderr.on('data', (data) => {
-        console.log('ffmpeg:', data.toString());
+      console.log('ffmpeg:', data.toString());
     });
 
     await new Promise((resolve, reject) => {
-        ffmpeg.on('error', reject);
-        ffmpeg.on('close', (code) => {
-            if (code === 0) {
-                resolve('done');
-            } else {
-                reject(new Error(`failed to burn subtitle ${code}`));
-            }
-        });
+      ffmpeg.on('error', reject);
+      ffmpeg.on('close', (code) => {
+        if (code === 0) {
+          resolve('done');
+        } else {
+          reject(new Error(`failed to burn subtitle ${code}`));
+        }
+      });
     });
 
     return {
-        localPath: outputPath,       // renamed from `path` for consistency with the other 3 services' return shapes
-        filename: path.basename(outputPath),
+      localPath: outputPath, // renamed from `path` for consistency with the other 3 services' return shapes
+      filename: path.basename(outputPath),
     };
-}
+  }
 
   escapeSubtitlePath(filePath: string) {
-  return filePath
-    .replace(/\\/g, '/')
-.replace(/:/g, '\\:')
-}
+    return filePath.replace(/\\/g, '/').replace(/:/g, '\\:');
+  }
 
   // Builds an ffmpeg "force_style" (ASS style) string from the burn-in
   // subtitle style settings coming from the frontend query params.
@@ -339,7 +319,10 @@ export class FfmpegService {
       .toLowerCase();
 
     if (/^[0-9a-f]{3}$/.test(hex)) {
-      hex = hex.split('').map((char) => char + char).join('');
+      hex = hex
+        .split('')
+        .map((char) => char + char)
+        .join('');
     }
 
     if (!/^[0-9a-f]{6}$/.test(hex)) {
@@ -365,5 +348,3 @@ export class FfmpegService {
     }
   }
 }
-
-

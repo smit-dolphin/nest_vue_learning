@@ -1,5 +1,3 @@
-
-
 export const languages = [
   { name: 'English', code: 'en' },
   { name: 'Chinese', code: 'zh' },
@@ -71,8 +69,7 @@ export const languages = [
   { name: 'Basque', code: 'eu' },
 ];
 
-
 export function getLanguageByCode(code: string) {
-  const language = languages.find(lang => lang.code === code);
+  const language = languages.find((lang) => lang.code === code);
   return language ? language.name : undefined;
 }
