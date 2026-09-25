@@ -11,6 +11,7 @@ import {
   Play,
   Plus,
   Search,
+  Sparkles,
   Trash2,
   UploadCloud,
   X,
@@ -343,12 +344,14 @@ async function confirmDelete() {
 }
 
 function openSubtitles(video: Video) {
-  // The API has no single-video endpoint, so the display name travels in the
-  // query string and stays available after a page refresh.
   void router.push({
     path: `/library/subtitles/${video.id}`,
     query: { name: displayName(video) },
   })
+}
+
+function navigateToGenerate(video: Video) {
+  void router.push(`/generate-subtitle/${video.id}`)
 }
 
 function openPreview(video: Video) {
@@ -544,18 +547,25 @@ onMounted(() => {
                   <MoreHorizontal class="size-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" class="w-44">
-                <DropdownMenuItem class="gap-2" @click="downloadVideo(video)">
-                  <Download class="size-4" /> Download
-                </DropdownMenuItem>
-                <DropdownMenuItem class="gap-2" @click="openSubtitles(video)">
-                  <FileVideo class="size-4" /> Subtitles
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" class="gap-2" @click="requestDelete(video)">
-                  <Trash2 class="size-4" /> Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
+<DropdownMenuContent align="end" class="w-44">
+                  <DropdownMenuItem class="gap-2" @click="downloadVideo(video)">
+                    <Download class="size-4" /> Download
+                  </DropdownMenuItem>
+                  <DropdownMenuItem class="gap-2" @click="openSubtitles(video)">
+                    <FileVideo class="size-4" /> Subtitles
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    v-if="video.type === 'VIDEO' && video.status === 'UPLOADED'"
+                    class="gap-2"
+                    @click="navigateToGenerate(video)"
+                  >
+                    <Sparkles class="size-4" /> Generate Subtitle
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem variant="destructive" class="gap-2" @click="requestDelete(video)">
+                    <Trash2 class="size-4" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </article>
@@ -611,6 +621,13 @@ onMounted(() => {
                   </DropdownMenuItem>
                   <DropdownMenuItem class="gap-2" @click="openSubtitles(video)">
                     <FileVideo class="size-4" /> Subtitles
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    v-if="video.type === 'VIDEO' && video.status === 'UPLOADED'"
+                    class="gap-2"
+                    @click="navigateToGenerate(video)"
+                  >
+                    <Sparkles class="size-4" /> Generate Subtitle
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive" class="gap-2" @click="requestDelete(video)">

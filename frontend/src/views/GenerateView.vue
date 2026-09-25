@@ -1,86 +1,280 @@
 <script setup lang="ts">
 import {
-  AlignLeft,
   Captions,
   Check,
   FileVideo,
   FolderOpen,
-  Globe2,
-  Languages,
-  ListOrdered,
+  Library,
   Loader2,
-  RefreshCw,
   Sparkles,
   UploadCloud,
-  Wand2,
   X,
 } from '@lucide/vue'
-import { ref } from 'vue'
+import { isAxiosError } from 'axios'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
+import JobProgressCard from '@/components/generate/JobProgressCard.vue'
+import SubtitleSettingsPanel from '@/components/generate/SubtitleSettingsPanel.vue'
+import ModalDialog from '@/components/common/ModalDialog.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { useCurrentJobStore } from '@/stores/currentJobStore'
+import { useSubtitleSettingsStore } from '@/stores/subtitleSettingsStore'
+import { formatBytes, formatDuration } from '@/lib/format'
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+  generateSubtitleFromVideo,
+  getVideos,
+  uploadVideoAndGenerateSubtitle,
+} from '@/services/videoService'
+import type { JobContext } from '@/stores/currentJobStore'
+import type { Video } from '@/types'
 
-const fileName = ref('')
-const dragging = ref(false)
+const route = useRoute()
+const router = useRouter()
+const settingsStore = useSubtitleSettingsStore()
+const jobStore = useCurrentJobStore()
+
+const maxVideoSize = 100 * 1024 * 1024
+const acceptedVideoTypes = ['video/mp4', 'video/webm', 'video/mkv', 'video/avi']
+
 const videoInput = ref<HTMLInputElement | null>(null)
+const selectedFile = ref<File | null>(null)
+const selectedVideo = ref<Video | null>(null)
+const isDragging = ref(false)
+const isSubmitting = ref(false)
+const formError = ref<string | null>(null)
 
-const onPick = (event: Event) => {
+const isLibraryOpen = ref(false)
+const libraryVideos = ref<Video[]>([])
+const isLoadingLibrary = ref(false)
+
+const canGenerate = computed(
+  () => (selectedFile.value !== null || selectedVideo.value !== null) && !isSubmitting.value && !jobStore.isActive,
+)
+
+const sourceLabel = computed(() => {
+  if (selectedFile.value) return selectedFile.value.name
+  if (selectedVideo.value) return selectedVideo.value.originalName || selectedVideo.value.filename
+  return ''
+})
+
+const sourceMeta = computed(() => {
+  if (selectedFile.value) return formatBytes(selectedFile.value.size)
+  if (selectedVideo.value) {
+    const parts = [formatBytes(selectedVideo.value.size)]
+    const duration = formatDuration(selectedVideo.value.duration)
+    if (duration !== '—') parts.push(duration)
+    return parts.join(' · ')
+  }
+  return ''
+})
+
+function errorMessage(error: unknown, fallback: string): string {
+  if (isAxiosError(error)) {
+    const message = error.response?.data?.message
+    if (typeof message === 'string') return message
+    if (Array.isArray(message)) {
+      const joined = message.filter((item): item is string => typeof item === 'string').join(', ')
+      if (joined) return joined
+    }
+  }
+  return fallback
+}
+
+function buildContext(): JobContext {
+  return {
+    videoId: selectedVideo.value?.id ?? null,
+    videoName: sourceLabel.value,
+    language: settingsStore.settings.language,
+    format: settingsStore.settings.format,
+    burnVideo: settingsStore.settings.burnVideo,
+  }
+}
+
+function resetSource() {
+  selectedFile.value = null
+  selectedVideo.value = null
+  formError.value = null
+  isDragging.value = false
+}
+
+function selectFile(file: File | undefined) {
+  if (!file) return
+  formError.value = null
+
+  if (!acceptedVideoTypes.includes(file.type)) {
+    resetSource()
+    formError.value = 'Please choose an MP4, WebM, MKV, or AVI video.'
+    return
+  }
+
+  if (file.size > maxVideoSize) {
+    resetSource()
+    formError.value = 'Video must be smaller than 100 MB.'
+    return
+  }
+
+  selectedVideo.value = null
+  selectedFile.value = file
+}
+
+function handleFileSelection(event: Event) {
   const input = event.target as HTMLInputElement
-  fileName.value = input.files?.[0]?.name ?? ''
+  selectFile(input.files?.[0])
+  input.value = ''
 }
 
-const clearFile = () => {
-  fileName.value = ''
+function handleDrop(event: DragEvent) {
+  isDragging.value = false
+  selectFile(event.dataTransfer?.files[0])
 }
+
+async function openLibrary() {
+  isLibraryOpen.value = true
+  isLoadingLibrary.value = true
+  try {
+    const response = await getVideos({ limit: 25, page: 1, type: 'VIDEO' })
+    libraryVideos.value = response.items ?? []
+  } catch (error) {
+    toast.error(errorMessage(error, 'Could not load your library.'))
+  } finally {
+    isLoadingLibrary.value = false
+  }
+}
+
+function pickFromLibrary(video: Video) {
+  selectedFile.value = null
+  selectedVideo.value = video
+  formError.value = null
+  isLibraryOpen.value = false
+}
+
+async function generate() {
+  if (!canGenerate.value) return
+
+  isSubmitting.value = true
+  formError.value = null
+  const context = buildContext()
+
+  // Show the upload step immediately; the queue job id is not known yet.
+  jobStore.startUpload(context)
+
+  try {
+    const options = settingsStore.generateOptions
+    const result = selectedFile.value
+      ? await uploadVideoAndGenerateSubtitle(selectedFile.value, options)
+      : await generateSubtitleFromVideo(selectedVideo.value!.id, options)
+
+    jobStore.startJob(result.jobId, {
+      ...context,
+      videoId: result.video?.id ?? context.videoId,
+    })
+
+    toast.success('Job queued. Progress updates in real time.')
+  } catch (error) {
+    jobStore.fail(errorMessage(error, 'Could not start the subtitle job.'))
+    toast.error('Could not start the subtitle job.')
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function viewResult() {
+  const videoId = jobStore.context.videoId
+  if (videoId) {
+    void router.push(`/library/subtitles/${videoId}`)
+  } else {
+    void router.push('/library')
+  }
+}
+
+/**
+ * Resolves a `:videoId` route param to a full video so a retry from the job
+ * history lands with the source already selected. The API has no single-video
+ * endpoint, so the library is walked page by page with a hard cap; anything
+ * deeper than that is left to the library picker rather than paging forever.
+ */
+async function preselectFromRoute() {
+  const videoId = route.params.videoId
+  if (typeof videoId !== 'string' || !videoId) return
+
+  const pageSize = 50
+  const maxPages = 10
+
+  try {
+    for (let page = 1; page <= maxPages; page += 1) {
+      const { items, meta } = await getVideos({ page, limit: pageSize })
+      const match = items.find((video) => video.id === videoId)
+      if (match) {
+        selectedVideo.value = match
+        formError.value = null
+        return
+      }
+      if (page >= (meta.totalPages || 1)) break
+    }
+
+    formError.value = 'That video is not in your library. Pick one below to continue.'
+  } catch (error) {
+    toast.error(errorMessage(error, 'Could not load the video from the library.'))
+  }
+}
+
+// A job started before a reload is still tracked: re-attach the socket and
+// reconcile against the API so the progress card settles correctly.
+onMounted(() => {
+  jobStore.restore()
+  void preselectFromRoute()
+})
 </script>
 
 <template>
-  <div>
+  <div class="space-y-6">
     <PageHeader
       :icon="Captions"
       title="Generate Subtitle"
       subtitle="Upload a video and let the AI create accurate subtitles in seconds"
     />
 
-    <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[400px_1fr]">
+    <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-[420px_1fr]">
       <!-- Left column -->
       <div class="space-y-6">
-        <!-- Upload -->
+        <!-- Source video -->
         <Card>
-          <CardContent class="p-5">
-            <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <span class="grid size-7 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
+          <CardContent class="space-y-4 p-5">
+            <h3 class="flex items-center gap-2 text-sm font-semibold">
+              <span class="grid size-7 place-items-center rounded-lg bg-primary/10 text-primary">
                 <FileVideo class="size-4" />
               </span>
               Source Video
             </h3>
 
-            <input ref="videoInput" id="video-file" type="file" accept="video/*" class="hidden" @change="onPick" />
+            <input
+              ref="videoInput"
+              id="generate-video-file"
+              type="file"
+              :accept="acceptedVideoTypes.join(',')"
+              class="hidden"
+              @change="handleFileSelection"
+            />
 
             <div
-              v-if="!fileName"
+              v-if="!sourceLabel"
               class="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center transition-colors"
-              :class="dragging ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-500/10' : 'border-muted-foreground/25 hover:border-indigo-400 hover:bg-muted/40'"
-              @dragover.prevent="dragging = true"
-              @dragleave="dragging = false"
-              @drop.prevent="dragging = false"
+              :class="isDragging
+                ? 'border-primary bg-primary/5'
+                : 'border-muted-foreground/25 hover:border-primary/60 hover:bg-muted/40'"
+              @dragenter.prevent="isDragging = true"
+              @dragover.prevent="isDragging = true"
+              @dragleave.prevent="isDragging = false"
+              @drop.prevent="handleDrop"
             >
-              <span class="grid size-14 place-items-center rounded-2xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
+              <span class="grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
                 <UploadCloud class="size-7" />
               </span>
-              <p class="text-sm font-medium">Drag & drop your video here</p>
+              <p class="text-sm font-medium">Drag &amp; drop your video here</p>
               <p class="text-xs text-muted-foreground">or</p>
               <Button type="button" variant="outline" size="sm" class="gap-2" @click="videoInput?.click()">
                 <FolderOpen class="size-4" />
@@ -90,138 +284,105 @@ const clearFile = () => {
             </div>
 
             <div v-else class="flex items-center gap-3 rounded-2xl border bg-muted/40 p-3">
-              <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
+              <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
                 <FileVideo class="size-5" />
               </span>
               <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-medium">{{ fileName }}</p>
-                <p class="text-xs text-muted-foreground">Ready to process</p>
+                <p class="truncate text-sm font-medium">{{ sourceLabel }}</p>
+                <p class="text-xs text-muted-foreground">
+                  {{ sourceMeta }} · {{ selectedVideo ? 'From library' : 'Ready to upload' }}
+                </p>
               </div>
               <span class="grid size-8 shrink-0 place-items-center rounded-lg text-emerald-600">
                 <Check class="size-5" />
               </span>
-              <button type="button" class="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-destructive" @click="clearFile">
+              <button
+                type="button"
+                class="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-destructive"
+                aria-label="Remove selected video"
+                @click="resetSource"
+              >
                 <X class="size-4" />
               </button>
             </div>
 
-            <Button type="button" variant="outline" class="mt-3 w-full gap-2">
-              <FolderOpen class="size-4" />
+            <p
+              v-if="formError"
+              class="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+              role="alert"
+            >
+              {{ formError }}
+            </p>
+
+            <Button type="button" variant="outline" class="w-full gap-2" @click="openLibrary">
+              <Library class="size-4" />
               Pick from library
             </Button>
           </CardContent>
         </Card>
 
         <!-- Settings -->
-        <Card>
-          <CardHeader>
-            <CardTitle class="flex items-center gap-2 text-sm">
-              <span class="grid size-7 place-items-center rounded-lg bg-sky-50 text-sky-600 dark:bg-sky-500/15 dark:text-sky-400">
-                <Wand2 class="size-4" />
-              </span>
-              Processing Settings
-            </CardTitle>
-            <CardDescription>Configure how your subtitles are generated</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <div class="space-y-2">
-              <Label for="language" class="flex items-center gap-1.5">
-                <Languages class="size-3.5" /> Output language
-              </Label>
-              <Input id="language" type="text" value="English (en)" />
-            </div>
+        <SubtitleSettingsPanel />
 
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-2">
-                <Label for="format" class="flex items-center gap-1.5">
-                  <AlignLeft class="size-3.5" /> Format
-                </Label>
-                <Input id="format" type="text" value="SRT" />
-              </div>
-              <div class="space-y-2">
-                <Label for="style" class="flex items-center gap-1.5">
-                  <ListOrdered class="size-3.5" /> Style
-                </Label>
-                <Input id="style" type="text" value="Burned" />
-              </div>
-            </div>
-
-            <div class="space-y-2">
-              <Label for="dictionary" class="flex items-center gap-1.5">
-                <Globe2 class="size-3.5" /> Custom dictionary
-              </Label>
-              <Textarea id="dictionary" placeholder="tech terms, proper nouns…" class="h-20 resize-none" />
-            </div>
-
-            <div class="flex items-center justify-between rounded-xl bg-muted/50 p-3">
-              <div>
-                <p class="text-sm font-medium">Auto-download on completion</p>
-                <p class="text-xs text-muted-foreground">Save the subtitle file automatically</p>
-              </div>
-              <Switch :default-value="true" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Button size="lg" class="w-full gap-2 bg-indigo-600 shadow-lg shadow-indigo-600/30 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400">
-          <Sparkles class="size-5" />
-          Generate Subtitles
+        <Button
+          type="button"
+          size="lg"
+          class="w-full gap-2"
+          :disabled="!canGenerate"
+          @click="generate"
+        >
+          <Loader2 v-if="isSubmitting" class="size-5 animate-spin" />
+          <Sparkles v-else class="size-5" />
+          {{ isSubmitting ? 'Starting…' : 'Generate Subtitles' }}
         </Button>
+
+        <p v-if="jobStore.isActive" class="text-center text-xs text-muted-foreground">
+          A job is already running. Wait for it to finish or dismiss it above.
+        </p>
       </div>
 
       <!-- Right column -->
       <div class="space-y-6">
-        <!-- Progress card -->
-        <Card>
-          <CardHeader>
-            <CardTitle class="flex items-center gap-2">
-              <Loader2 class="size-4 animate-spin" />
-              Processing
-            </CardTitle>
-            <CardDescription>product_demo_final.mp4 · English</CardDescription>
-          </CardHeader>
-          <CardContent class="space-y-4">
-            <div class="h-2.5 overflow-hidden rounded-full bg-muted">
-              <div class="h-full w-[72%] rounded-full brand-gradient transition-all" />
-            </div>
-            <div class="flex items-center justify-between text-sm">
-              <span class="text-muted-foreground">Transcribing audio…</span>
-              <span class="font-mono text-xs text-muted-foreground">72%</span>
-            </div>
-            <div class="space-y-2">
-              <div class="flex items-center gap-2 text-sm">
-                <Check class="size-4 text-emerald-500" />
-                <span class="text-muted-foreground">Video uploaded</span>
-              </div>
-              <div class="flex items-center gap-2 text-sm">
-                <Loader2 class="size-4 animate-spin text-indigo-500" />
-                <span>Transcribing audio</span>
-              </div>
-              <div class="flex items-center gap-2 text-sm text-muted-foreground/60">
-                <span class="size-4 rounded-full border-2 border-muted" />
-                <span>Generating subtitles</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <!-- Result placeholder -->
-        <div class="flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-muted-foreground/20 py-16 text-center">
-          <span class="grid size-16 place-items-center rounded-3xl brand-gradient text-white shadow-lg shadow-indigo-500/30">
-            <Sparkles class="size-8" />
-          </span>
-          <div>
-            <p class="font-semibold">Your output will appear here</p>
-            <p class="mt-1 max-w-sm text-sm text-muted-foreground">
-              Once finished, your burned video and subtitle file will be ready to preview and download.
-            </p>
-          </div>
-          <Badge variant="outline" class="gap-1.5 bg-muted/40 py-1.5 font-medium">
-            <RefreshCw class="size-3.5" />
-            Watch live progress
-          </Badge>
-        </div>
+        <JobProgressCard @retry="jobStore.clear()" @view-result="viewResult" />
       </div>
     </div>
+
+    <!-- Library picker -->
+    <ModalDialog
+      :open="isLibraryOpen"
+      title="Pick a video"
+      description="Select an existing video from your library to generate subtitles for it."
+      class="sm:max-w-2xl"
+      @update:open="(value: boolean) => (isLibraryOpen = value)"
+    >
+      <div v-if="isLoadingLibrary" class="flex min-h-40 items-center justify-center gap-2 text-sm text-muted-foreground">
+        <Loader2 class="size-4 animate-spin" />
+        Loading your videos…
+      </div>
+
+      <div v-else-if="libraryVideos.length" class="max-h-96 space-y-2 overflow-y-auto">
+        <button
+          v-for="video in libraryVideos"
+          :key="video.id"
+          type="button"
+          class="flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors hover:border-primary/50 hover:bg-accent/50"
+          @click="pickFromLibrary(video)"
+        >
+          <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-muted text-muted-foreground">
+            <FileVideo class="size-5" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-medium">{{ video.originalName || video.filename }}</span>
+            <span class="block text-xs text-muted-foreground">
+              {{ formatBytes(video.size) }} · {{ formatDuration(video.duration) }} · {{ video.type === 'BURNED_VIDEO' ? 'Burned' : 'Original' }}
+            </span>
+          </span>
+        </button>
+      </div>
+
+      <p v-else class="py-10 text-center text-sm text-muted-foreground">
+        Your library is empty. Upload a video first.
+      </p>
+    </ModalDialog>
   </div>
 </template>

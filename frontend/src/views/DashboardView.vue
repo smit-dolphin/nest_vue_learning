@@ -7,6 +7,7 @@ import {
   Clock,
   FileVideo,
   Globe2,
+  Loader2,
   MoreHorizontal,
   Play,
   Sparkles,
@@ -14,6 +15,7 @@ import {
   Zap,
 } from '@lucide/vue'
 import { ArrowRight } from '@lucide/vue'
+import { onMounted, ref } from 'vue'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -25,20 +27,14 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Separator } from '@/components/ui/separator'
+import { getDashboard } from '@/services/dashboardService'
+import type { DashboardData } from '@/types'
 
-const stats = [
-  { label: 'Total Subtitles', value: '1,284', change: '+12.5%', trend: 'up', icon: Captions, tone: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-500/15 dark:text-indigo-400' },
-  { label: 'Hours Processed', value: '186h', change: '+8.2%', trend: 'up', icon: Clock, tone: 'text-sky-600 bg-sky-50 dark:bg-sky-500/15 dark:text-sky-400' },
-  { label: 'Accuracy Rate', value: '97.4%', change: '+1.1%', trend: 'up', icon: TrendingUp, tone: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-400' },
-  { label: 'Completed Today', value: '42', change: '-3.4%', trend: 'down', icon: CheckCircle2, tone: 'text-amber-600 bg-amber-50 dark:bg-amber-500/15 dark:text-amber-400' },
-]
-
-const jobs = [
-  { id: 1, title: 'product_demo_final.mp4', lang: 'English (en)', duration: '04:32', status: 'done', time: '2h ago' },
-  { id: 2, title: 'interview_long.mp4', lang: 'Spanish (es)', duration: '12:08', status: 'processing', time: '45m ago' },
-  { id: 3, title: 'podcast_ep_12.mkv', lang: 'French (fr)', duration: '38:21', status: 'queued', time: '20m ago' },
-  { id: 4, title: 'tutorial_cut_03.mp4', lang: 'German (de)', duration: '08:47', status: 'done', time: '1d ago' },
-]
+const loading = ref(false)
+const stats = ref<Array<{ label: string; value: string; change: string; trend: 'up' | 'down'; icon: any; tone: string }>>([])
+const jobs = ref<Array<{ id: number; title: string; lang: string; duration: string; status: string; time: string }>>([])
+const languages = ref<Array<{ name: string; pct: number; color: string }>>([])
 
 const statusStyles: Record<string, string> = {
   done: 'text-emerald-600 dark:text-emerald-400 border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/15',
@@ -46,12 +42,66 @@ const statusStyles: Record<string, string> = {
   queued: 'text-amber-600 dark:text-amber-400 border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/15',
 }
 
-const languages = [
-  { name: 'English', pct: 56, color: 'bg-indigo-500' },
-  { name: 'Spanish', pct: 22, color: 'bg-sky-500' },
-  { name: 'French', pct: 14, color: 'bg-emerald-500' },
-  { name: 'German', pct: 8, color: 'bg-amber-500' },
-]
+const statIcons: Record<string, any> = {
+  totalSubtitles: Captions,
+  hoursProcessed: Clock,
+  accuracyRate: TrendingUp,
+  completedToday: CheckCircle2,
+}
+
+const statTones: Record<string, string> = {
+  totalSubtitles: 'text-indigo-600 bg-indigo-50 dark:bg-indigo-500/15 dark:text-indigo-400',
+  hoursProcessed: 'text-sky-600 bg-sky-50 dark:bg-sky-500/15 dark:text-sky-400',
+  accuracyRate: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-500/15 dark:text-emerald-400',
+  completedToday: 'text-amber-600 bg-amber-50 dark:bg-amber-500/15 dark:text-amber-400',
+}
+
+const formatValue = (key: string, value: number): string => {
+  if (key === 'hoursProcessed') return `${value}h`
+  if (key === 'accuracyRate') return `${value}%`
+  if (key === 'completedToday') return String(value)
+  return value.toLocaleString()
+}
+
+const fetchDashboard = async () => {
+  loading.value = true
+  try {
+    const data: DashboardData = await getDashboard()
+
+    stats.value = data.stats.map((stat) => ({
+      label: stat.label,
+      value: formatValue(stat.key, stat.value),
+      change: stat.change,
+      trend: stat.trend,
+      icon: statIcons[stat.key] || Clock,
+      tone: statTones[stat.key] || 'text-muted-foreground bg-muted dark:text-muted-foreground',
+    }))
+
+    jobs.value = data.recentJobs.map((job, index) => ({
+      id: index + 1,
+      title: job.title,
+      lang: job.lang,
+      duration: job.duration,
+      status: job.status,
+      time: job.time,
+    }))
+
+    const maxPct = Math.max(...data.languages.map((l) => l.pct))
+    languages.value = data.languages.map((lang) => ({
+      name: lang.name,
+      pct: lang.pct,
+      color: lang.pct === maxPct ? 'bg-indigo-500' : 'bg-muted-foreground',
+    }))
+  } catch {
+    // Error is toasted by the Axios interceptor
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(() => {
+  fetchDashboard()
+})
 </script>
 
 <template>
@@ -147,39 +197,45 @@ const languages = [
           </Button>
         </CardHeader>
         <CardContent class="p-0 sm:p-0">
-          <div class="hidden grid-cols-[2fr_1.2fr_1fr_1fr_1fr_auto] gap-3 border-y bg-muted/50 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
-            <span>File</span>
-            <span>Language</span>
-            <span>Duration</span>
-            <span>Status</span>
-            <span>Time</span>
-            <span />
+          <div v-if="loading" class="flex items-center justify-center gap-2 rounded-2xl border py-16 text-sm text-muted-foreground">
+            <Loader2 class="size-4 animate-spin" />
+            Loading dashboard...
           </div>
-          <div
-            v-for="job in jobs"
-            :key="job.id"
-            class="grid grid-cols-1 items-center gap-2 border-b px-5 py-3 transition-colors last:border-0 hover:bg-accent/40 sm:grid-cols-[2fr_1.2fr_1fr_1fr_1fr_auto] sm:gap-3"
-          >
-            <div class="flex min-w-0 items-center gap-2.5">
-              <span class="grid size-7 shrink-0 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
-                <Play class="size-3" />
-              </span>
-              <span class="truncate text-sm font-medium">{{ job.title }}</span>
+          <template v-else>
+            <div class="hidden grid-cols-[2fr_1.2fr_1fr_1fr_1fr_auto] gap-3 border-y bg-muted/50 px-5 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:grid">
+              <span>File</span>
+              <span>Language</span>
+              <span>Duration</span>
+              <span>Status</span>
+              <span>Time</span>
+              <span />
             </div>
-            <span class="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Globe2 class="size-3.5 shrink-0" /> {{ job.lang }}
-            </span>
-            <span class="text-sm text-muted-foreground">{{ job.duration }}</span>
-            <span>
-              <Badge variant="outline" class="capitalize" :class="statusStyles[job.status]">
-                {{ job.status }}
-              </Badge>
-            </span>
-            <span class="text-sm text-muted-foreground">{{ job.time }}</span>
-            <button type="button" class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground">
-              <MoreHorizontal class="size-4" />
-            </button>
-          </div>
+            <div
+              v-for="job in jobs"
+              :key="job.id"
+              class="grid grid-cols-1 items-center gap-2 border-b px-5 py-3 transition-colors last:border-0 hover:bg-accent/40 sm:grid-cols-[2fr_1.2fr_1fr_1fr_1fr_auto] sm:gap-3"
+            >
+              <div class="flex min-w-0 items-center gap-2.5">
+                <span class="grid size-7 shrink-0 place-items-center rounded-lg bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
+                  <Play class="size-3" />
+                </span>
+                <span class="truncate text-sm font-medium">{{ job.title }}</span>
+              </div>
+              <span class="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Globe2 class="size-3.5 shrink-0" /> {{ job.lang }}
+              </span>
+              <span class="text-sm text-muted-foreground">{{ job.duration }}</span>
+              <span>
+                <Badge variant="outline" class="capitalize" :class="statusStyles[job.status]">
+                  {{ job.status }}
+                </Badge>
+              </span>
+              <span class="text-sm text-muted-foreground">{{ job.time }}</span>
+              <button type="button" class="grid size-7 place-items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground">
+                <MoreHorizontal class="size-4" />
+              </button>
+            </div>
+          </template>
         </CardContent>
       </Card>
 

@@ -17,12 +17,14 @@ import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import GoogleCallbackView from '@/views/GoogleCallbackView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
+import AdminLoginView from '@/views/AdminLoginView.vue'
 
 import AdminDashboardView from '@/views/admin/AdminDashboardView.vue'
 import AdminUsersView from '@/views/admin/AdminUsersView.vue'
 import AdminVideosView from '@/views/admin/AdminVideosView.vue'
 import AdminJobsView from '@/views/admin/AdminJobsView.vue'
 import AdminSettingsView from '@/views/admin/AdminSettingsView.vue'
+import { useAuthStore } from '@/stores/authStore'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -32,6 +34,12 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
       meta: { guest: true },
+    },
+    {
+      path: '/admin/login',
+      name: 'admin-login',
+      component: AdminLoginView,
+      meta: { adminGuest: true },
     },
     {
       path: '/register',
@@ -47,36 +55,37 @@ const router = createRouter({
     {
       path: '/admin',
       component: AdminLayout,
+      meta: { requiresAdmin: true },
       children: [
         {
           path: '',
           name: 'admin-dashboard',
           component: AdminDashboardView,
-          meta: { title: 'Admin Dashboard' },
+          meta: { title: 'Admin Dashboard', requiresAdmin: true },
         },
         {
           path: 'users',
           name: 'admin-users',
           component: AdminUsersView,
-          meta: { title: 'Users' },
+          meta: { title: 'Users', requiresAdmin: true },
         },
         {
           path: 'videos',
           name: 'admin-videos',
           component: AdminVideosView,
-          meta: { title: 'Videos' },
+          meta: { title: 'Videos', requiresAdmin: true },
         },
         {
           path: 'jobs',
           name: 'admin-jobs',
           component: AdminJobsView,
-          meta: { title: 'Subtitle Jobs' },
+          meta: { title: 'Subtitle Jobs', requiresAdmin: true },
         },
         {
           path: 'settings',
           name: 'admin-settings',
           component: AdminSettingsView,
-          meta: { title: 'System Settings' },
+          meta: { title: 'System Settings', requiresAdmin: true },
         },
       ],
     },
@@ -152,6 +161,33 @@ const router = createRouter({
       component: NotFoundView,
     },
   ],
+})
+
+router.beforeEach((to, _from, next) => {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAdmin) {
+    if (!authStore.isAuthenticated || authStore.user?.role !== 'ADMIN') {
+      next({ name: 'admin-login' })
+      return
+    }
+  }
+
+  if (to.meta.adminGuest && authStore.isAuthenticated && authStore.user?.role === 'ADMIN') {
+    next({ name: 'admin-dashboard' })
+    return
+  }
+
+  if (to.meta.guest && authStore.isAuthenticated) {
+    if (authStore.user?.role === 'ADMIN') {
+      next({ name: 'admin-dashboard' })
+    } else {
+      next({ name: 'dashboard' })
+    }
+    return
+  }
+
+  next()
 })
 
 export default router
