@@ -33,8 +33,8 @@ import { SettingsModule } from './settings/settings.module.js';
 
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), '..', 'frontend', 'dist'),
+      serveRoot: '/',
       exclude: ['/api', '/api/{*path}'],
-      renderPath: '{*path}',
     }),
 
     JwtModule.register({
