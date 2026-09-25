@@ -15,15 +15,20 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { useSettingsStore } from '@/stores/settingsStore'
 
 const route = useRoute()
 const emit = defineEmits<{ 'toggle-mobile': [] }>()
+const settingsStore = useSettingsStore()
 
-const darkMode = ref(document.documentElement.classList.contains('dark'))
+const darkMode = ref(settingsStore.theme === 'dark')
 
 const toggleTheme = () => {
   darkMode.value = !darkMode.value
   document.documentElement.classList.toggle('dark', darkMode.value)
+  settingsStore.updateSettings({ theme: darkMode.value ? 'dark' : 'light' }).catch(() => {
+    // Ignore failures; the toggle is purely cosmetic here.
+  })
 }
 
 const titles: Record<string, string> = {

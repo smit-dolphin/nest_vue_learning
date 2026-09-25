@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import AppNavbar from '@/components/layout/AppNavbar.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
+import ProtectedRoutes from '@/components/ProtectedRoutes.vue'
 
 const collapsed = ref(false)
 const mobileOpen = ref(false)
@@ -48,38 +49,40 @@ watch(
 </script>
 
 <template>
-  <div class="min-h-screen bg-background">
-    <AppSidebar
-      v-model:collapsed="collapsed"
-      :mobile-open="mobileOpen"
-      @close-mobile="mobileOpen = false"
-    />
+  <ProtectedRoutes>
+    <div class="min-h-screen bg-background">
+      <AppSidebar
+        v-model:collapsed="collapsed"
+        :mobile-open="mobileOpen"
+        @close-mobile="mobileOpen = false"
+      />
 
-    <Teleport to="body">
-      <Transition name="overlay">
-        <div
-          v-if="mobileOpen"
-          class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
-          @click="mobileOpen = false"
-        />
-      </Transition>
-    </Teleport>
+      <Teleport to="body">
+        <Transition name="overlay">
+          <div
+            v-if="mobileOpen"
+            class="fixed inset-0 z-30 bg-black/50 backdrop-blur-sm lg:hidden"
+            @click="mobileOpen = false"
+          />
+        </Transition>
+      </Teleport>
 
-    <div
-      class="flex min-h-screen flex-col transition-[padding] duration-300 ease-in-out max-lg:pl-0"
-      :class="collapsed ? 'lg:pl-[76px]' : 'lg:pl-64'"
-    >
-      <AppNavbar @toggle-mobile="mobileOpen = !mobileOpen" />
+      <div
+        class="flex min-h-screen flex-col transition-[padding] duration-300 ease-in-out max-lg:pl-0"
+        :class="collapsed ? 'lg:pl-[76px]' : 'lg:pl-64'"
+      >
+        <AppNavbar @toggle-mobile="mobileOpen = !mobileOpen" />
 
-      <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
-        <RouterView v-slot="{ Component }">
-          <Transition name="page" mode="out-in" appear>
-            <component :is="Component" />
-          </Transition>
-        </RouterView>
-      </main>
+        <main class="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+          <RouterView v-slot="{ Component }">
+            <Transition name="page" mode="out-in" appear>
+              <component :is="Component" />
+            </Transition>
+          </RouterView>
+        </main>
+      </div>
     </div>
-  </div>
+  </ProtectedRoutes>
 </template>
 
 <style scoped>

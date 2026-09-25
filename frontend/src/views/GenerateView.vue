@@ -158,7 +158,7 @@ const clearFile = () => {
                 <p class="text-sm font-medium">Auto-download on completion</p>
                 <p class="text-xs text-muted-foreground">Save the subtitle file automatically</p>
               </div>
-              <Switch :default-checked="true" />
+              <Switch :default-value="true" />
             </div>
           </CardContent>
         </Card>

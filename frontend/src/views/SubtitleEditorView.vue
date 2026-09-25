@@ -132,7 +132,7 @@ const lines = ref([
         <div class="flex items-center justify-between border-b px-4 py-3">
           <p class="text-sm font-semibold">Timeline</p>
           <span class="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Switch :default-checked="true" class="scale-75" />
+            <Switch :default-value="true" class="scale-75" />
             Auto-scroll
           </span>
         </div>
