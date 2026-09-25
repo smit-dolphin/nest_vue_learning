@@ -166,7 +166,7 @@ export class DashboardService {
 
     const recentJobsResult = recentJobs.map((job): RecentJob => ({
       id: job.id,
-      title: job.video.filename,
+      title: job.video.originalName || job.video.filename,
       lang: job.languageCode ?? '—',
       duration: formatDuration(job.video.duration ?? 0),
       status: JOB_STATUS_MAP[job.status] ?? 'queued',

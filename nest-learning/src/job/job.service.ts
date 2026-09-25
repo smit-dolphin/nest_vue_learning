@@ -157,7 +157,10 @@ export class JobService {
       },
     };
 
-    searchHelper(where, query.search, ['video.filename']);
+    searchHelper(where, query.search, [
+      'video.filename',
+      'video.originalName',
+    ]);
     enumFilter(where, 'status', query.status, JobStatus);
     enumFilter(where, 'languageCode', query.language);
     dateRangeFilter(where, 'createdAt', query.from, query.to);
@@ -176,6 +179,7 @@ export class JobService {
           select: {
             id: true,
             filename: true,
+            originalName: true,
             path: true,
             mimetype: true,
             duration: true,

@@ -31,6 +31,10 @@ import { uploadAndGenrateVideoDto } from './dto/video.dto.js';
 import { Role } from '../auth/decorators/role.decorators.js';
 import { RoleGuard } from '../auth/guards/roles-auth.guard.js';
 import { ok } from '../common/response/response.js';
+import {
+  displayName,
+  safeFilename,
+} from '../common/file-names.js';
 
 @Controller('videos')
 export class VideosController {
@@ -227,7 +231,7 @@ export class VideosController {
       const baseHeaders = {
         'Accept-Ranges': 'bytes',
         'Content-Type': video.mimetype,
-        'Content-Disposition': `inline; filename="${video.filename}"`,
+        'Content-Disposition': `inline; filename="${ safeFilename(displayName(video.originalName, video.filename)) }"`,
         'Cache-Control': 'private, max-age=0, must-revalidate',
       };
 
@@ -286,7 +290,7 @@ export class VideosController {
 
     return new StreamableFile(readable, {
       type: video.mimetype,
-      disposition: `attachment; filename="${video.filename}"`,
+      disposition: `attachment; filename="${safeFilename(displayName(video.originalName, video.filename))}"`,
     });
   }
 }

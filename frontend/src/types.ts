@@ -11,6 +11,7 @@ export type UserRole = 'USER' | 'ADMIN'
 export interface Video {
   id: string
   filename: string
+  originalName?: string | null
   path: string
   mimetype: string
   size: number
@@ -40,6 +41,7 @@ export interface Audio {
 export interface Subtitle {
   id: string
   filename: string
+  originalName?: string | null
   mimeType: string
   path: string
   size: number
@@ -65,6 +67,7 @@ export interface SubtitleJob {
   video?: {
     id: string
     filename: string
+    originalName?: string | null
     path: string
     mimetype: string
     duration: number | null

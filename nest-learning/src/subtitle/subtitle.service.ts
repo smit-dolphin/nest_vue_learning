@@ -111,9 +111,12 @@ export class SubtitleService {
         `/uploads/subtitle/${videoResult.id}-${Date.now()}${subtitleResult.subtitleFormat}`,
       );
 
+      const subtitleOriginalName = this.deriveSubtitleName(videoResult);
+
       const subtitleRecord = await this.prisma.subtitle.create({
         data: {
           filename: finalSubtitleFilename,
+          originalName: `${subtitleOriginalName}${subtitleResult.subtitleFormat}`,
           mimeType: subtitleResult.mimeType,
           path: subtitleKey,
           size: subtitleResult.size,
@@ -190,6 +193,7 @@ export class SubtitleService {
       const burnedVideoRecord = await this.prisma.video.create({
         data: {
           filename: burnedVideo.filename,
+          originalName: `${this.deriveSubtitleName(videoResult)}-burned.mp4`,
           path: burnedKey,
           mimetype: 'video/mp4',
           size: burnedVideoStats.size,
@@ -369,6 +373,7 @@ export class SubtitleService {
       const result = await this.prisma.video.create({
         data: {
           filename: burnedVideo.filename,
+          originalName: `${this.deriveSubtitleName(video)}-burned.mp4`,
           path: burnedKey,
           mimetype: 'video/mp4',
           size: burnedVideoStats.size,
@@ -515,6 +520,7 @@ export class SubtitleService {
     return {
       filePath: localPath,
       filename: subtitle.filename,
+      originalName: subtitle.originalName,
       mimeType: subtitle.mimeType,
     };
   }
@@ -562,6 +568,20 @@ export class SubtitleService {
         }),
       ),
     );
+  }
+
+  /**
+   * Builds a friendly base name (no extension) for generated files using the
+   * parent video's original name, falling back to its stored filename.
+   */
+  private deriveSubtitleName(video: {
+    originalName?: string | null;
+    filename: string;
+  }): string {
+    const name = video.originalName?.trim() || video.filename;
+    const ext = path.extname(name);
+    const base = ext ? name.slice(0, -ext.length) : name;
+    return base.trim() || 'subtitle';
   }
 
   private async deleteFilesFromStorage(

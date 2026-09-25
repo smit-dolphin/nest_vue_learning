@@ -87,6 +87,7 @@ export class VideosService {
     const result = await this.prisma.video.create({
       data: {
         filename: file.filename,
+        originalName: file.originalname,
         path: videoKey,
         mimetype: file.mimetype,
         size: file.size,
@@ -127,6 +128,7 @@ export class VideosService {
     const result = await this.prisma.video.create({
       data: {
         filename: file.filename,
+        originalName: file.originalname,
         path: videoKey,
         mimetype: file.mimetype,
         size: file.size,
@@ -223,7 +225,7 @@ export class VideosService {
   async getVideos(userId: string, query: ListVideosQuery = {}) {
     const where: PrismaWhere = { userId };
 
-    searchHelper(where, query.search, ['filename']);
+    searchHelper(where, query.search, ['filename', 'originalName']);
     enumFilter(where, 'type', query.type, VideoType);
     enumFilter(where, 'status', query.status, VideoStatus);
     dateRangeFilter(where, 'createdAt', query.from, query.to);
@@ -357,6 +359,7 @@ export class VideosService {
     return {
       storageKey: video.path,
       filename: basename(video.filename),
+      originalName: video.originalName,
       mimetype: video.mimetype,
     };
   }

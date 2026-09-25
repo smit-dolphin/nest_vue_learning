@@ -15,6 +15,10 @@ import {
 } from './subtitle.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard.js';
 import { ok } from '../common/response/response.js';
+import {
+  displayName,
+  safeFilename,
+} from '../common/file-names.js';
 
 @Controller('subtitle')
 export class SubtitleController {
@@ -42,7 +46,7 @@ export class SubtitleController {
 
     return new StreamableFile(createReadStream(subtitle.filePath), {
       type: subtitle.mimeType,
-      disposition: `attachment; filename="${subtitle.filename}"`,
+      disposition: `attachment; filename="${safeFilename(displayName(subtitle.originalName, subtitle.filename))}"`,
     });
   }
 
