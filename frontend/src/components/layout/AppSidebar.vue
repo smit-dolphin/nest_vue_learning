@@ -68,7 +68,7 @@ const goHome = () => router.push('/')
 
 <template>
   <aside
-    class="fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar shadow-sm transition-[width] duration-300 ease-in-out max-lg:-translate-x-full max-lg:bg-sidebar max-lg:shadow-2xl max-lg:transition-transform max-lg:duration-300"
+    class="fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-sidebar-border bg-sidebar shadow-sm transition-[width] duration-300 ease-in-out max-lg:-translate-x-full max-lg:bg-sidebar max-lg:shadow-2xl"
     :class="[
       collapsed ? 'lg:w-[76px]' : 'lg:w-64',
       mobileOpen ? 'max-lg:translate-x-0' : '',
@@ -177,12 +177,12 @@ const goHome = () => router.push('/')
              :key="item.to"
              :to="item.to"
              :title="collapsed ? item.label : undefined"
-             class="group relative flex items-center justify-center rounded-xl px-2.5 py-2.5 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+             class="group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
              :class="[
                isActive(item.to)
                  ? 'bg-sidebar-accent font-semibold text-sidebar-primary'
                  : '',
-               collapsed ? 'lg:px-0 lg:justify-center' : 'gap-3',
+               collapsed ? 'lg:justify-center lg:px-0' : '',
              ]"
              @click="emit('close-mobile')"
            >
